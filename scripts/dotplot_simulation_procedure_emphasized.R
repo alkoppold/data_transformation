@@ -211,3 +211,5 @@ labels + a + plot_layout(heights = c(7, 12), ncol = 2)
 ggsave(plot = last_plot(), file = "./figures/dot_plot_simulation.jpeg",
        height= 10, width = 12)
 
+########## line plot
+
