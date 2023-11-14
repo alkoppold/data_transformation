@@ -1,6 +1,6 @@
 # based on Zapf et al., 2016
 
-Syntax
+# Syntax
 # input:
 # ratings_t = data set
 # alpha_q = two-sided type one error, default = 0.05

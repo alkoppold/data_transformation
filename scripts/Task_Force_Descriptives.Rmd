@@ -3,28 +3,203 @@ title: "Task_Force_Descriptives"
 author: "Alina Koppold"
 date: "2023-11-08"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+library(tidyverse)
+library(ggplot2)
 ```
 
-## R Markdown
+```{r data}
+# loading the original data 
+X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+# in long format 
+load("./data/long_EDA_merz.Rdata")
 ```
 
-## Including Plots
+```{r mainEffectraw}
+# getting an overview of the main effect of task
+data_triallevel = data_long %>%
+  group_by(trialnr, stimulus) %>%
+  summarise(scr.mean = mean(scr, na.rm = T), 
+            scr.sem = sd(scr, na.rm = T)/sqrt(length(scr)))
 
-You can also embed plots, for example:
+# Add confidence intervals to the dataframe (95%)
+data_triallevel$lower <- data_triallevel$scr.mean - 1.96*data_triallevel$scr.sem
+data_triallevel$upper <- data_triallevel$scr.mean + 1.96*data_triallevel$scr.sem
+n_data = length(unique(data_long$Versuchspersonennummer))
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# First part of the plot is acquisition, plotted as points
+gp <- ggplot(data_triallevel, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus))
+gp +   geom_point(aes(group=stimulus), size=2) +
+  
+  # Add lines between points
+  geom_line(aes(group=stimulus), size=1.2) +
+  # Add CI
+  geom_ribbon(aes(ymin=lower, ymax=upper, fill=stimulus, color=NULL), alpha=0.2) +
+  
+  # Change colors and names of stimuli
+  scale_colour_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey")) +
+  #, name = "CS-Type:", breaks=c("CSp","CSm","US"), labels=c("CS+", "CS-","US")
+  scale_fill_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey"))+
+  # Title of y-axis
+  ylab("SCR (µS, raw)") +
+  # Title of the whole plot can be added here
+  ggtitle("") +
+  # Add number of participants as text in plot
+  annotate("text", x = 8, y = .8, label = paste("n =", n_data), size = 6) +
+  # Settings for fonts, ticks, legend and background of the plot
+  theme(plot.title = element_text(size=20, face="bold", hjust=0.5),
+        axis.text.x = element_text(size=16, face="bold", color="black"),
+        axis.text.y = element_text(size=16, face="bold", color="black"), 
+        axis.title.y = element_text(size=20, face="bold", margin=margin(0,10,0,0)),
+        legend.title = element_text(size=16, face="bold"),
+        legend.text = element_text(size=16),
+        legend.key = element_blank(),
+        axis.line.x = element_line(color="black", size = 1),
+        axis.line.y = element_line(color="black", size = 1),
+        axis.ticks.x=element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r mainEffectlog}
+# tranformation 1 
+data_transformed = data_long %>%
+  mutate(log_scr = log(scr +1)) %>%
+  group_by(trialnr, stimulus) %>%
+  summarise(scr.mean = mean(log_scr, na.rm = T), 
+            scr.sem = sd(log_scr, na.rm = T)/sqrt(length(scr)))
+
+# Add confidence intervals to the dataframe (95%)
+data_transformed$lower <- data_transformed$scr.mean - 1.96*data_transformed$scr.sem
+data_transformed$upper <- data_transformed$scr.mean + 1.96*data_transformed$scr.sem
+n_data = length(unique(data_long$Versuchspersonennummer))
+
+# First part of the plot is acquisition, plotted as points
+gp <- ggplot(data_transformed, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus))
+gp +   geom_point(aes(group=stimulus), size=2) +
+  
+  # Add lines between points
+  geom_line(aes(group=stimulus), size=1.2) +
+  # Add CI
+  geom_ribbon(aes(ymin=lower, ymax=upper, fill=stimulus, color=NULL), alpha=0.2) +
+  
+  # Change colors and names of stimuli
+  scale_colour_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey")) +
+  #, name = "CS-Type:", breaks=c("CSp","CSm","US"), labels=c("CS+", "CS-","US")
+  scale_fill_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey"))+
+  # Title of y-axis
+  ylab("SCR (µS, raw)") +
+  # Title of the whole plot can be added here
+  ggtitle("") +
+  # Add number of participants as text in plot
+  annotate("text", x = 8, y = .8, label = paste("n =", n_data), size = 6) +
+  # Settings for fonts, ticks, legend and background of the plot
+  theme(plot.title = element_text(size=20, face="bold", hjust=0.5),
+        axis.text.x = element_text(size=16, face="bold", color="black"),
+        axis.text.y = element_text(size=16, face="bold", color="black"), 
+        axis.title.y = element_text(size=20, face="bold", margin=margin(0,10,0,0)),
+        legend.title = element_text(size=16, face="bold"),
+        legend.text = element_text(size=16),
+        legend.key = element_blank(),
+        axis.line.x = element_line(color="black", size = 1),
+        axis.line.y = element_line(color="black", size = 1),
+        axis.ticks.x=element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+```
+
+```{r krippendorfs}
+# use the function by Zapf to also extract confidence intervals, using bootstrapping
+source('./scripts/Zapf_Krip_alpha_function.R')
+
+# set number of bootstrapping, should be 1000, but reduce for testing code
+n_boots <- 10
+# save_dat <- 'yes'
+# save_fig <- 'yes'
+# fig_ind <- 2
+x_lab <- expression(paste('Krippendorff\'s ',alpha))
+y_lab <- 'fear acquisition training trial'
+```
+
+```{r}
+
+# build dataframe for extracted data
+ka_df <- data.frame(trial = NA,
+                    kaZ_rank = NA, 
+                    kaZ_rank_lc = NA,
+                    kaZ_rank_uc = NA)
+
+# loop through 42 trials (118 subjects * 9 methods = 1380 observations per df)
+for (ind in 1:48){
+  df <- data_triallevel[[ind]] # trial 1, csm
+  
+  # dataframe for kripp alpha function from Zapf et al 2016
+  df_2 <- df %>% pivot_wider(names_from = approach, values_from = scr, names_prefix = 'approach') %>% # changed this to scr instead of scr_log_r
+    select(-c(id,cs,number_cs)) %>%
+    as.matrix()
+  
+  # compute, note nboot is 10 statt 1000, sonst dauert das ewig!
+  k_zapf_rank <- k_alpha(df_2, scaling = 'ordinal', nboot = n_boots)
+  
+  # print(paste(df$cs[1], df$number_cs[1], sep = '_'))
+  ka_df[ind,'cs'  ] <-  df$cs[1]
+  ka_df[ind,'trial'  ] <-  paste(df$cs[1], df$number_cs[1], sep = '_')
+  ka_df[ind, 'kaZ_rank'] <- k_zapf_rank$est.alpha
+  ka_df[ind, 'kaZ_rank_lc'] <- k_zapf_rank$ci.boot.alpha[1]
+  ka_df[ind, 'kaZ_rank_uc'] <- k_zapf_rank$ci.boot.alpha[2]
+  
+}
+#print values , does the fucntion kable() work here?           
+kable(ka_df) 
+
+Sys.time()
+```
+
+```{r update-str-df-ka-avg}
+# update structure of ka_df
+ka_df$trial <- factor(ka_df$trial, levels = ka_df$trial)
+ka_df$stimType <- sub('_([^_]*)$','', ka_df$trial)
+```
+
+```{r save-ka-avg}
+if (save_dat == 'yes'){
+ save(ka_df, file = './data/krippalph_BLC_lit_avg.Rdata')
+}
+```
+
+```{r build-plot-ka-avg}
+# plot
+p_kA <- ggplot(ka_df, aes(x = kaZ_rank, y = trial, color = stimType)) +
+  geom_point(aes(x = kaZ_rank),size = 5) +
+  geom_errorbarh(aes(xmin = kaZ_rank_lc, xmax = kaZ_rank_uc), height = 0, size = 1.5) +
+  scale_color_manual(name = NULL, values = c('blue','red','black'), labels = c('CS -', 'CS +', 'US'), guide = guide_legend(reverse=TRUE)) +
+  xlim(0,1) +
+  xlab(x_lab) +
+  ylab(y_lab) +
+  scale_y_discrete(labels = c('CS_M_1' = '1', 'CS_M_14' = '14',
+                              'CS_P_1' = '1', 'CS_P_14' = '14',
+                              'US_1' = '1', 'US_14' = '14'), 
+                   breaks = c('CS_M_1', 'CS_M_14', 'CS_P_1', 'CS_P_14',
+                              'US_1', 'US_14')) +
+  # add benchmarks
+  geom_vline(xintercept = c(.4, .6, .8), linetype = 'longdash') +
+  # add label for benchmarks
+  annotate('text', x = .45, y = 42, label = 'fair') +
+  annotate('text', x = .65, y = 42, label = 'moderate') +
+  annotate('text', x = .85, y = 42, label = 'perfect') +
+  theme_classic() +
+  theme(text = element_text(size=28), 
+        legend.position = c(.15, .95)) 
+```
