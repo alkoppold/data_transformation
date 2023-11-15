@@ -3,6 +3,7 @@ data/*.sav
 data/*.Rdata
 literature/
 .Rproj.user
+.Rhistory
 publication_bias_p_curve/
 mesh_results/
 slides/
