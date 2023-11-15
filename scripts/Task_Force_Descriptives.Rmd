@@ -12,11 +12,15 @@ knitr::opts_chunk$set(echo = TRUE)
 rm(list = ls())
 library(tidyverse)
 library(ggplot2)
+library(haven)
+library(scales)
 ```
 
 ```{r data}
 # loading the original data 
 X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
+
+#TODO for better reproducibility, should we add the code for reshaping the data here?
 
 # in long format 
 load("./data/long_EDA_merz.Rdata")
@@ -47,6 +51,7 @@ gp +   geom_point(aes(group=stimulus), size=2) +
   scale_colour_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey")) +
   #, name = "CS-Type:", breaks=c("CSp","CSm","US"), labels=c("CS+", "CS-","US")
   scale_fill_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey"))+
+  scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
   # Title of y-axis
   ylab("SCR (µS, raw)") +
   # Title of the whole plot can be added here
@@ -97,8 +102,9 @@ gp +   geom_point(aes(group=stimulus), size=2) +
   scale_colour_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey")) +
   #, name = "CS-Type:", breaks=c("CSp","CSm","US"), labels=c("CS+", "CS-","US")
   scale_fill_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey"))+
+  scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
   # Title of y-axis
-  ylab("SCR (µS, raw)") +
+  ylab("SCR (log(1 + µS))") +
   # Title of the whole plot can be added here
   ggtitle("") +
   # Add number of participants as text in plot
