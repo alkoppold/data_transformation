@@ -1,5 +1,6 @@
 .DS_Store
-data/
+data/*.sav
+data/*.Rdata
 literature/
 .Rproj.user
 publication_bias_p_curve/
