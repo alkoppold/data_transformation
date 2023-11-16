@@ -148,8 +148,8 @@ ka_df <- data.frame(trial = NA,
                     kaZ_rank_uc = NA)
 
 # loop through 42 trials (118 subjects * 9 methods = 1380 observations per df)
-for (ind in 1:48){
-  df <- data_triallevel[[ind]] # trial 1, csm
+for (ind in 1:nrow(data_triallevel)){
+  df <- data_triallevel %>% slice(ind) # trial 1, csm
   
   # dataframe for kripp alpha function from Zapf et al 2016
   df_2 <- df %>% pivot_wider(names_from = approach, values_from = scr, names_prefix = 'approach') %>% # changed this to scr instead of scr_log_r
