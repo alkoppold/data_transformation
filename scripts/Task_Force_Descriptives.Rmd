@@ -29,9 +29,10 @@ load("./data/long_EDA_merz.Rdata")
 ```{r mainEffectraw}
 # getting an overview of the main effect of task
 data_triallevel = data_long %>%
-  group_by(trialnr, stimulus) %>%
+  #group_by(trialnr, stimulus) %>% #group_by produces a problem below => use .by argument of summarise instead
   summarise(scr.mean = mean(scr, na.rm = T), 
-            scr.sem = sd(scr, na.rm = T)/sqrt(length(scr)))
+            scr.sem = sd(scr, na.rm = T)/sqrt(length(scr)),
+            .by = c(trialnr, stimulus))
 
 # Add confidence intervals to the dataframe (95%)
 data_triallevel$lower <- data_triallevel$scr.mean - 1.96*data_triallevel$scr.sem
@@ -80,9 +81,10 @@ gp +   geom_point(aes(group=stimulus), size=2) +
 # tranformation 1 
 data_transformed = data_long %>%
   mutate(log_scr = log(scr +1)) %>%
-  group_by(trialnr, stimulus) %>%
+  #group_by(trialnr, stimulus) %>%
   summarise(scr.mean = mean(log_scr, na.rm = T), 
-            scr.sem = sd(log_scr, na.rm = T)/sqrt(length(scr)))
+            scr.sem = sd(log_scr, na.rm = T)/sqrt(length(scr)),
+            .by=c(trialnr, stimulus))
 
 # Add confidence intervals to the dataframe (95%)
 data_transformed$lower <- data_transformed$scr.mean - 1.96*data_transformed$scr.sem
