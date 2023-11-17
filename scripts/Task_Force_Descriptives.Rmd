@@ -24,6 +24,18 @@ X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
 
 # in long format 
 load("./data/long_EDA_merz.Rdata")
+
+# Rename some variables
+names(data_long)[grep("Versuchspersonennummer", names(data_long))] <- "id"
+names(data_long)[grep("scr", names(data_long))] <- "scr_raw"
+
+### Add different transformations
+# Log-transform the raw data
+data_long$scr_log <- log10(1+data_long$scr_raw)
+
+# Square root transform the raw data
+data_long$scr_sqr <- sqrt(data_long$scr_raw)
+
 ```
 
 ```{r mainEffectraw}
@@ -37,8 +49,9 @@ data_triallevel = data_long %>%
 # Add confidence intervals to the dataframe (95%)
 data_triallevel$lower <- data_triallevel$scr.mean - 1.96*data_triallevel$scr.sem
 data_triallevel$upper <- data_triallevel$scr.mean + 1.96*data_triallevel$scr.sem
-n_data = length(unique(data_long$Versuchspersonennummer))
+n_data = length(unique(data_long$id))
 
+#### LINEPLOT
 # First part of the plot is acquisition, plotted as points
 gp <- ggplot(data_triallevel, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus))
 gp +   geom_point(aes(group=stimulus), size=2) +
@@ -89,7 +102,7 @@ data_transformed = data_long %>%
 # Add confidence intervals to the dataframe (95%)
 data_transformed$lower <- data_transformed$scr.mean - 1.96*data_transformed$scr.sem
 data_transformed$upper <- data_transformed$scr.mean + 1.96*data_transformed$scr.sem
-n_data = length(unique(data_long$Versuchspersonennummer))
+n_data = length(unique(data_long$id))
 
 # First part of the plot is acquisition, plotted as points
 gp <- ggplot(data_transformed, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus))
