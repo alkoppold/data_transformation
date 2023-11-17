@@ -36,6 +36,15 @@ data_long$scr_log <- log10(1+data_long$scr_raw)
 # Square root transform the raw data
 data_long$scr_sqr <- sqrt(data_long$scr_raw)
 
+# Range correction of the log-transformed data
+data_long$scr_max <- NA
+for (i in unique(data_long$id)) {
+  data_select <- data_long[which(data_long$id == i), ]
+  max_ampl <- max(data_select$scr_raw, na.rm = T)
+  data_long$scr_max[which(data_long$id == i)] <- max_ampl
+}
+data_long$scr_log_rc <- data_long$scr_log/data_long$scr_max
+
 ```
 
 ```{r mainEffectraw}
