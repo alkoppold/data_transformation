@@ -21,7 +21,9 @@ library(scales)
 X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
 
 #TODO for better reproducibility, should we add the code for reshaping the data here?
-
+#good idea! 
+  
+  
 # in long format 
 load("./data/long_EDA_merz.Rdata")
 

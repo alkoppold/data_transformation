@@ -3,33 +3,152 @@ title: "Task_Force_SpecCurve"
 author: "Alina Koppold"
 date: "2023-11-08"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+library(tidyverse)
+library(ggplot2)
+library(haven)
+library(scales)
+library(BayesFactor)
 ```
 
-# Packages
-Interesting packages:
--   <https://masurp.github.io/specr/index.html>
--   <https://github.com/AngelosPsy/multifear>
+```{r data}
+# loading the original data 
+X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
+  
+# in long format 
+load("./data/long_EDA_merz.Rdata")
 
-## R Markdown
+# Rename some variables
+names(data_long)[grep("Versuchspersonennummer", names(data_long))] <- "id"
+names(data_long)[grep("scr", names(data_long))] <- "scr_raw"
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+### Add different transformations
+# Log-transform the raw data
+data_long$scr_log <- log10(1+data_long$scr_raw)
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# Square root transform the raw data
+data_long$scr_sqr <- sqrt(data_long$scr_raw)
 
-```{r cars}
-summary(cars)
+# Range correction of the log-transformed data
+data_long$scr_max <- NA
+for (i in unique(data_long$id)) {
+  data_select <- data_long[which(data_long$id == i), ]
+  max_ampl <- max(data_select$scr_raw, na.rm = T)
+  data_long$scr_max[which(data_long$id == i)] <- max_ampl
+}
+data_long$scr_log_rc <- data_long$scr_log/data_long$scr_max
+
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+# Hi Maren :-)
+ich habe nun mal mit der folgenden Struktur angefangen: 
+- erster chunk: mean aggregation. habe mich erstmal auf cspe und csm fokussiert um mehr am code arbeiten zu können, kannst du aber gerne präzisieren.
+- zweiter chunk für den main effect of CS discrimination (bayesian paired t-test)
+- ganz unten fehlt nur noch die visualisierung, habe da einen kleinen Text für dich hinterlassen.
+```{r ttest-NHST}
+data<- gather(data_long, key = "approach", value = "scr_mean", - c(id,condition, trialnr, stimulus ))
+data <- data %>% filter(approach != "scr_max") # this is not a transformation procedure 
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+
+res_ttest_means <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
+  group_by(approach) %>%
+  summarise(scr_mean_csp = mean(scr_mean[stimulus == 'cspe'], na.rm = T),
+            scr_mean_csm = mean(scr_mean[stimulus == 'csm'], na.rm = T),
+            scr_sd_csp = sd(scr_mean[stimulus == 'cspe'], na.rm = T),
+            scr_sd_csm = sd(scr_mean[stimulus == 'csm'], na.rm = T))
+  
+# t test; select csp and csm 
+res_ttest <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
+  group_by(approach) %>%
+  rstatix::t_test(scr_mean ~ stimulus, data = ., paired = T) 
+
+# effect size
+res_ttest_d <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
+  group_by(approach) %>%
+rstatix::cohens_d(scr_mean ~ stimulus, data = .,paired = T,ci = T)
+
+# add index to order by effect size
+# we have n + 1 unique approaches
+res_ttest_d$approach_num <-  1:nrow(res_ttest_d)
+res_ttest_d[order(res_ttest_d$effsize),'approach_eff_order'] <-  1:nrow(res_ttest_d)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r ttest-Bayesian}
+appr_list <- names(data_long)[grep("^scr_", names(data_long))]
+n_appr = length(appr)
+
+#*****
+n_its <- 1000  # number of iterations, should this be 1000000? Then I run into problems, too big.
+res_tBF <- list(approach = NA, 
+                ttest_BF = NA,
+                ttest_BF_post = NA) 
+
+
+for(ind in 1:n_appr){
+  # extract name of approach
+  appr <- appr_list[ind]
+  
+  # build dummy dataframe with one approach only
+  dat_dummy <- data %>% 
+    filter(stimulus %in% c('cspe','csm')) %>%
+    filter(approach == appr)
+  
+  # copmute BF (note: when using the formula notation, paired does not work)
+  #bf <- ttestBF(formula = scr_mean ~ stimType, data = dat_dummy, paired = T)
+  bf <- ttestBF(dat_dummy$scr_mean[dat_dummy$stimulus == 'cspe'], 
+                dat_dummy$scr_mean[dat_dummy$stimulus == 'csm'], paired = T)
+  bf_post <- posterior(bf, iterations = n_its) 
+  
+  # put in dataframe
+  res_tBF$approach[ind] <- appr
+  res_tBF$ttest_BF[ind] <- list(bf)
+  res_tBF$ttest_BF_post[ind] <- list(bf_post)
+  
+}
+
+
+
+# extract relevant information from list, build empty dataframe
+results_BF_effsize <- data.frame(approach = NA,
+                                 approach_num = NA,
+                                 effsize = NA,
+                                 effsize_low =NA,
+                                 effsize_upp = NA,
+                                 BF_ln = NA)
+
+for (ind in 1:n_appr){
+  results_BF_effsize[ind, 'approach'] <- as.character(res_tBF$approach[ind])
+  results_BF_effsize[ind, 'approach_num'] <- ind
+  # extract effect size and 95% interval around effect size
+  results_BF_effsize[ind,'effsize'] <- median(res_tBF$ttest_BF_post[[ind]][,'delta'])
+  # extract CI around estimate
+  results_BF_effsize[ind, 'effsize_low'] <- summary(res_tBF$ttest_BF_post[[ind]])$quantiles['delta',][1]
+  results_BF_effsize[ind, 'effsize_upp'] <-summary(res_tBF$ttest_BF_post[[ind]])$quantiles['delta',][5]
+  # add log BF
+  results_BF_effsize[ind, 'BF_ln'] <- res_tBF$ttest_BF[[ind]]@bayesFactor[['bf']]
+}
+
+# add parameters seperately
+results_BF_effsize$approach <- factor(results_BF_effsize$approach)
+# this is not optimal:
+results_BF_effsize <- merge(results_BF_effsize, data.frame(res_ttest[1:5]))
+
+# add column for ordered effect sizes
+results_BF_effsize[order( results_BF_effsize$effsize),'approach_eff_order'] <-  1:nrow(results_BF_effsize)
+```
+
+
+### vizualisation
+liebe Maren, bis hier hin sollte alles durchlaufen :-) 
+Vielleicht magst du noch die Visualisierung machen? 
+Den Code von Rachel schicke ich dir in slack. Ab line 269 werden visualisierungen gemacht. 
+Lieben Gruß <3
+
+
