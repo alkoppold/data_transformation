@@ -15,11 +15,12 @@ library(ggplot2)
 library(haven)
 library(scales)
 library(BayesFactor)
+library(MASS)
 ```
 
 ```{r data}
 # loading the original data 
-X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
+#X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
   
 # in long format 
 load("./data/long_EDA_merz.Rdata")
@@ -35,23 +36,48 @@ data_long$scr_log <- log10(1+data_long$scr_raw)
 # Square root transform the raw data
 data_long$scr_sqr <- sqrt(data_long$scr_raw)
 
-# Range correction of the log-transformed data
-data_long$scr_max <- NA
+# Box cox transform the data -> Hier stimmt was noch nicht! R findet negative Werte im Datensatz, sind aber alle >=0
+# Aber darum: 0.0000000000000000001+
+b <- boxcox(lm(0.0000000000000000001+data_long$scr_raw ~ 1))
+# Extract lambda
+lambda <- b$x[which.max(b$y)]
+lambda
+data_long$scr_box <- (data_long$scr_raw ^ lambda - 1)/lambda
+
+
+### Prepare range correction by calculating max SCR of CS and US responses
+
+# Max amplitude CS
+data_long$scr_max_cs <- NA
 for (i in unique(data_long$id)) {
-  data_select <- data_long[which(data_long$id == i), ]
-  max_ampl <- max(data_select$scr_raw, na.rm = T)
-  data_long$scr_max[which(data_long$id == i)] <- max_ampl
+  data_select <- data_long[which(data_long$id == i & grep("_cs", data_long$condition)), ]
+  max_ampl_cs <- max(data_select$scr_raw, na.rm = T)
+  data_long$scr_max_cs[which(data_long$id == i)] <- max_ampl_cs
 }
-data_long$scr_log_rc <- data_long$scr_log/data_long$scr_max
+
+# Max amplitude US
+data_long$scr_max_us <- NA
+for (i in unique(data_long$id)) {
+  data_select <- data_long[which(data_long$id == i & grep("_uc", data_long$condition)), ]
+  max_ampl_us <- max(data_select$scr_raw, na.rm = T)
+  data_long$scr_max_us[which(data_long$id == i)] <- max_ampl_us
+}
+
+
+### Range correct all transformation types with CS-rc
+data_long$scr_raw_rc_cs <- data_long$scr_raw/data_long$scr_max_cs
+data_long$scr_log_rc_cs <- data_long$scr_log/data_long$scr_max_cs
+data_long$scr_sqr_rc_cs <- data_long$scr_sqr/data_long$scr_max_cs
+data_long$scr_box_rc_cs <- data_long$scr_box/data_long$scr_max_cs
+
+### Range correct all transformation types with US-rc
+data_long$scr_raw_rc_us <- data_long$scr_raw/data_long$scr_max_us
+data_long$scr_log_rc_us <- data_long$scr_log/data_long$scr_max_us
+data_long$scr_sqr_rc_us <- data_long$scr_sqr/data_long$scr_max_us
+data_long$scr_box_rc_us <- data_long$scr_box/data_long$scr_max_us
 
 ```
 
-
-# Hi Maren :-)
-ich habe nun mal mit der folgenden Struktur angefangen: 
-- erster chunk: mean aggregation. habe mich erstmal auf cspe und csm fokussiert um mehr am code arbeiten zu können, kannst du aber gerne präzisieren.
-- zweiter chunk für den main effect of CS discrimination (bayesian paired t-test)
-- ganz unten fehlt nur noch die visualisierung, habe da einen kleinen Text für dich hinterlassen.
 ```{r ttest-NHST}
 data<- gather(data_long, key = "approach", value = "scr_mean", - c(id,condition, trialnr, stimulus ))
 data <- data %>% filter(approach != "scr_max") # this is not a transformation procedure 
@@ -78,6 +104,12 @@ rstatix::cohens_d(scr_mean ~ stimulus, data = .,paired = T,ci = T)
 # we have n + 1 unique approaches
 res_ttest_d$approach_num <-  1:nrow(res_ttest_d)
 res_ttest_d[order(res_ttest_d$effsize),'approach_eff_order'] <-  1:nrow(res_ttest_d)
+
+### Add columns for transformation (log, sqrt, box cox) and range correction type (none, CS corrected, US corrected)
+res_ttest_d$transf_type <- str_split_fixed(res_ttest_d$approach, "_", 3)[,2]
+res_ttest_d$rc_type <- str_split_fixed(res_ttest_d$approach, "_", 3)[,3]
+res_ttest_d$rc_type[res_ttest_d$rc_type == ""] <- "none"
+
 ```
 
 ```{r ttest-Bayesian}
@@ -143,12 +175,71 @@ results_BF_effsize <- merge(results_BF_effsize, data.frame(res_ttest[1:5]))
 # add column for ordered effect sizes
 results_BF_effsize[order( results_BF_effsize$effsize),'approach_eff_order'] <-  1:nrow(results_BF_effsize)
 ```
+# Visualization
+### Specification curve for regular pairwise t-test
+
+```{r plot-settings}
+
+# set colors for plotting
+# set colors
+clrs <- c("#D1D646",
+"#F97068",
+"#57C4E5",
+"#17A398",
+"#435058")
+barplot(1:5, col=clrs)
+# set sizes 
+size_point <- 5  # lines in categories under spec curve
+size_text  <- 12 # text and ticks on x and y axis
+
+fig_w <- 10
+fig_h <- 7
+fig_res <- 300
 
 
-### vizualisation
-liebe Maren, bis hier hin sollte alles durchlaufen :-) 
-Vielleicht magst du noch die Visualisierung machen? 
-Den Code von Rachel schicke ich dir in slack. Ab line 269 werden visualisierungen gemacht. 
-Lieben Gruß <3
+```
+
+```{r plot-curves-NHST}
+
+# labels
+x_lab <- 'Approach number ordered by effect size'
+y_lab <- 'Effect size (Cohen\'s D)'
+
+# order by effect size
+# colored by approach
+p1 <- res_ttest_d %>%
+  ggplot(aes(x = approach_eff_order, y = effsize, color = transf_type)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  scale_color_manual(name = 'Transformation', values = clrs[c(1:4)], labels = c("box cox", "log-transformed", "none", "square-root")) +
+  scale_x_continuous(breaks = c(1:12), labels = c(1:12)) +
+  theme_classic() +
+  theme(text = element_text(size=size_text),
+        legend.position = 'top') +
+  xlab(x_lab) +
+  ylab(y_lab) + 
+  guides(color = guide_legend(nrow = 1))
+
+
+# plot specifications of parameters
+s1 <- ggplot(res_ttest_d, aes(x = approach_eff_order, y = rc_type)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'Range correction', labels = c("none", "CS corrected", "US corrected")) +
+    scale_x_continuous(breaks = c(1:12), labels = c(1:12)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+# Combine plots
+
+plot_spec_NHST <- p1 / s1
+plot_spec_NHST
+
+```
+
 
 
