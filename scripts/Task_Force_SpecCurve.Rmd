@@ -16,6 +16,7 @@ library(haven)
 library(scales)
 library(BayesFactor)
 library(MASS)
+library(patchwork)
 ```
 
 ```{r data}
@@ -36,17 +37,18 @@ data_long$scr_log <- log10(1+data_long$scr_raw)
 # Square root transform the raw data
 data_long$scr_sqr <- sqrt(data_long$scr_raw)
 
-# Box cox transform the data -> Hier stimmt was noch nicht! R findet negative Werte im Datensatz, sind aber alle >=0
-# Aber darum: 0.0000000000000000001+
-b <- boxcox(lm(0.0000000000000000001+data_long$scr_raw ~ 1))
+# Box cox transform the data -> needs to be checked!!
+b <- boxcox(lm(0.0000000000001+data_long$scr_raw ~ 1))
 # Extract lambda
 lambda <- b$x[which.max(b$y)]
 lambda
 data_long$scr_box <- (data_long$scr_raw ^ lambda - 1)/lambda
 
+# z transform the data
+data_long$scr_ztr <- scale(data_long$scr_raw)
+
 
 ### Prepare range correction by calculating max SCR of CS and US responses
-
 # Max amplitude CS
 data_long$scr_max_cs <- NA
 for (i in unique(data_long$id)) {
@@ -69,18 +71,21 @@ data_long$scr_raw_rc_cs <- data_long$scr_raw/data_long$scr_max_cs
 data_long$scr_log_rc_cs <- data_long$scr_log/data_long$scr_max_cs
 data_long$scr_sqr_rc_cs <- data_long$scr_sqr/data_long$scr_max_cs
 data_long$scr_box_rc_cs <- data_long$scr_box/data_long$scr_max_cs
+data_long$scr_ztr_rc_cs <- data_long$scr_ztr/data_long$scr_max_cs
 
 ### Range correct all transformation types with US-rc
 data_long$scr_raw_rc_us <- data_long$scr_raw/data_long$scr_max_us
 data_long$scr_log_rc_us <- data_long$scr_log/data_long$scr_max_us
 data_long$scr_sqr_rc_us <- data_long$scr_sqr/data_long$scr_max_us
 data_long$scr_box_rc_us <- data_long$scr_box/data_long$scr_max_us
+data_long$scr_ztr_rc_us <- data_long$scr_ztr/data_long$scr_max_us
 
 ```
 
 ```{r ttest-NHST}
-data<- gather(data_long, key = "approach", value = "scr_mean", - c(id,condition, trialnr, stimulus ))
-data <- data %>% filter(approach != "scr_max") # this is not a transformation procedure 
+data <- gather(data_long, key = "approach", value = "scr_mean", - c(id,condition, trialnr, stimulus ))
+data <- data %>% filter(approach != "scr_max_cs") # this is not a transformation procedure 
+data <- data %>% filter(approach != "scr_max_us")
 
 
 res_ttest_means <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
@@ -100,12 +105,17 @@ res_ttest_d <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
   group_by(approach) %>%
 rstatix::cohens_d(scr_mean ~ stimulus, data = .,paired = T,ci = T)
 
+### For positive Cohen's d: convert ESs and CIs to absolute values
+res_ttest_d$effsize <- abs(res_ttest_d$effsize)
+res_ttest_d$conf.low <- abs(res_ttest_d$conf.low)
+res_ttest_d$conf.high <- abs(res_ttest_d$conf.high)
+
 # add index to order by effect size
 # we have n + 1 unique approaches
 res_ttest_d$approach_num <-  1:nrow(res_ttest_d)
 res_ttest_d[order(res_ttest_d$effsize),'approach_eff_order'] <-  1:nrow(res_ttest_d)
 
-### Add columns for transformation (log, sqrt, box cox) and range correction type (none, CS corrected, US corrected)
+### Add columns for transformation (log, sqrt, box cox, z-transformation) and range correction type (none, CS corrected, US corrected)
 res_ttest_d$transf_type <- str_split_fixed(res_ttest_d$approach, "_", 3)[,2]
 res_ttest_d$rc_type <- str_split_fixed(res_ttest_d$approach, "_", 3)[,3]
 res_ttest_d$rc_type[res_ttest_d$rc_type == ""] <- "none"
@@ -175,6 +185,7 @@ results_BF_effsize <- merge(results_BF_effsize, data.frame(res_ttest[1:5]))
 # add column for ordered effect sizes
 results_BF_effsize[order( results_BF_effsize$effsize),'approach_eff_order'] <-  1:nrow(results_BF_effsize)
 ```
+
 # Visualization
 ### Specification curve for regular pairwise t-test
 
@@ -186,8 +197,9 @@ clrs <- c("#D1D646",
 "#F97068",
 "#57C4E5",
 "#17A398",
+"#A05C7B",
 "#435058")
-barplot(1:5, col=clrs)
+barplot(1:6, col=clrs)
 # set sizes 
 size_point <- 5  # lines in categories under spec curve
 size_text  <- 12 # text and ticks on x and y axis
@@ -211,7 +223,8 @@ p1 <- res_ttest_d %>%
   ggplot(aes(x = approach_eff_order, y = effsize, color = transf_type)) +
   geom_point() +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
-  scale_color_manual(name = 'Transformation', values = clrs[c(1:4)], labels = c("box cox", "log-transformed", "none", "square-root")) +
+  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("box cox", "log-transformed", 
+  "none", "square-root", "z-transformed")) +
   scale_x_continuous(breaks = c(1:12), labels = c(1:12)) +
   theme_classic() +
   theme(text = element_text(size=size_text),
