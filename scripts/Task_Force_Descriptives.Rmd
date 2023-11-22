@@ -38,14 +38,48 @@ data_long$scr_log <- log10(1+data_long$scr_raw)
 # Square root transform the raw data
 data_long$scr_sqr <- sqrt(data_long$scr_raw)
 
-# Range correction of the log-transformed data
-data_long$scr_max <- NA
+# Box cox transform the data: the added positive constant is the smallest raw SCR wihtin the data set
+b <- boxcox(lm(0.009995+data_long$scr_raw ~ 1))
+# Extract lambda
+lambda <- b$x[which.max(b$y)]
+lambda
+data_long$scr_box <- (data_long$scr_raw ^ lambda - 1)/lambda
+
+# z transform the data
+data_long$scr_ztr <- scale(data_long$scr_raw)
+
+
+### Prepare range correction by calculating max SCR of CS and US responses
+# Max amplitude CS
+data_long$scr_max_cs <- NA
 for (i in unique(data_long$id)) {
-  data_select <- data_long[which(data_long$id == i), ]
-  max_ampl <- max(data_select$scr_raw, na.rm = T)
-  data_long$scr_max[which(data_long$id == i)] <- max_ampl
+  data_select <- data_long[which(data_long$id == i & grep("_cs", data_long$condition)), ]
+  max_ampl_cs <- max(data_select$scr_raw, na.rm = T)
+  data_long$scr_max_cs[which(data_long$id == i)] <- max_ampl_cs
 }
-data_long$scr_log_rc <- data_long$scr_log/data_long$scr_max
+
+# Max amplitude US
+data_long$scr_max_us <- NA
+for (i in unique(data_long$id)) {
+  data_select <- data_long[which(data_long$id == i & grep("_uc", data_long$condition)), ]
+  max_ampl_us <- max(data_select$scr_raw, na.rm = T)
+  data_long$scr_max_us[which(data_long$id == i)] <- max_ampl_us
+}
+
+
+### Range correct all transformation types with CS-rc
+data_long$scr_raw_rc_cs <- data_long$scr_raw/data_long$scr_max_cs
+data_long$scr_log_rc_cs <- data_long$scr_log/data_long$scr_max_cs
+data_long$scr_sqr_rc_cs <- data_long$scr_sqr/data_long$scr_max_cs
+data_long$scr_box_rc_cs <- data_long$scr_box/data_long$scr_max_cs
+data_long$scr_ztr_rc_cs <- data_long$scr_ztr/data_long$scr_max_cs
+
+### Range correct all transformation types with US-rc
+data_long$scr_raw_rc_us <- data_long$scr_raw/data_long$scr_max_us
+data_long$scr_log_rc_us <- data_long$scr_log/data_long$scr_max_us
+data_long$scr_sqr_rc_us <- data_long$scr_sqr/data_long$scr_max_us
+data_long$scr_box_rc_us <- data_long$scr_box/data_long$scr_max_us
+data_long$scr_ztr_rc_us <- data_long$scr_ztr/data_long$scr_max_us
 
 ```
 
