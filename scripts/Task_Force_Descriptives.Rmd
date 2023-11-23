@@ -14,6 +14,9 @@ library(tidyverse)
 library(ggplot2)
 library(haven)
 library(scales)
+library(MASS)
+library(DescTools)
+library(moments)
 ```
 
 ```{r data}
@@ -80,6 +83,60 @@ data_long$scr_log_rc_us <- data_long$scr_log/data_long$scr_max_us
 data_long$scr_sqr_rc_us <- data_long$scr_sqr/data_long$scr_max_us
 data_long$scr_box_rc_us <- data_long$scr_box/data_long$scr_max_us
 data_long$scr_ztr_rc_us <- data_long$scr_ztr/data_long$scr_max_us
+
+```
+
+```{r histograms}
+
+# Select only CS+ and CS- responses
+data_hist <- data_long[(which(data_long$stimulus == "cspe")), ]
+
+# For the plot: calculate mean, mode, median, sd, skewness and kurtosis
+mode_hist_raw <- round(Mode(data_hist$scr_raw)[1], 2) 
+median_hist_raw <- round(median(data_hist$scr_raw), 2) 
+mean_hist_raw <- round(mean(data_hist$scr_raw), 2) 
+sd_hist_raw <- round(sd(data_hist$scr_raw), 2)
+skew_hist_raw <- round(skewness(data_hist$scr_raw), 2) 
+kurt_hist_raw <- round(kurtosis(data_hist$scr_raw), 2)
+
+############ PLOT
+
+hist_scr_raw <- ggplot(data = data_hist, aes(x = scr_raw)) + 
+  geom_histogram(aes(y =..density..), col = "black", fill = "#7B082E", binwidth = 0.05) +
+  labs(x="raw SCR (CS+)", y="Density") +
+  
+  # Add the density
+  geom_density(col = "#26547C", linewidth = 0.8) +
+  
+  # Add a normal distribution
+  stat_function(fun = dnorm, args = list(mean = mean(data_hist$scr_raw), sd = sd(data_hist$scr_raw)), col = "#06D6A0", linewidth = 0.8) +
+
+  # Add descriptive values
+  geom_vline(aes(xintercept = mean(data_hist$scr_raw)), col = "#EF476F", linewidth = 0.5) +
+  geom_vline(aes(xintercept = Mode(data_hist$scr_raw)), col = "#FFD166", linewidth = 0.5) +
+  geom_vline(aes(xintercept = median(data_hist$scr_raw)), col = "#909CC2", linewidth = 0.5) +
+  
+  # Add descriptive values as text
+  annotate(geom = "text", x = 0.5, y = 4.3, label = paste( "Mode: ", mode_hist_raw), col = "#FFD166") +
+  annotate(geom = "text", x = 0.5, y = 4.0, label = paste("Median: ", median_hist_raw), col = "#909CC2") +
+  annotate(geom = "text", x = 1, y = 4.3, label = paste("Mean: ", mean_hist_raw), col = "#EF476F") +
+  annotate(geom = "text", x = 1, y = 4.0, label = paste("SD: ", sd_hist_raw), col = "black") +
+  annotate(geom = "text", x = 1, y = 3.7, label = paste("Skewness: ", skew_hist_raw), col = "black") +
+  annotate(geom = "text", x = 1, y = 3.4, label = paste("Kurtosis: ", kurt_hist_raw), col = "black") +
+  
+  theme(
+    axis.title.x = element_text(size = 12, face = "bold"),
+    axis.title.y = element_text(size = 12, face = "bold"),
+    axis.text.y = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(size = 10, face = "bold"),
+    strip.background = element_blank(),
+    panel.border = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.background = element_blank(),
+    axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+    axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'))
+
 
 ```
 
