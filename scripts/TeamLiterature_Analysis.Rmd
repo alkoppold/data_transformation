@@ -1,0 +1,32 @@
+---
+title: "Team_Literature_Analysis"
+author: "Alina Koppold"
+date: "2023-11-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## This is the analysis file for Team Literature 
+
+
+Calculate Entrophy with an example
+```{r entrophy}
+City = c("Moscow", "Moscow", "Paris", "London", "London", 
+         "London", "NYC", "NYC", "NYC", "NYC")
+table(City)
+# City
+# London Moscow    NYC  Paris 
+#      3      2      4      1 
+entropy = function(cat.vect){
+  px  = table(cat.vect)/length(cat.vect)
+  lpx = log(px, base=2)
+  ent = -sum(px*lpx)
+  return(ent)
+}
+entropy(City)   
+```
+
+
