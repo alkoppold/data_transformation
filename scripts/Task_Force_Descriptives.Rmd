@@ -21,7 +21,7 @@ library(moments)
 
 ```{r data}
 # loading the original data 
-X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
+#X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
 
 #TODO for better reproducibility, should we add the code for reshaping the data here?
 #good idea! 
@@ -88,7 +88,7 @@ data_long$scr_ztr_rc_us <- data_long$scr_ztr/data_long$scr_max_us
 
 ```{r histograms}
 
-# Select only CS+ and CS- responses
+# Select only CS+ responses
 data_hist <- data_long[(which(data_long$stimulus == "cspe")), ]
 
 # For the plot: calculate mean, mode, median, sd, skewness and kurtosis
@@ -141,12 +141,18 @@ hist_scr_raw <- ggplot(data = data_hist, aes(x = scr_raw)) +
 ```
 
 ```{r mainEffectraw}
-# getting an overview of the main effect of task
-data_triallevel = data_long %>%
-  #group_by(trialnr, stimulus) %>% #group_by produces a problem below => use .by argument of summarise instead
-  summarise(scr.mean = mean(scr, na.rm = T), 
-            scr.sem = sd(scr, na.rm = T)/sqrt(length(scr)),
-            .by = c(trialnr, stimulus))
+# Select CS+, CS- and US responses
+data_triallevel <- data_long[data_long$stimulus %in% c("cspe","csm","ucs"), ]
+
+# Factorize stimulus
+data_triallevel$stimulus <- factor(data_triallevel$stimulus, levels = c("cspe","csm","ucs"))
+data_triallevel$stimulus <- as.factor(data_triallevel$stimulus)
+
+# Summarise within stimuli and trials (means and SEMs)
+data_triallevel = data_triallevel %>%
+  group_by(trialnr, stimulus) %>%
+  summarise(scr.mean = mean(scr_raw, na.rm = T), 
+            scr.sem = sd(scr_raw, na.rm = T)/sqrt(length(scr_raw)))
 
 # Add confidence intervals to the dataframe (95%)
 data_triallevel$lower <- data_triallevel$scr.mean - 1.96*data_triallevel$scr.sem
@@ -155,8 +161,8 @@ n_data = length(unique(data_long$id))
 
 #### LINEPLOT
 # First part of the plot is acquisition, plotted as points
-gp <- ggplot(data_triallevel, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus))
-gp +   geom_point(aes(group=stimulus), size=2) +
+gp <- ggplot(data_triallevel, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus)) +
+   geom_point(aes(group=stimulus), size=2) +
   
   # Add lines between points
   geom_line(aes(group=stimulus), size=1.2) +
@@ -164,11 +170,11 @@ gp +   geom_point(aes(group=stimulus), size=2) +
   geom_ribbon(aes(ymin=lower, ymax=upper, fill=stimulus, color=NULL), alpha=0.2) +
   
   # Change colors and names of stimuli
-  scale_colour_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey")) +
-  #, name = "CS-Type:", breaks=c("CSp","CSm","US"), labels=c("CS+", "CS-","US")
-  scale_fill_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey"))+
+  scale_colour_manual(values=c("navy","darkred","black"), name = "Stimulus type:", breaks=c("cspe","csm","ucs"), labels=c("CS+", "CS-","US")) +
+  scale_fill_manual(values=c("navy","darkred","black"), name = "Stimulus type:", breaks=c("cspe","csm","ucs"), labels=c("CS+", "CS-","US")) +
   scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
-  # Title of y-axis
+  # Title of axes
+  xlab("Acquisition trials") +
   ylab("SCR (µS, raw)") +
   # Title of the whole plot can be added here
   ggtitle("") +
@@ -178,6 +184,7 @@ gp +   geom_point(aes(group=stimulus), size=2) +
   theme(plot.title = element_text(size=20, face="bold", hjust=0.5),
         axis.text.x = element_text(size=16, face="bold", color="black"),
         axis.text.y = element_text(size=16, face="bold", color="black"), 
+        axis.title.x = element_text(size=20, face="bold"),
         axis.title.y = element_text(size=20, face="bold", margin=margin(0,10,0,0)),
         legend.title = element_text(size=16, face="bold"),
         legend.text = element_text(size=16),
