@@ -17,6 +17,7 @@ library(scales)
 library(MASS)
 library(DescTools)
 library(moments)
+library(patchwork)
 ```
 
 ```{r data}
@@ -254,8 +255,9 @@ source('./scripts/Zapf_Krip_alpha_function.R')
 
 # set number of bootstrapping, should be 1000, but reduce for testing code
 n_boots <- 10
+save_fig = 'yes'
 x_lab <- expression(paste('Krippendorff\'s ',alpha))
-y_lab <- 'fear acquisition training trial'
+y_lab <- 'all together'
 ```
 
 ```{r kripp-prep}
@@ -338,7 +340,7 @@ p_kA <- ggplot(ka_df, aes(x = kaZ_rank, y = trial, color = stimType)) +
   annotate('text', x = .85, y = 42, label = 'perfect') +
   theme_classic() +
   theme(text = element_text(size=28), 
-        legend.position = c(.90, .25)) 
+        legend.position = "right" ) #c(.90, .25)
 p_kA
 ```
 
@@ -349,9 +351,9 @@ p_kA
 
 # split into different dataframes
 # 42 acquistition trials
-dat_split_per_trial <- dat %>%
-  select(id, approach, cs, number_cs, scr) %>%
-  group_split(cs,number_cs)
+dat_split_per_trial <- dat2 %>%
+  dplyr::select(id, approach, stimulus, trialnr, scr) %>%
+  group_split(stimulus,trialnr)
 
 # build dataframe for extracted data
 ka_df <- data.frame(trial = NA,
@@ -364,9 +366,9 @@ ka_df <- data.frame(trial = NA,
 ka_df_pw <- ka_df
 
 # loop through 42 trials (118 subjects * 10 methods = 1180 observations per df, if no NAs in TTP)
-for (ind in 1:42){
+for (ind in 1:48){
   df <- dat_split_per_trial[[ind]] # trial 1, csm
-  
+  df$approach = as.factor(df$approach)
   # select combinations
   for(app_x in 1:(nlevels(df$approach)-1)){
     for(app_y in (app_x+1):nlevels(df$approach)){
@@ -378,8 +380,10 @@ for (ind in 1:42){
       
       
       # dataframe for kripp alpha function from Zapf et al 2016
-      df_2 <- df_xy %>% pivot_wider(names_from = approach, values_from = scr, names_prefix = 'approach') %>%
-        select(-c(id,cs,number_cs)) %>%
+      df_2 <- df %>% pivot_wider(names_from = approach, 
+                                    values_from = scr, 
+                                    names_prefix = 'approach') %>%
+        dplyr::select(-c(id,stimulus,trialnr)) %>%
         as.matrix()
       
       # compute, adjust nboot to save time
@@ -390,8 +394,8 @@ for (ind in 1:42){
       # 
       # print(paste(df$cs[1], df$number_cs[1], sep = '_'))
       
-      ka_df$trial <-  paste(df$cs[1], df$number_cs[1], sep = '_')
-      ka_df$stimType <- as.character(df$cs[1])
+      ka_df$trial <-  paste(df$stimulus[1], df$trialnr[1], sep = '_')
+      ka_df$stimType <- as.character(df$stimulus[1])
       ka_df$kaZ_rank <- k_zapf_rank$est.alpha
       ka_df$kaZ_rank_lc <- k_zapf_rank$ci.boot.alpha[1]
       ka_df$kaZ_rank_uc <- k_zapf_rank$ci.boot.alpha[2]
@@ -419,12 +423,6 @@ ka_df_pw$trial_nr <- factor(gsub('^.*_','',ka_df_pw$trial), levels = 1:14)
 #ka_df_pw$app_y <- factor(ka_df_pw$app_y, levels = unique(ka_df_pw$app_y))
 ```
 
-```{r save-ka-pairs}
-if (save_dat == 'yes'){
-  save(ka_df_pw, file = here('data_stats/krippalph_BLC_lit_pairwise.Rdata'))
-}
-```
-
 Now plot Kripp alpha for always two approaches separately for all stimulus types.
 
 ```{r settings-plot}
@@ -434,14 +432,22 @@ lim_x <- c(-.3,1)  # for better data visualisation
 
 ```{r build-plot-ka-pairwise}
 # rename approach 10 to TTP, to avoid confusion
-ka_df_pw[ka_df_pw$app_y == 10, 'app_y'] <- 'TTP'
+ka_df_pw[ka_df_pw$app_x == 1, 'app_x'] <- 'box'
+ka_df_pw[ka_df_pw$app_x == 2, 'app_x'] <- 'log'
+ka_df_pw[ka_df_pw$app_x == 3, 'app_x'] <- 'raw'
+ka_df_pw[ka_df_pw$app_x == 4, 'app_x'] <- 'sqrt'
+
+ka_df_pw[ka_df_pw$app_y == 1, 'app_y'] <- 'box'
+ka_df_pw[ka_df_pw$app_y == 2, 'app_y'] <- 'log'
+ka_df_pw[ka_df_pw$app_y == 3, 'app_y'] <- 'raw'
+ka_df_pw[ka_df_pw$app_y == 4, 'app_y'] <- 'sqrt'
 
 # start with splitting the df per comparison
 ka_per_comp <- ka_df_pw %>% 
   group_split(app_x, app_y) 
 
 # 45 comparisons: 9 BLC approaches, 1 TTP method
-for (ind in 1:45){
+for (ind in 1:6){
  df_temp <- ka_per_comp[[ind]] %>%
    data.frame()
 
@@ -449,8 +455,7 @@ for (ind in 1:45){
    ggplot(aes(x = kaZ_rank, y = trial, color = stimType)) +
    geom_point(aes(x = kaZ_rank)) +
    geom_errorbarh(aes(xmin = kaZ_rank_lc, xmax = kaZ_rank_uc), height = 0.5) +
-   scale_color_manual(values = c('blue','red','black')) +
-   #xlim(0,1) +
+   #scale_color_manual(values = c('blue','red','black')) +
    scale_y_discrete(labels = c('CS_M_1' = '1','CS_M_14' = '14',
                               'CS_P_1' = '1','CS_P_14' = '14',
                               'US_1' = '1','US_14' = '14'), 
@@ -465,26 +470,28 @@ for (ind in 1:45){
    theme(legend.position = "none",
          text = element_text(size=16) ) +
    theme(axis.title = element_blank())
+ plot_ind
    # temporary without legend for matrix arrangement
 
 assign(paste('plot_ind',ind, sep = '_'), plot_ind)
 }
 
 # combine plots using a matrix
-plot_mat <- matrix(nrow = 10, ncol = 10, byrow = T)
-plot_ind <- upper.tri(plot_mat, diag = FALSE)
-plot_mat[plot_ind] <- c(1,2,10,3,11,18,4,12,19,25,5,13,20,26,31,6,14,21,27,32,36,7,15,22,28,33,37,40,8,16,23,29,34,38,41,43,9,17,24,30,35,39,42,44,45)
+plot_mat <- matrix(nrow = 3, ncol = 3, byrow = T)
+plot_ind <- upper.tri(plot_mat, diag = T)
+
+plot_mat[plot_ind] <- c(1,2,3,4,5,6)
 #paste0('plot_ind_',1:45,collapse = ',')
-plot_list <- list(plot_ind_1,plot_ind_2,plot_ind_3,plot_ind_4,plot_ind_5,plot_ind_6,plot_ind_7,plot_ind_8,plot_ind_9,plot_ind_10,plot_ind_11,plot_ind_12,plot_ind_13,plot_ind_14,plot_ind_15,plot_ind_16,plot_ind_17,plot_ind_18,plot_ind_19,plot_ind_20,plot_ind_21,plot_ind_22,plot_ind_23,plot_ind_24,plot_ind_25,plot_ind_26,plot_ind_27,plot_ind_28,plot_ind_29,plot_ind_30,plot_ind_31,plot_ind_32,plot_ind_33,plot_ind_34,plot_ind_35,plot_ind_36,plot_ind_37,plot_ind_38,plot_ind_39,plot_ind_40,plot_ind_41,plot_ind_42,plot_ind_43,plot_ind_44,plot_ind_45)
+plot_list <- list(plot_ind_1,plot_ind_2,plot_ind_3,plot_ind_4,plot_ind_5,plot_ind_6)
 
 # fill matrix with plots
-plot_upp_tri <- grid.arrange(grobs = plot_list, layout_matrix = plot_mat) 
+plot_upp_tri <- gridExtra::grid.arrange(grobs = plot_list, layout_matrix = plot_mat) 
 ```
 
 ```{r save-plot-ka-pairwise}
 # save plot
 if (save_fig == 'yes'){
-png(here(paste0('figures/fig_', fig_ind, '_krippalph_BLC_lit_pw.png')), units="in", width=24, height=24, res=300)
+png(paste0('figures/fig_', '_krippalph_tranf.png'), units="in", width=24, height=24, res=300)
 plot(plot_upp_tri)
 dev.off()
 }
@@ -497,22 +504,12 @@ dev.off()
  plot_list_2 <- c(plot_list, list(p_kA))
 
  # build index of letters for layout of design "matrix"
- letter_ind <- c(rbind(letters[1:26], LETTERS[1:26]))
+ letter_ind <- c(rbind(letters[1:3], LETTERS[1:3]))
 
-# hashtags are white space
-design <- paste0(paste(letter_ind[1:9], collapse = ''), 
-                 '\n', '#', paste(letter_ind[10:17], collapse = ''),
-                 '\n', '##', paste(letter_ind[18:24], collapse = ''),
-                 '\n', '###', paste(letter_ind[25:30], collapse = ''),
-                 '\n', paste(rep(letter_ind[46], 4), collapse = ''), paste(letter_ind[31:35], collapse = ''),
-                 '\n', paste(rep(letter_ind[46], 4), collapse = ''), '#', paste(letter_ind[36:39], collapse = ''),
-                 '\n', paste(rep(letter_ind[46], 4), collapse = ''), '##', paste(letter_ind[40:42], collapse = ''),
-                 '\n', paste(rep(letter_ind[46], 4), collapse = ''), '###', paste(letter_ind[43:44], collapse = ''),
-                 '\n', paste(rep(letter_ind[46], 4), collapse = ''), '####', paste(letter_ind[45], collapse = ''))
 
 # plot and add labels
-plot_combined <-  wrap_plots(plot_list_2, design = design) +
-  plot_layout(tag_level = 'new') +
-  plot_annotation(tag_levels = list(c('B', rep('', 44), 'A')))
-
+plot_combined <-  wrap_plots(plot_list_2) +
+  plot_layout(tag_level = 'new') 
+  #plot_annotation(tag_levels = list(c('B', rep('', 4), 'A')))
+plot_combined
 ```
