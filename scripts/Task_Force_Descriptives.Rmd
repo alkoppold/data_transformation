@@ -202,10 +202,8 @@ gp <- ggplot(data_triallevel, aes(x=trialnr, y=scr.mean, colour=stimulus, group=
 ```{r mainEffectlog}
 # tranformation 1 
 data_transformed = data_long %>%
-  mutate(log_scr = log(scr +1)) %>%
-  #group_by(trialnr, stimulus) %>%
-  summarise(scr.mean = mean(log_scr, na.rm = T), 
-            scr.sem = sd(log_scr, na.rm = T)/sqrt(length(scr)),
+  summarise(scr.mean = mean(scr_raw, na.rm = T), 
+            scr.sem = sd(scr_raw, na.rm = T)/sqrt(length(scr_raw)),
             .by=c(trialnr, stimulus))
 
 # Add confidence intervals to the dataframe (95%)
@@ -256,14 +254,28 @@ source('./scripts/Zapf_Krip_alpha_function.R')
 
 # set number of bootstrapping, should be 1000, but reduce for testing code
 n_boots <- 10
-# save_dat <- 'yes'
-# save_fig <- 'yes'
-# fig_ind <- 2
 x_lab <- expression(paste('Krippendorff\'s ',alpha))
 y_lab <- 'fear acquisition training trial'
 ```
 
-```{r}
+```{r kripp-prep}
+# loop through dataframes that only contain one trial (ie.unique cs type and number)
+
+# remove TTP approach (i.e, 10) from dat: approach %in% 1:9
+# remove approach 9 (i.e, SCL) for visualisation: approach %in% 1:8 for suppl
+dat <- data_long [c(1,3:8)]
+dat2 <- dat %>%
+  pivot_longer(cols = -c(id, trialnr, stimulus), 
+               names_to = "approach", 
+               values_to = "scr") 
+  
+  
+# split into different dataframes
+# 42 acquistition trials
+
+dat_split_per_trial <- dat2 %>%
+  dplyr::select(id, approach, stimulus, trialnr, scr) %>% # changed this to scr instead of scr_log_r
+  group_split(stimulus,trialnr)
 
 # build dataframe for extracted data
 ka_df <- data.frame(trial = NA,
@@ -271,30 +283,30 @@ ka_df <- data.frame(trial = NA,
                     kaZ_rank_lc = NA,
                     kaZ_rank_uc = NA)
 
-# loop through 42 trials (118 subjects * 9 methods = 1380 observations per df)
-for (ind in 1:nrow(data_triallevel)){
-  df <- data_triallevel %>% slice(ind) # trial 1, csm
+# loop through 48 trials (118 subjects * 9 methods = 1380 observations per df)
+for (ind in 1:48){
+  df <- dat_split_per_trial[[ind]] # trial 1, csm
   
   # dataframe for kripp alpha function from Zapf et al 2016
-  df_2 <- df %>% pivot_wider(names_from = approach, values_from = scr, names_prefix = 'approach') %>% # changed this to scr instead of scr_log_r
-    select(-c(id,cs,number_cs)) %>%
+  df_2 <- df %>% pivot_wider(names_from = approach, 
+                             values_from = scr, 
+                             names_prefix = 'approach') %>% # changed this to scr instead of scr_log_r
+    dplyr::select(-c(id,stimulus,trialnr)) %>%
     as.matrix()
   
   # compute, note nboot is 10 statt 1000, sonst dauert das ewig!
   k_zapf_rank <- k_alpha(df_2, scaling = 'ordinal', nboot = n_boots)
   
   # print(paste(df$cs[1], df$number_cs[1], sep = '_'))
-  ka_df[ind,'cs'  ] <-  df$cs[1]
-  ka_df[ind,'trial'  ] <-  paste(df$cs[1], df$number_cs[1], sep = '_')
+  ka_df[ind,'cs'  ] <-  df$stimulus[1]
+  ka_df[ind,'trial'  ] <-  paste(df$stimulus[1], df$trialnr[1], sep = '_')
   ka_df[ind, 'kaZ_rank'] <- k_zapf_rank$est.alpha
   ka_df[ind, 'kaZ_rank_lc'] <- k_zapf_rank$ci.boot.alpha[1]
   ka_df[ind, 'kaZ_rank_uc'] <- k_zapf_rank$ci.boot.alpha[2]
   
 }
 #print values , does the fucntion kable() work here?           
-kable(ka_df) 
-
-Sys.time()
+knitr::kable(ka_df) 
 ```
 
 ```{r update-str-df-ka-avg}
@@ -303,18 +315,13 @@ ka_df$trial <- factor(ka_df$trial, levels = ka_df$trial)
 ka_df$stimType <- sub('_([^_]*)$','', ka_df$trial)
 ```
 
-```{r save-ka-avg}
-if (save_dat == 'yes'){
- save(ka_df, file = './data/krippalph_BLC_lit_avg.Rdata')
-}
-```
 
 ```{r build-plot-ka-avg}
 # plot
 p_kA <- ggplot(ka_df, aes(x = kaZ_rank, y = trial, color = stimType)) +
   geom_point(aes(x = kaZ_rank),size = 5) +
   geom_errorbarh(aes(xmin = kaZ_rank_lc, xmax = kaZ_rank_uc), height = 0, size = 1.5) +
-  scale_color_manual(name = NULL, values = c('blue','red','black'), labels = c('CS -', 'CS +', 'US'), guide = guide_legend(reverse=TRUE)) +
+  #scale_color_manual(name = NULL, values = c('blue','red','black'), labels = c('CS -', 'CS +', 'US'), guide = guide_legend(reverse=TRUE)) +
   xlim(0,1) +
   xlab(x_lab) +
   ylab(y_lab) +
@@ -331,5 +338,181 @@ p_kA <- ggplot(ka_df, aes(x = kaZ_rank, y = trial, color = stimType)) +
   annotate('text', x = .85, y = 42, label = 'perfect') +
   theme_classic() +
   theme(text = element_text(size=28), 
-        legend.position = c(.15, .95)) 
+        legend.position = c(.90, .25)) 
+p_kA
+```
+
+#### Pairwise (i.e, approach wise) comparisons of Krippendorff's alpha
+
+```{r estimate-ka-pairwise}
+# loop through dataframes that only contain one trial (ie.unique cs type and number)
+
+# split into different dataframes
+# 42 acquistition trials
+dat_split_per_trial <- dat %>%
+  select(id, approach, cs, number_cs, scr) %>%
+  group_split(cs,number_cs)
+
+# build dataframe for extracted data
+ka_df <- data.frame(trial = NA,
+                    stimType= NA,
+                    kaZ_rank = NA, 
+                    kaZ_rank_lc = NA,
+                    kaZ_rank_uc = NA,
+                    app_x = NA,
+                    app_y = NA)
+ka_df_pw <- ka_df
+
+# loop through 42 trials (118 subjects * 10 methods = 1180 observations per df, if no NAs in TTP)
+for (ind in 1:42){
+  df <- dat_split_per_trial[[ind]] # trial 1, csm
+  
+  # select combinations
+  for(app_x in 1:(nlevels(df$approach)-1)){
+    for(app_y in (app_x+1):nlevels(df$approach)){
+      
+      # select 2 approaches to compare, for every subject there are 2 values for the 2 approaches specific stimulus type at this trial, i.e., ideally 118 * 2 values
+      df_xy <- df %>%
+        filter(approach %in% c(app_x, app_y)) %>%
+        droplevels()
+      
+      
+      # dataframe for kripp alpha function from Zapf et al 2016
+      df_2 <- df_xy %>% pivot_wider(names_from = approach, values_from = scr, names_prefix = 'approach') %>%
+        select(-c(id,cs,number_cs)) %>%
+        as.matrix()
+      
+      # compute, adjust nboot to save time
+      # note for all 45 approach comparisons, I set nboot = 1 which does not make sense   for calc a confidence interval off course, bc only 1 value is estimated
+      # for 45 (unique approach combinations) and 42 trial = 1890 estimations, this took approx 20 mins to run
+      k_zapf_rank <- k_alpha(df_2, scaling = 'ordinal', nboot = n_boots)
+      
+      # 
+      # print(paste(df$cs[1], df$number_cs[1], sep = '_'))
+      
+      ka_df$trial <-  paste(df$cs[1], df$number_cs[1], sep = '_')
+      ka_df$stimType <- as.character(df$cs[1])
+      ka_df$kaZ_rank <- k_zapf_rank$est.alpha
+      ka_df$kaZ_rank_lc <- k_zapf_rank$ci.boot.alpha[1]
+      ka_df$kaZ_rank_uc <- k_zapf_rank$ci.boot.alpha[2]
+      ka_df$app_x <- app_x
+      ka_df$app_y <- app_y
+      
+      # put in one large dataframe
+      ka_df_pw <- rbind(ka_df_pw, ka_df)
+      
+    }
+  }
+}
+#print values , does the fucntion kable() work here?           
+#kable(ka_df) 
+
+Sys.time()
+```
+
+```{r update-str-df}
+ka_df_pw <- ka_df_pw[-1, ]  # first row were NAs
+ka_df_pw$stimType <- as.factor(ka_df_pw$stimType)
+ka_df_pw$trial <- factor(ka_df_pw$trial, levels = unique(ka_df_pw$trial))
+ka_df_pw$trial_nr <- factor(gsub('^.*_','',ka_df_pw$trial), levels = 1:14)
+#ka_df_pw$app_x <- factor(ka_df_pw$app_x, levels = unique(ka_df_pw$app_x))
+#ka_df_pw$app_y <- factor(ka_df_pw$app_y, levels = unique(ka_df_pw$app_y))
+```
+
+```{r save-ka-pairs}
+if (save_dat == 'yes'){
+  save(ka_df_pw, file = here('data_stats/krippalph_BLC_lit_pairwise.Rdata'))
+}
+```
+
+Now plot Kripp alpha for always two approaches separately for all stimulus types.
+
+```{r settings-plot}
+lim_x <- c(-1,1)  # most accurate
+lim_x <- c(-.3,1)  # for better data visualisation
+```
+
+```{r build-plot-ka-pairwise}
+# rename approach 10 to TTP, to avoid confusion
+ka_df_pw[ka_df_pw$app_y == 10, 'app_y'] <- 'TTP'
+
+# start with splitting the df per comparison
+ka_per_comp <- ka_df_pw %>% 
+  group_split(app_x, app_y) 
+
+# 45 comparisons: 9 BLC approaches, 1 TTP method
+for (ind in 1:45){
+ df_temp <- ka_per_comp[[ind]] %>%
+   data.frame()
+
+ plot_ind <- df_temp %>%
+   ggplot(aes(x = kaZ_rank, y = trial, color = stimType)) +
+   geom_point(aes(x = kaZ_rank)) +
+   geom_errorbarh(aes(xmin = kaZ_rank_lc, xmax = kaZ_rank_uc), height = 0.5) +
+   scale_color_manual(values = c('blue','red','black')) +
+   #xlim(0,1) +
+   scale_y_discrete(labels = c('CS_M_1' = '1','CS_M_14' = '14',
+                              'CS_P_1' = '1','CS_P_14' = '14',
+                              'US_1' = '1','US_14' = '14'), 
+                   breaks = c('CS_M_1','CS_M_14','CS_P_1','CS_P_14',
+                              'US_1','US_14')) +
+    # add benchmarks
+  geom_vline(xintercept = c(.4, .6, .8), linetype = 'longdash') +
+   scale_x_continuous(n.breaks = 3, limits = lim_x) +
+   ggtitle(paste0(df_temp$app_x[1], ' vs ', df_temp$app_y[1])) +
+   xlab(x_lab) +
+   theme_classic() +
+   theme(legend.position = "none",
+         text = element_text(size=16) ) +
+   theme(axis.title = element_blank())
+   # temporary without legend for matrix arrangement
+
+assign(paste('plot_ind',ind, sep = '_'), plot_ind)
+}
+
+# combine plots using a matrix
+plot_mat <- matrix(nrow = 10, ncol = 10, byrow = T)
+plot_ind <- upper.tri(plot_mat, diag = FALSE)
+plot_mat[plot_ind] <- c(1,2,10,3,11,18,4,12,19,25,5,13,20,26,31,6,14,21,27,32,36,7,15,22,28,33,37,40,8,16,23,29,34,38,41,43,9,17,24,30,35,39,42,44,45)
+#paste0('plot_ind_',1:45,collapse = ',')
+plot_list <- list(plot_ind_1,plot_ind_2,plot_ind_3,plot_ind_4,plot_ind_5,plot_ind_6,plot_ind_7,plot_ind_8,plot_ind_9,plot_ind_10,plot_ind_11,plot_ind_12,plot_ind_13,plot_ind_14,plot_ind_15,plot_ind_16,plot_ind_17,plot_ind_18,plot_ind_19,plot_ind_20,plot_ind_21,plot_ind_22,plot_ind_23,plot_ind_24,plot_ind_25,plot_ind_26,plot_ind_27,plot_ind_28,plot_ind_29,plot_ind_30,plot_ind_31,plot_ind_32,plot_ind_33,plot_ind_34,plot_ind_35,plot_ind_36,plot_ind_37,plot_ind_38,plot_ind_39,plot_ind_40,plot_ind_41,plot_ind_42,plot_ind_43,plot_ind_44,plot_ind_45)
+
+# fill matrix with plots
+plot_upp_tri <- grid.arrange(grobs = plot_list, layout_matrix = plot_mat) 
+```
+
+```{r save-plot-ka-pairwise}
+# save plot
+if (save_fig == 'yes'){
+png(here(paste0('figures/fig_', fig_ind, '_krippalph_BLC_lit_pw.png')), units="in", width=24, height=24, res=300)
+plot(plot_upp_tri)
+dev.off()
+}
+```
+
+```{r arrange-ka-plots}
+# arrangement with patchwork
+
+# make list of all plots to be plotted
+ plot_list_2 <- c(plot_list, list(p_kA))
+
+ # build index of letters for layout of design "matrix"
+ letter_ind <- c(rbind(letters[1:26], LETTERS[1:26]))
+
+# hashtags are white space
+design <- paste0(paste(letter_ind[1:9], collapse = ''), 
+                 '\n', '#', paste(letter_ind[10:17], collapse = ''),
+                 '\n', '##', paste(letter_ind[18:24], collapse = ''),
+                 '\n', '###', paste(letter_ind[25:30], collapse = ''),
+                 '\n', paste(rep(letter_ind[46], 4), collapse = ''), paste(letter_ind[31:35], collapse = ''),
+                 '\n', paste(rep(letter_ind[46], 4), collapse = ''), '#', paste(letter_ind[36:39], collapse = ''),
+                 '\n', paste(rep(letter_ind[46], 4), collapse = ''), '##', paste(letter_ind[40:42], collapse = ''),
+                 '\n', paste(rep(letter_ind[46], 4), collapse = ''), '###', paste(letter_ind[43:44], collapse = ''),
+                 '\n', paste(rep(letter_ind[46], 4), collapse = ''), '####', paste(letter_ind[45], collapse = ''))
+
+# plot and add labels
+plot_combined <-  wrap_plots(plot_list_2, design = design) +
+  plot_layout(tag_level = 'new') +
+  plot_annotation(tag_levels = list(c('B', rep('', 44), 'A')))
+
 ```
