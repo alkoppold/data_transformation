@@ -254,5 +254,32 @@ plot_spec_NHST
 
 ```
 
+```{r plot-curves-NHST-alternative}
+### Alternative without the range correction specifications below as they are now integrated as shapes in the plot
+# labels
+x_lab <- 'Approach number ordered by effect size'
+y_lab <- 'Effect size (Cohen\'s D)'
+
+# order by effect size
+# colored by approach
+p2 <- res_ttest_d %>%
+  ggplot(aes(x = approach_eff_order, y = effsize, color = transf_type, shape = rc_type)) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("box cox", "log-transformed", 
+  "none", "square-root", "z-transformed")) +
+  scale_shape_manual(name = "Range correction", values = c(8,9,12), labels = c("none", "CS corrected", "US corrected")) +
+  scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
+  theme_classic() +
+  theme(text = element_text(size=size_text),
+        legend.position = 'top') +
+  xlab(x_lab) +
+  ylab(y_lab) + 
+  guides(color = guide_legend(nrow = 1))
+
+p2
+
+```
+
 
 
