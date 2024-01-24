@@ -18,6 +18,7 @@ library(MASS)
 library(DescTools)
 library(moments)
 library(patchwork)
+library(splithalfr)
 ```
 
 ```{r data}
@@ -316,6 +317,64 @@ gp <- ggplot(data_transformed, aes(x=trialnr, y=scr.mean, colour=stimulus, group
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 ```
+
+#### Reliability
+
+```{r reliability}
+reliability_helper = function(data, fn_score, replications, #need to be specified
+                              participants="id", stratification="stimulus", #constant for one data set
+                              fn_coef=splithalfr::spearman_brown, ncores=parallel::detectCores() - 1, careful=F, verbose=F) #sensible defaults
+{
+  splithalfr::by_split(data=data, fn_score=fn_score, replications=replications,
+                       participants = data %>% pull(!!participants), 
+                       stratification = data %>% pull(!!stratification),
+                       ncores=ncores, careful=careful, verbose=verbose) %>% 
+    splithalfr::split_coefs(fn_coef=fn_coef)
+}
+
+fn_score_mean = function(column, na.rm=T) {
+  function(df) {
+    #return(df %>% pull(!!column) %>% mean(na.rm=na.rm)) #requires library(tidyverse) for parallel
+    return(mean(dplyr::pull(df, !!column), na.rm=na.rm))
+  }
+}
+
+rToFishZ = function(r) { return(.5*log((1+r)/(1-r))) }
+fishZtoR = function(Z) { return(ifelse(Z==Inf, 1, (exp(2*Z)-1)/(exp(2*Z)+1))) }
+fnFishZ = function(r, fn=mean, ...) { 
+  if (any(abs(r) >= 1, na.rm=T)) warning("Correlation(s) contain(s) values at or beyond 1. This will bias results for summary functions.")
+  return(r %>% rToFishZ() %>% fn(...) %>% fishZtoR()) 
+}
+
+replications = 1000
+reliabilities.permutations = tibble(
+  raw = reliability_helper(data_long, fn_score_mean("scr_raw"), replications),
+  log = reliability_helper(data_long, fn_score_mean("scr_log"), replications),
+  sqr = reliability_helper(data_long, fn_score_mean("scr_sqr"), replications),
+  box = reliability_helper(data_long, fn_score_mean("scr_box"), replications),
+  ztr = reliability_helper(data_long, fn_score_mean("scr_ztr"), replications),
+  
+  raw_rc_cs = reliability_helper(data_long, fn_score_mean("scr_raw_rc_cs"), replications),
+  log_rc_cs = reliability_helper(data_long, fn_score_mean("scr_log_rc_cs"), replications),
+  sqr_rc_cs = reliability_helper(data_long, fn_score_mean("scr_sqr_rc_cs"), replications),
+  box_rc_cs = reliability_helper(data_long, fn_score_mean("scr_box_rc_cs"), replications),
+  ztr_rc_cs = reliability_helper(data_long, fn_score_mean("scr_ztr_rc_cs"), replications),
+  
+  raw_rc_us = reliability_helper(data_long, fn_score_mean("scr_raw_rc_us"), replications),
+  log_rc_us = reliability_helper(data_long, fn_score_mean("scr_log_rc_us"), replications),
+  sqr_rc_us = reliability_helper(data_long, fn_score_mean("scr_sqr_rc_us"), replications),
+  box_rc_us = reliability_helper(data_long, fn_score_mean("scr_box_rc_us"), replications),
+  ztr_rc_us = reliability_helper(data_long, fn_score_mean("scr_ztr_rc_us"), replications)
+  )
+reliabilities = reliabilities.permutations %>% 
+  summarise(across(.fns=list(m = fnFishZ, sd = ~ fnFishZ(.x, fn=sd)), 
+            .cols=everything(), .names="{.col}_x_{.fn}")) %>% 
+  pivot_longer(cols=everything()) %>% separate(col=name, into=c("method", "metric"), sep="_x_") %>% 
+  pivot_wider(names_from = "metric", id_cols = "method") %>% arrange(desc(m))
+reliabilities
+```
+
+#### Krippendorf's alpha
 
 ```{r krippendorfs}
 # use the function by Zapf to also extract confidence intervals, using bootstrapping
