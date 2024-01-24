@@ -321,6 +321,7 @@ gp <- ggplot(data_transformed, aes(x=trialnr, y=scr.mean, colour=stimulus, group
 #### Reliability
 
 ```{r reliability}
+#helper functions
 reliability_helper = function(data, fn_score, replications, #need to be specified
                               participants="id", stratification="stimulus", #constant for one data set
                               fn_coef=splithalfr::spearman_brown, ncores=parallel::detectCores() - 1, careful=F, verbose=F) #sensible defaults
@@ -346,6 +347,13 @@ fnFishZ = function(r, fn=mean, ...) {
   return(r %>% rToFishZ() %>% fn(...) %>% fishZtoR()) 
 }
 
+#checks
+data_long %>% summarise(trials = max(trialnr), .by = stimulus)
+#data_long %>% group_by(stimulus, id) %>% summarise(trials = n()) %>% summarise(trials = mean(trials))
+
+#TODO: combine some conditions? (e.g., cspu + cspe; ucsm + ucsw; cf. SCR mean plots)
+
+#reliability
 replications = 1000
 reliabilities.permutations = tibble(
   raw = reliability_helper(data_long, fn_score_mean("scr_raw"), replications),
