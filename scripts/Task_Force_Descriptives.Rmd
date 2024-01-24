@@ -50,7 +50,7 @@ lambda
 data_long$scr_box <- (data_long$scr_raw ^ lambda - 1)/lambda
 
 # z transform the data
-data_long$scr_ztr <- scale(data_long$scr_raw)
+data_long$scr_ztr <- scale(data_long$scr_raw)[,1] #[,1] to get rid of M and SD which is also returned
 
 
 ### Prepare range correction by calculating max SCR of CS and US responses
@@ -281,8 +281,8 @@ data_transformed$upper <- data_transformed$scr.mean + 1.96*data_transformed$scr.
 n_data = length(unique(data_long$id))
 
 # First part of the plot is acquisition, plotted as points
-gp <- ggplot(data_transformed, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus))
-gp +   geom_point(aes(group=stimulus), size=2) +
+gp <- ggplot(data_transformed, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus)) +  
+  geom_point(aes(group=stimulus), size=2) +
   
   # Add lines between points
   geom_line(aes(group=stimulus), size=1.2) +
