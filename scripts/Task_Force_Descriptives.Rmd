@@ -333,11 +333,13 @@ reliability_helper = function(data, fn_score, replications, #need to be specifie
     splithalfr::split_coefs(fn_coef=fn_coef)
 }
 
-fn_score_mean = function(column, na.rm=T) {
-  function(df) {
-    #return(df %>% pull(!!column) %>% mean(na.rm=na.rm)) #requires library(tidyverse) for parallel
-    return(mean(dplyr::pull(df, !!column), na.rm=na.rm))
-  }
+fn_score_mean = function(column, na.rm=T) { #idea: create a function that
+  return(function(df) { #returns another function 
+    return(mean(dplyr::pull(df, !!column), na.rm=na.rm)) #with specifications (column & na.rm) from the parent-function => parameter df gets filled inside by_split function call
+    #note: this would not be needed if by_split had a "..." argument that gets passed into fn_score
+    
+    #return(df %>% pull(!!column) %>% mean(na.rm=na.rm)) #requires library(tidyverse) for parallel (inefficient)
+  })
 }
 
 rToFishZ = function(r) { return(.5*log((1+r)/(1-r))) }
@@ -373,7 +375,7 @@ reliabilities.permutations = tibble(
   sqr_rc_us = reliability_helper(data_long, fn_score_mean("scr_sqr_rc_us"), replications),
   box_rc_us = reliability_helper(data_long, fn_score_mean("scr_box_rc_us"), replications),
   ztr_rc_us = reliability_helper(data_long, fn_score_mean("scr_ztr_rc_us"), replications)
-  )
+)
 reliabilities = reliabilities.permutations %>% 
   summarise(across(.fns=list(m = fnFishZ, sd = ~ fnFishZ(.x, fn=sd)), 
             .cols=everything(), .names="{.col}_x_{.fn}")) %>% 
