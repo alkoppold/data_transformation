@@ -32,9 +32,26 @@ library(splithalfr)
 # in long format 
 load("./data/long_EDA_merz.Rdata")
 
-# Rename some variables
+# Rename some variables, delete variable condition and delete cspu, ucsm and ucsw
 names(data_long)[grep("Versuchspersonennummer", names(data_long))] <- "id"
 names(data_long)[grep("scr", names(data_long))] <- "scr_raw"
+data_long <- data_long[ ,c("id","trialnr","stimulus","scr_raw")]
+data_long <- data_long[-grep("cspu|ucsm|ucsw", data_long$stimulus) , ]
+
+### Add CS discrimination
+# Select data and calculate CS discrimination
+data_cs_dis <- data_long[grep("cspe|csm", data_long$stimulus), ]
+data_cs_dis <- spread(data_cs_dis, stimulus, scr_raw)
+data_cs_dis$csd <- data_cs_dis$cspe - data_cs_dis$csm 
+
+# Reshape data back to wide format
+data_cs_dis <- gather(data_cs_dis, stimulus, scr_raw, csm:csd, factor_key = TRUE)
+
+# Melt it with US responses in data_long
+data_long <- rbind(data_cs_dis, data_long[grep("ucs", data_long$stimulus) , ])
+
+
+#################################################################################
 
 ### Add different transformations
 # Log-transform the raw data
@@ -58,7 +75,7 @@ data_long$scr_ztr <- scale(data_long$scr_raw)[,1] #[,1] to get rid of M and SD w
 # Max amplitude CS
 data_long$scr_max_cs <- NA
 for (i in unique(data_long$id)) {
-  data_select <- data_long[which(data_long$id == i & grep("_cs", data_long$condition)), ]
+  data_select <- data_long[which(data_long$id == i & grep("^cs", data_long$stimulus)), ]
   max_ampl_cs <- max(data_select$scr_raw, na.rm = T)
   data_long$scr_max_cs[which(data_long$id == i)] <- max_ampl_cs
 }
@@ -66,7 +83,7 @@ for (i in unique(data_long$id)) {
 # Max amplitude US
 data_long$scr_max_us <- NA
 for (i in unique(data_long$id)) {
-  data_select <- data_long[which(data_long$id == i & grep("_uc", data_long$condition)), ]
+  data_select <- data_long[which(data_long$id == i & grep("ucs", data_long$stimulus)), ]
   max_ampl_us <- max(data_select$scr_raw, na.rm = T)
   data_long$scr_max_us[which(data_long$id == i)] <- max_ampl_us
 }
@@ -143,27 +160,27 @@ hist_scr_raw <- ggplot(data = data_hist, aes(x = scr_raw)) +
 ```
 
 ```{r mainEffectraw}
-# Select CS+, CS- and US responses
-data_triallevel <- data_long[data_long$stimulus %in% c("cspe","csm","ucs"), ]
 
 # Factorize stimulus
-data_triallevel$stimulus <- factor(data_triallevel$stimulus, levels = c("cspe","csm","ucs"))
-data_triallevel$stimulus <- as.factor(data_triallevel$stimulus)
+data_line <- data_long
+data_line$stimulus <- as.factor(data_line$stimulus)
+data_line$stimulus <- factor(data_long$stimulus, levels = c("csd","cspe","csm","ucs"))
+
 
 # Summarise within stimuli and trials (means and SEMs)
-data_triallevel = data_triallevel %>%
+data_line = data_line %>%
   group_by(trialnr, stimulus) %>%
   summarise(scr.mean = mean(scr_raw, na.rm = T), 
             scr.sem = sd(scr_raw, na.rm = T)/sqrt(length(scr_raw)))
 
 # Add confidence intervals to the dataframe (95%)
-data_triallevel$lower <- data_triallevel$scr.mean - 1.96*data_triallevel$scr.sem
-data_triallevel$upper <- data_triallevel$scr.mean + 1.96*data_triallevel$scr.sem
+data_line$lower <- data_line$scr.mean - 1.96*data_line$scr.sem
+data_line$upper <- data_line$scr.mean + 1.96*data_line$scr.sem
 n_data = length(unique(data_long$id))
 
 #### LINEPLOT
 # First part of the plot is acquisition, plotted as points
-gp <- ggplot(data_triallevel, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus)) +
+lineplot_scr_raw <- ggplot(data_line, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus)) +
    geom_point(aes(group=stimulus), size=2) +
   
   # Add lines between points
@@ -172,8 +189,10 @@ gp <- ggplot(data_triallevel, aes(x=trialnr, y=scr.mean, colour=stimulus, group=
   geom_ribbon(aes(ymin=lower, ymax=upper, fill=stimulus, color=NULL), alpha=0.2) +
   
   # Change colors and names of stimuli
-  scale_colour_manual(values=c("navy","darkred","black"), name = "Stimulus type:", breaks=c("cspe","csm","ucs"), labels=c("CS+", "CS-","US")) +
-  scale_fill_manual(values=c("navy","darkred","black"), name = "Stimulus type:", breaks=c("cspe","csm","ucs"), labels=c("CS+", "CS-","US")) +
+  scale_colour_manual(values=c("darkmagenta","darkred","navy","black"), name = "", breaks=c("csd","cspe","csm","ucs"),
+                      labels=c("CS discrimination","CS+", "CS-","US")) +
+  scale_fill_manual(values=c("darkmagenta","darkred","navy","black"), name = "", breaks=c("csd","cspe","csm","ucs"),
+                      labels=c("CS discrimination","CS+", "CS-","US")) +
   scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
   # Title of axes
   xlab("Acquisition trials") +
@@ -198,6 +217,8 @@ gp <- ggplot(data_triallevel, aes(x=trialnr, y=scr.mean, colour=stimulus, group=
         panel.background = element_blank(),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
+
+lineplot_scr_raw
 
 ```
 
