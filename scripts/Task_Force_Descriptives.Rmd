@@ -107,8 +107,39 @@ data_long$scr_ztr_rc_us <- data_long$scr_ztr/data_long$scr_max_us
 
 ```{r histograms}
 
-# Select only CS+ responses
-data_hist <- data_long[(which(data_long$stimulus == "cspe")), ]
+# Create stimulus variable for loop
+stim <- c("csd","cspe","csm","ucs")
+
+for (i in unique(stim)) {
+  
+# Select only stimulus type
+data_hist <- data_long[(which(data_long$stimulus == i)), ]
+
+# Select color
+if (i == "csd") {
+  stim_col <- "darkmagenta"
+} else if (i == "cspe") {
+  stim_col <- "darkred" 
+} else if (i == "csm") {
+  stim_col <- "navy"
+} else if (i == "ucs") {
+  stim_col <- "black"
+}
+
+# Select name for x-axis
+if (i == "csd") {
+  stim_x_axis <- "CS discrimination"
+} else if (i == "cspe") {
+  stim_x_axis <- "CS+" 
+} else if (i == "csm") {
+  stim_x_axis <- "CS-"
+} else if (i == "ucs") {
+  stim_x_axis <- "US"
+}
+
+
+# Calculate means across trials 
+data_hist <- aggregate(data_hist[ ,grep("scr", names(data_hist))], by = list(id=data_hist$id, stimulus=data_hist$stimulus), FUN = mean)
 
 # For the plot: calculate mean, mode, median, sd, skewness and kurtosis
 mode_hist_raw <- round(Mode(data_hist$scr_raw)[1], 2) 
@@ -118,30 +149,36 @@ sd_hist_raw <- round(sd(data_hist$scr_raw), 2)
 skew_hist_raw <- round(skewness(data_hist$scr_raw), 2) 
 kurt_hist_raw <- round(kurtosis(data_hist$scr_raw), 2)
 
+# Calculate the density to position text
+dens <- density(data_hist$scr_raw)
+dens_max <- max(dens$y)
+
 ############ PLOT
 
 hist_scr_raw <- ggplot(data = data_hist, aes(x = scr_raw)) + 
-  geom_histogram(aes(y =..density..), col = "black", fill = "#7B082E", binwidth = 0.05) +
-  labs(x="raw SCR (CS+)", y="Density") +
+  geom_histogram(aes(y =..density..), col = "white", fill = stim_col, binwidth = max(data_hist$scr_raw)/25) +
+  labs(x=paste0("raw SCR (", stim_x_axis,")"), y="still to fill") +
   
   # Add the density
-  geom_density(col = "#26547C", linewidth = 0.8) +
+  geom_density(col = "white", linewidth = 1.6) +
+  geom_density(col = stim_col, linewidth = 1) +
   
   # Add a normal distribution
-  stat_function(fun = dnorm, args = list(mean = mean(data_hist$scr_raw), sd = sd(data_hist$scr_raw)), col = "#06D6A0", linewidth = 0.8) +
+  stat_function(fun = dnorm, args = list(mean = mean(data_hist$scr_raw), sd = sd(data_hist$scr_raw)),
+                col = "#06D6A0", linewidth = 1) +
 
   # Add descriptive values
-  geom_vline(aes(xintercept = mean(data_hist$scr_raw)), col = "#EF476F", linewidth = 0.5) +
-  geom_vline(aes(xintercept = Mode(data_hist$scr_raw)), col = "#FFD166", linewidth = 0.5) +
-  geom_vline(aes(xintercept = median(data_hist$scr_raw)), col = "#909CC2", linewidth = 0.5) +
+  geom_vline(aes(xintercept = mean(scr_raw)), col = "#EF476F", linewidth = 0.8) +
+  geom_vline(aes(xintercept = Mode(scr_raw)), col = "#FFD166", linewidth = 0.8) +
+  geom_vline(aes(xintercept = median(scr_raw)), col = "#909CC2", linewidth = 0.8) +
   
   # Add descriptive values as text
-  annotate(geom = "text", x = 0.5, y = 4.3, label = paste( "Mode: ", mode_hist_raw), col = "#FFD166") +
-  annotate(geom = "text", x = 0.5, y = 4.0, label = paste("Median: ", median_hist_raw), col = "#909CC2") +
-  annotate(geom = "text", x = 1, y = 4.3, label = paste("Mean: ", mean_hist_raw), col = "#EF476F") +
-  annotate(geom = "text", x = 1, y = 4.0, label = paste("SD: ", sd_hist_raw), col = "black") +
-  annotate(geom = "text", x = 1, y = 3.7, label = paste("Skewness: ", skew_hist_raw), col = "black") +
-  annotate(geom = "text", x = 1, y = 3.4, label = paste("Kurtosis: ", kurt_hist_raw), col = "black") +
+  annotate(geom = "text", x = max(data_hist$scr_raw), y = dens_max*1.3, label = paste( "Mode: ", mode_hist_raw), col = "#FFD166", hjust = 1) +
+  annotate(geom = "text", x = max(data_hist$scr_raw), y = dens_max*1.2, label = paste("Median: ", median_hist_raw), col = "#909CC2", hjust = 1) +
+  annotate(geom = "text", x = max(data_hist$scr_raw), y = dens_max*1.1, label = paste("Mean: ", mean_hist_raw), col = "#EF476F", hjust = 1) +
+  annotate(geom = "text", x = max(data_hist$scr_raw), y = dens_max*0.9, label = paste("SD: ", sd_hist_raw), col = "black", hjust = 1) +
+  annotate(geom = "text", x = max(data_hist$scr_raw), y = dens_max*0.8, label = paste("Skewness: ", skew_hist_raw), col = "black", hjust = 1) +
+  annotate(geom = "text", x = max(data_hist$scr_raw), y = dens_max*0.7, label = paste("Kurtosis: ", kurt_hist_raw), col = "black", hjust = 1) +
   
   theme(
     axis.title.x = element_text(size = 12, face = "bold"),
@@ -156,6 +193,14 @@ hist_scr_raw <- ggplot(data = data_hist, aes(x = scr_raw)) +
     axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
     axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'))
 
+# Name the plot
+assign(paste0("hist_scr_raw_",i), hist_scr_raw)
+
+}
+
+
+### Combine plots
+hist_scr_raw_csd + hist_scr_raw_cspe + hist_scr_raw_csm + hist_scr_raw_ucs + plot_layout(ncol = 1)
 
 ```
 
