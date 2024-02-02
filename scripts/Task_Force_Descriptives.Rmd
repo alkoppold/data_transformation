@@ -21,6 +21,14 @@ library(patchwork)
 library(splithalfr)
 ```
 
+```{r helpers}
+prune = function(x, low=-Inf, high=+Inf, abs=NA) {
+  result = if_else(x < low, low, x) %>% if_else(. > high, high, .)
+  if (abs %>% is.na() == F) result = if_else(abs(result) > abs, abs * if_else(result > 0, 1, -1), result)
+  return(result)
+}
+```
+
 ```{r data}
 # loading the original data 
 #X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
@@ -418,7 +426,7 @@ fnFishZ = function(r, fn=mean, prune=.999, ...) {
     else {
       warning.txt = paste0("Pruning to ", prune, ".") %>% paste(warning.txt, .)
       
-      r = if_else(abs(r) >= 1, prune * if_else(r > 0, 1, -1), r)
+      r = r %>% prune(abs=prune) #if_else(abs(r) >= 1, prune * if_else(r > 0, 1, -1), r)
     }
     warning(warning.txt)
   }
