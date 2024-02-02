@@ -63,10 +63,10 @@ data_long <- rbind(data_cs_dis, data_long[grep("ucs", data_long$stimulus) , ])
 
 ### Add different transformations
 # Log-transform the raw data
-data_long$scr_log <- log10(1+data_long$scr_raw)
+data_long$scr_log <- log10(1+prune(data_long$scr_raw, low=0))
 
 # Square root transform the raw data
-data_long$scr_sqr <- sqrt(data_long$scr_raw)
+data_long$scr_sqr <- sqrt(prune(data_long$scr_raw, low=0))
 
 # Box cox transform the data: the added positive constant is the smallest raw SCR wihtin the data set
 b <- boxcox(lm(0.009995+data_long$scr_raw ~ 1))
