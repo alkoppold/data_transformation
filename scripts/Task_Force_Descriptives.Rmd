@@ -410,8 +410,19 @@ fn_score_mean = function(column, na.rm=T) { #idea: create a function that
 
 rToFishZ = function(r) { return(.5*log((1+r)/(1-r))) }
 fishZtoR = function(Z) { return(ifelse(Z==Inf, 1, (exp(2*Z)-1)/(exp(2*Z)+1))) }
-fnFishZ = function(r, fn=mean, ...) { 
-  if (any(abs(r) >= 1, na.rm=T)) warning("Correlation(s) contain(s) values at or beyond 1. This will bias results for summary functions.")
+fnFishZ = function(r, fn=mean, prune=.999, ...) { 
+  warning.txt = ""
+  if (any(abs(r) >= 1, na.rm=T)) {
+    warning.txt = "Correlation(s) contain(s) values at or beyond 1. This will bias results for summary functions." %>% paste0(warning.txt, .)
+    if (prune %>% is.na()) warning = "Consider setting prune parameter." %>% paste(warning.txt, .)
+    else {
+      warning.txt = paste0("Pruning to ", prune, ".") %>% paste(warning.txt, .)
+      
+      r = if_else(abs(r) >= 1, prune * if_else(r > 0, 1, -1), r)
+    }
+    warning(warning.txt)
+  }
+  
   return(r %>% rToFishZ() %>% fn(...) %>% fishZtoR()) 
 }
 
