@@ -38,45 +38,51 @@ prune = function(x, low=-Inf, high=+Inf, abs=NA) {
   
   
 # in long format 
-load("./data/long_EDA_merz.Rdata")
+load("./data/long_EDA_merz.Rdata") #variable: data_long
 
 # Rename some variables, delete variable condition and delete cspu, ucsm and ucsw
-names(data_long)[grep("Versuchspersonennummer", names(data_long))] <- "id"
-names(data_long)[grep("scr", names(data_long))] <- "scr_raw"
-data_long <- data_long[ ,c("id","trialnr","stimulus","scr_raw")]
-data_long <- data_long[-grep("cspu|ucsm|ucsw", data_long$stimulus) , ]
-
-### Add CS discrimination
-# Select data and calculate CS discrimination
-data_cs_dis <- data_long[grep("cspe|csm", data_long$stimulus), ]
-data_cs_dis <- spread(data_cs_dis, stimulus, scr_raw)
-data_cs_dis$csd <- data_cs_dis$cspe - data_cs_dis$csm 
-
-# Reshape data back to wide format
-data_cs_dis <- gather(data_cs_dis, stimulus, scr_raw, csm:csd, factor_key = TRUE)
-
-# Melt it with US responses in data_long
-data_long <- rbind(data_cs_dis, data_long[grep("ucs", data_long$stimulus) , ])
+# names(data_long)[grep("Versuchspersonennummer", names(data_long))] <- "id"
+# names(data_long)[grep("scr", names(data_long))] <- "scr_raw"
+# data_long <- data_long[ ,c("id","trialnr","stimulus","scr_raw")]
+# data_long <- data_long[-grep("cspu|ucsm|ucsw", data_long$stimulus) , ]
+data_long = data_long %>% rename(id = Versuchspersonennummer, scr_raw = scr) %>% 
+  select(id, trialnr, stimulus, scr_raw) %>% #get rid of "condition" and reorder
+  filter(stimulus %in% c("cspe", "csm", "ucs")) #only keep responses to CS+ (will be extinguished), CS-, and UCS
 
 
 #################################################################################
 
 ### Add different transformations
-# Log-transform the raw data
-data_long$scr_log <- log10(1+prune(data_long$scr_raw, low=0))
+# # Log-transform the raw data
+# data_long$scr_log <- log10(1+data_long$scr_raw)
+# 
+# # Square root transform the raw data
+# data_long$scr_sqr <- sqrt(data_long$scr_raw)
+# 
+# # Box cox transform the data: the added positive constant is the smallest raw SCR within the data set
+# b <- boxcox(lm(data_long$scr_raw - min(data_long$scr_raw) + 1 ~ 1), plotit=F)
+# # Extract lambda
+# lambda <- b$x[which.max(b$y)]
+# lambda
+# data_long$scr_box <- (data_long$scr_raw ^ lambda - 1)/lambda
+# 
+# # z transform the data
+# data_long$scr_ztr <- scale(data_long$scr_raw)[,1] #[,1] to get rid of M and SD which is also returned
 
-# Square root transform the raw data
-data_long$scr_sqr <- sqrt(prune(data_long$scr_raw, low=0))
+data_long = data_long %>% 
+  mutate(scr_log = log10(1+scr_raw),
+         scr_sqr = sqrt(scr_raw),
+         scr_ztr = scale(scr_raw)[,1]) %>% 
+  
+  group_by(stimulus) %>% mutate(scr_shift = scr_raw - min(scr_raw) + 1, 
+                                lambda = boxcox(scr_shift ~ 1, plotit=F) %>% 
+                                  bind_cols() %>% filter(y == max(y)) %>% pull(x) %>% mean()) %>% ungroup() %>% 
+  mutate(scr_box = (scr_shift ^ lambda - 1) / lambda)
 
-# Box cox transform the data: the added positive constant is the smallest raw SCR wihtin the data set
-b <- boxcox(lm(0.009995+data_long$scr_raw ~ 1))
-# Extract lambda
-lambda <- b$x[which.max(b$y)]
-lambda
-data_long$scr_box <- (data_long$scr_raw ^ lambda - 1)/lambda
+#View(data_long)
+#data_long %>% ggplot(aes(x = scr_raw, y = scr_box, color = stimulus)) + geom_point() + theme_bw()
 
-# z transform the data
-data_long$scr_ztr <- scale(data_long$scr_raw)[,1] #[,1] to get rid of M and SD which is also returned
+data_long = data_long %>% select(-scr_shift, -lambda) #remove helping variables
 
 
 ### Prepare range correction by calculating max SCR of CS and US responses
@@ -99,7 +105,7 @@ for (i in unique(data_long$id)) {
 
 ### Range correct all transformation types with CS-rc
 data_long$scr_raw_rc_cs <- data_long$scr_raw/data_long$scr_max_cs
-data_long$scr_log_rc_cs <- data_long$scr_log/data_long$scr_max_cs
+data_long$scr_log_rc_cs <- data_long$scr_log/data_long$scr_max_cs #TODO this also divides by the max raw value but should be max log value?
 data_long$scr_sqr_rc_cs <- data_long$scr_sqr/data_long$scr_max_cs
 data_long$scr_box_rc_cs <- data_long$scr_box/data_long$scr_max_cs
 data_long$scr_ztr_rc_cs <- data_long$scr_ztr/data_long$scr_max_cs
@@ -110,6 +116,25 @@ data_long$scr_log_rc_us <- data_long$scr_log/data_long$scr_max_us
 data_long$scr_sqr_rc_us <- data_long$scr_sqr/data_long$scr_max_us
 data_long$scr_box_rc_us <- data_long$scr_box/data_long$scr_max_us
 data_long$scr_ztr_rc_us <- data_long$scr_ztr/data_long$scr_max_us
+
+
+data_long = data_long %>% group_by(id) %>% 
+  mutate(scr_max_cs = data_long %>% filter(stimulus %>% grepl("^cs", .)) %>% pull(scr_raw) %>% max(),
+         scr_max_us = data_long %>% filter(stimulus %>% grepl("ucs", .)) %>% pull(scr_raw) %>% max())
+
+
+### Add CS discrimination
+# Select data and calculate CS discrimination
+data_cs_dis <- data_long[grep("cspe|csm", data_long$stimulus), ]
+data_cs_dis <- spread(data_cs_dis, stimulus, scr_raw)
+data_cs_dis$csd <- data_cs_dis$cspe - data_cs_dis$csm
+
+# Reshape data back to wide format
+data_cs_dis <- gather(data_cs_dis, stimulus, scr_raw, csm:csd, factor_key = TRUE)
+
+# Melt it with US responses in data_long
+data_long <- rbind(data_cs_dis, data_long[grep("ucs", data_long$stimulus) , ])
+
 
 ```
 
