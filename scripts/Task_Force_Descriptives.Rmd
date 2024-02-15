@@ -617,7 +617,7 @@ reliabilities #overall descending
 reliabilities %>% summarise(mean_rank = rank_rc %>% mean(), .by=range_cor)
 #reliabilities %>% arrange(transformation, rank_rc)
 
-reliabilities %>% summarise(mean_rank = rank_trans %>% mean(), .by=transformation)
+reliabilities %>% summarise(mean_rank = rank_trans %>% mean(), .by=transformation) %>% arrange(mean_rank)
 reliabilities %>% filter(range_cor=="none") %>% arrange(rank_trans)
 ```
 
