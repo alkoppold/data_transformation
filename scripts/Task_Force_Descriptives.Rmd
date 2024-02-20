@@ -250,28 +250,28 @@ data_plot %>% filter(scr < 0) %>% select(stimulus) %>% unique()
 
 #overkill 1
 data_plot %>% 
+  #ggplot(aes(x = scr, fill = stimulus)) + #problem: number of bins not trivial => scale each plot to [0; 1]
   group_by(stimulus, transformation, range_cor) %>% mutate(scr_scaled = (scr - min(scr)) / (max(scr) - min(scr))) %>% 
-  #ggplot(aes(x = scr, fill = stimulus)) +
   ggplot(aes(x = scr_scaled, fill = stimulus)) +
-  facet_grid(range_cor + stimulus ~ transformation, labeller = "label_both") + 
+  facet_grid(range_cor + stimulus ~ transformation, labeller = "label_both", scales = "free_x") + 
   geom_histogram(color="black") + 
   myGgTheme + scale_fill_viridis_d()
 
 #overkill 2
 data_plot %>% 
+  #ggplot(aes(x = scr, fill = range_cor)) + #problem: number of bins not trivial => scale each plot to [0; 1]
   group_by(stimulus, transformation, range_cor) %>% mutate(scr_scaled = (scr - min(scr)) / (max(scr) - min(scr))) %>% 
-  #ggplot(aes(x = scr, fill = range_cor)) +
   ggplot(aes(x = scr_scaled, fill = range_cor)) +
-  facet_grid(stimulus + range_cor ~ transformation, labeller = "label_both") + 
+  facet_grid(stimulus + range_cor ~ transformation, labeller = "label_both", scales = "free_x") + 
   geom_histogram(color="black") + 
   myGgTheme + scale_fill_viridis_d(option="C")
 
 #TODO add other information (see chunk below)
 data_plot %>% filter(stimulus == "csd") %>% 
+  #ggplot(aes(x = scr, fill = range_cor)) + #problem: number of bins not trivial => scale each plot to [0; 1]
   group_by(transformation, range_cor) %>% mutate(scr_scaled = (scr - min(scr)) / (max(scr) - min(scr))) %>% 
-  #ggplot(aes(x = scr, fill = range_cor)) +
   ggplot(aes(x = scr_scaled, fill = range_cor)) +
-  facet_grid(range_cor ~ transformation, labeller = "label_both") + 
+  facet_grid(range_cor ~ transformation, labeller = "label_both", scales = "free_x") + 
   geom_histogram(color="black") + 
   myGgTheme + scale_fill_viridis_d(option="C")
 ```
