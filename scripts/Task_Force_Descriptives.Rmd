@@ -47,6 +47,46 @@ prune = function(x, low=-Inf, high=+Inf, abs=NA) {
   if (abs %>% is.na() == F) result = if_else(abs(result) > abs, abs * if_else(result > 0, 1, -1), result)
   return(result)
 }
+
+#reliability
+reliability_helper = function(data, fn_score, replications, #need to be specified
+                              participants="id", stratification=NULL, #constant for one data set
+                              fn_coef=splithalfr::spearman_brown, ncores=parallel::detectCores() - 1, careful=F, verbose=F) #sensible defaults
+{
+  if (stratification %>% is.null() == F) stratification = data %>% pull(!!stratification)
+  splithalfr::by_split(data=data, fn_score=fn_score, replications=replications,
+                       participants = data %>% pull(!!participants), 
+                       stratification = stratification,
+                       ncores=ncores, careful=careful, verbose=verbose) %>% 
+    splithalfr::split_coefs(fn_coef=fn_coef)
+}
+
+fn_score_mean = function(column, na.rm=T) { #idea: create a function that
+  return(function(df) { #returns another function 
+    return(mean(dplyr::pull(df, !!column), na.rm=na.rm)) #with specifications (column & na.rm) from the parent-function => parameter df gets filled inside by_split function call
+    #note: this would not be needed if by_split had a "..." argument that gets passed into fn_score
+    
+    #return(df %>% pull(!!column) %>% mean(na.rm=na.rm)) #requires library(tidyverse) for parallel (inefficient)
+  })
+}
+
+rToFishZ = function(r) { return(.5*log((1+r)/(1-r))) }
+fishZtoR = function(Z) { return(ifelse(Z==Inf, 1, (exp(2*Z)-1)/(exp(2*Z)+1))) }
+fnFishZ = function(r, fn=mean, prune=.999, ...) { 
+  warning.txt = ""
+  if (any(abs(r) >= 1, na.rm=T)) {
+    warning.txt = "Correlation(s) contain(s) values at or beyond 1. This will bias results for summary functions." %>% paste0(warning.txt, .)
+    if (prune %>% is.na()) warning = "Consider setting prune parameter." %>% paste(warning.txt, .)
+    else {
+      warning.txt = paste0("Pruning to ", prune, ".") %>% paste(warning.txt, .)
+      
+      r = r %>% prune(abs=prune) #if_else(abs(r) >= 1, prune * if_else(r > 0, 1, -1), r)
+    }
+    warning(warning.txt)
+  }
+  
+  return(r %>% rToFishZ() %>% fn(...) %>% fishZtoR()) 
+}
 ```
 
 ```{r data}
@@ -530,46 +570,6 @@ gp
 #### Reliability
 
 ```{r reliability}
-#helper functions
-reliability_helper = function(data, fn_score, replications, #need to be specified
-                              participants="id", stratification=NULL, #constant for one data set
-                              fn_coef=splithalfr::spearman_brown, ncores=parallel::detectCores() - 1, careful=F, verbose=F) #sensible defaults
-{
-  if (stratification %>% is.null() == F) stratification = data %>% pull(!!stratification)
-  splithalfr::by_split(data=data, fn_score=fn_score, replications=replications,
-                       participants = data %>% pull(!!participants), 
-                       stratification = stratification,
-                       ncores=ncores, careful=careful, verbose=verbose) %>% 
-    splithalfr::split_coefs(fn_coef=fn_coef)
-}
-
-fn_score_mean = function(column, na.rm=T) { #idea: create a function that
-  return(function(df) { #returns another function 
-    return(mean(dplyr::pull(df, !!column), na.rm=na.rm)) #with specifications (column & na.rm) from the parent-function => parameter df gets filled inside by_split function call
-    #note: this would not be needed if by_split had a "..." argument that gets passed into fn_score
-    
-    #return(df %>% pull(!!column) %>% mean(na.rm=na.rm)) #requires library(tidyverse) for parallel (inefficient)
-  })
-}
-
-rToFishZ = function(r) { return(.5*log((1+r)/(1-r))) }
-fishZtoR = function(Z) { return(ifelse(Z==Inf, 1, (exp(2*Z)-1)/(exp(2*Z)+1))) }
-fnFishZ = function(r, fn=mean, prune=.999, ...) { 
-  warning.txt = ""
-  if (any(abs(r) >= 1, na.rm=T)) {
-    warning.txt = "Correlation(s) contain(s) values at or beyond 1. This will bias results for summary functions." %>% paste0(warning.txt, .)
-    if (prune %>% is.na()) warning = "Consider setting prune parameter." %>% paste(warning.txt, .)
-    else {
-      warning.txt = paste0("Pruning to ", prune, ".") %>% paste(warning.txt, .)
-      
-      r = r %>% prune(abs=prune) #if_else(abs(r) >= 1, prune * if_else(r > 0, 1, -1), r)
-    }
-    warning(warning.txt)
-  }
-  
-  return(r %>% rToFishZ() %>% fn(...) %>% fishZtoR()) 
-}
-
 #checks
 data_long %>% summarise(trials = max(trialnr), .by = stimulus)
 #data_long %>% group_by(stimulus, id) %>% summarise(trials = n()) %>% summarise(trials = mean(trials))
