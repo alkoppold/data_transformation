@@ -621,6 +621,20 @@ reliabilities %>% summarise(mean_rank = rank_trans %>% mean(), .by=transformatio
 reliabilities %>% filter(range_cor=="none") %>% arrange(rank_trans)
 ```
 
+``` {r effect size}
+effects = data_long %>% filter(stimulus=="csd") %>% 
+  group_by(transformation, range_cor, id) %>% summarise(scr = mean(scr)) %>% #subject-level aggregates for correct between SD calculation
+  summarise(d = mean(scr)/sd(scr)) %>% 
+  group_by(transformation) %>% mutate(rank_rc = rank(-d)) %>% ungroup() %>% 
+  group_by(range_cor) %>% mutate(rank_trans = rank(-d)) %>% ungroup() %>% 
+  arrange(desc(d))
+
+effects
+
+effects %>% summarise(mean_rank = rank_trans %>% mean(), .by=transformation) %>% arrange(mean_rank)
+effects %>% summarise(mean_rank = rank_rc %>% mean(), .by=range_cor) %>% arrange(mean_rank)
+```
+
 ``` {r old: reliability across stimuli (stratified), eval=F}
 data_wide = data_long %>% mutate(condition = paste(transformation, range_cor, sep="_"),
                                  condition = condition %>% gsub("_none", "", .) %>% gsub("_", "_rc_", .)) %>% 
