@@ -624,7 +624,9 @@ reliabilities %>% filter(range_cor=="none") %>% arrange(rank_trans)
 ``` {r effect size}
 effects = data_long %>% filter(stimulus=="csd") %>% 
   group_by(transformation, range_cor, id) %>% summarise(scr = mean(scr)) %>% #subject-level aggregates for correct between SD calculation
-  summarise(d = mean(scr)/sd(scr)) %>% 
+  summarise(d = mean(scr)/sd(scr), #checked against apa::cohens_d(scr)
+            helper = apa::t_test(scr) %>% apa::t_apa(es_ci=T, print=F) %>% gsub("\\[", ";", .) %>% gsub("\\]", "", .)) %>% 
+  separate_wider_delim(helper, delim=";", names=c(NA, "CI95.lo", "CI95.hi")) %>% mutate(across(contains("CI"), as.numeric)) %>%
   group_by(transformation) %>% mutate(rank_rc = rank(-d)) %>% ungroup() %>% 
   group_by(range_cor) %>% mutate(rank_trans = rank(-d)) %>% ungroup() %>% 
   arrange(desc(d))
