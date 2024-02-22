@@ -100,30 +100,32 @@ res_ttest <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
   group_by(approach) %>%
   rstatix::t_test(scr_mean ~ stimulus, data = ., paired = T) 
 
-# effect size
-res_ttest_d <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
+
+# effect size (using Hedges G)
+res_ttest_g <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
   group_by(approach) %>%
-rstatix::cohens_d(scr_mean ~ stimulus, data = .,paired = T,ci = T)
+rstatix::cohens_d(scr_mean ~ stimulus, data = .,paired = T,ci = T,hedges.correction = TRUE)
 
 ### For positive Cohen's d: convert ESs and CIs to absolute values
-res_ttest_d$effsize <- abs(res_ttest_d$effsize)
-res_ttest_d$conf.low <- abs(res_ttest_d$conf.low)
-res_ttest_d$conf.high <- abs(res_ttest_d$conf.high)
+res_ttest_g$effsize <- abs(res_ttest_g$effsize)
+res_ttest_g$conf.low <- abs(res_ttest_g$conf.low)
+res_ttest_g$conf.high <- abs(res_ttest_g$conf.high)
 
 # add index to order by effect size
 # we have n + 1 unique approaches
-res_ttest_d$approach_num <-  1:nrow(res_ttest_d)
-res_ttest_d[order(res_ttest_d$effsize),'approach_eff_order'] <-  1:nrow(res_ttest_d)
+res_ttest_g$approach_num <-  1:nrow(res_ttest_g)
+res_ttest_g[order(res_ttest_g$effsize),'approach_eff_order'] <-  1:nrow(res_ttest_g)
 
 ### Add columns for transformation (log, sqrt, box cox, z-transformation) and range correction type (none, CS corrected, US corrected)
-res_ttest_d$transf_type <- str_split_fixed(res_ttest_d$approach, "_", 3)[,2]
-res_ttest_d$rc_type <- str_split_fixed(res_ttest_d$approach, "_", 3)[,3]
-res_ttest_d$rc_type[res_ttest_d$rc_type == ""] <- "none"
+res_ttest_g$transf_type <- str_split_fixed(res_ttest_g$approach, "_", 3)[,2]
+res_ttest_g$rc_type <- str_split_fixed(res_ttest_g$approach, "_", 3)[,3]
+res_ttest_g$rc_type[res_ttest_g$rc_type == ""] <- "none"
 
 ```
 
 ```{r ttest-Bayesian}
 appr_list <- names(data_long)[grep("^scr_", names(data_long))]
+appr_list <- appr_list[appr_list != "scr_max_cs" & appr_list != "scr_max_us"]
 n_appr = length(appr_list)
 
 #*****
@@ -215,11 +217,11 @@ fig_res <- 300
 
 # labels
 x_lab <- 'Approach number ordered by effect size'
-y_lab <- 'Effect size (Cohen\'s D)'
+y_lab <- 'Effect size (Hedge\'s G)'
 
 # order by effect size
 # colored by approach
-p1 <- res_ttest_d %>%
+p1 <- res_ttest_g %>%
   ggplot(aes(x = approach_eff_order, y = effsize, color = transf_type)) +
   geom_point() +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
@@ -235,7 +237,7 @@ p1 <- res_ttest_d %>%
 
 
 # plot specifications of parameters
-s1 <- ggplot(res_ttest_d, aes(x = approach_eff_order, y = rc_type)) +
+s1 <- ggplot(res_ttest_g, aes(x = approach_eff_order, y = rc_type)) +
   geom_point(shape = '|', size = size_point) +
    #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
   scale_y_discrete(name = 'Range correction', labels = c("none", "CS corrected", "US corrected")) +
