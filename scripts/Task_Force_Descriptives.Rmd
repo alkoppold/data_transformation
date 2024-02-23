@@ -249,31 +249,44 @@ data_plot %>% summarise(min = min(scr, na.rm=T), max = max(scr, na.rm=T))
 data_plot %>% filter(scr < 0) %>% select(stimulus) %>% unique()
 
 #overkill 1
-data_plot %>% 
-  #ggplot(aes(x = scr, fill = stimulus)) + #problem: number of bins not trivial => scale each plot to [0; 1]
-  group_by(stimulus, transformation, range_cor) %>% mutate(scr_scaled = (scr - min(scr)) / (max(scr) - min(scr))) %>% 
-  ggplot(aes(x = scr_scaled, fill = stimulus)) +
-  facet_grid(range_cor + stimulus ~ transformation, labeller = "label_both", scales = "free_x") + 
-  geom_histogram(color="black") + 
-  myGgTheme + scale_fill_viridis_d()
+# print(plot.hist.all <- data_plot %>% 
+#   #ggplot(aes(x = scr, fill = stimulus)) + #problem: number of bins not trivial => scale each plot to [0; 1]
+#   group_by(stimulus, transformation, range_cor) %>% mutate(scr_scaled = (scr - min(scr)) / (max(scr) - min(scr))) %>% 
+#   ggplot(aes(x = scr_scaled, fill = stimulus)) +
+#   facet_grid(range_cor + stimulus ~ transformation, labeller = "label_both", scales = "free") + 
+#     geom_histogram(color="black") + 
+#   myGgTheme + scale_fill_viridis_d(option="C"))
+#ggsave("figures/Hist all 1.png", plot=plot.hist.all, scale=3.5, device="png", dpi=300, units="px", width=1920, height = 1080)
 
 #overkill 2
-data_plot %>% 
+print(plot.hist.all2 <- data_plot %>% 
   #ggplot(aes(x = scr, fill = range_cor)) + #problem: number of bins not trivial => scale each plot to [0; 1]
   group_by(stimulus, transformation, range_cor) %>% mutate(scr_scaled = (scr - min(scr)) / (max(scr) - min(scr))) %>% 
   ggplot(aes(x = scr_scaled, fill = range_cor)) +
-  facet_grid(stimulus + range_cor ~ transformation, labeller = "label_both", scales = "free_x") + 
+  facet_grid(stimulus + range_cor ~ transformation, labeller = "label_both", scales = "free") + 
   geom_histogram(color="black") + 
-  myGgTheme + scale_fill_viridis_d(option="C")
+  myGgTheme + scale_fill_viridis_d())
+#ggsave("figures/Hist all 2.png", plot=plot.hist.all2, scale=3.5, device="png", dpi=300, units="px", width=1920, height = 1080)
 
+## CS-Diff plots
 #TODO add other information (see chunk below)
-data_plot %>% filter(stimulus == "csd") %>% 
-  #ggplot(aes(x = scr, fill = range_cor)) + #problem: number of bins not trivial => scale each plot to [0; 1]
+print(plot.hist.csd <- data_plot %>% filter(stimulus == "csd") %>% 
+  #ggplot(aes(x = scr, fill = transformation)) + #problem: number of bins not trivial => scale each plot to [0; 1]
   group_by(transformation, range_cor) %>% mutate(scr_scaled = (scr - min(scr)) / (max(scr) - min(scr))) %>% 
-  ggplot(aes(x = scr_scaled, fill = range_cor)) +
-  facet_grid(range_cor ~ transformation, labeller = "label_both", scales = "free_x") + 
+  ggplot(aes(x = scr_scaled, fill = transformation)) +
+  facet_grid(transformation ~ range_cor, labeller = "label_both", scales = "free") + 
   geom_histogram(color="black") + 
-  myGgTheme + scale_fill_viridis_d(option="C")
+  myGgTheme + scale_fill_viridis_d(option="C"))
+#ggsave("figures/Hist CS-Diff 1.png", plot=plot.hist.csd, scale=1.75, device="png", dpi=300, units="px", width=1920, height = 1080)
+
+# print(plot.hist.csd2 <- data_plot %>% filter(stimulus == "csd") %>% 
+#   #ggplot(aes(x = scr, fill = range_cor)) + #problem: number of bins not trivial => scale each plot to [0; 1]
+#   group_by(transformation, range_cor) %>% mutate(scr_scaled = (scr - min(scr)) / (max(scr) - min(scr))) %>% 
+#   ggplot(aes(x = scr_scaled, fill = range_cor)) +
+#   facet_grid(range_cor ~ transformation, labeller = "label_both", scales = "free") + 
+#   geom_histogram(color="black") + 
+#   myGgTheme + scale_fill_viridis_d())
+#ggsave("figures/Hist CS-Diff 2.png", plot=plot.hist.csd2, scale=1.75, device="png", dpi=300, units="px", width=1920, height = 1080)
 ```
 
 ```{r histograms old}
