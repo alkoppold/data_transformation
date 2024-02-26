@@ -291,6 +291,11 @@ effects %>% summarise(mean_rank = rank_trans %>% mean(), .by=transformation) %>%
 effects %>% summarise(mean_rank = rank_rc %>% mean(), .by=range_cor) %>% arrange(mean_rank)
 ```
 
+``` {r export data}
+data_long %>% write_rds("Merz_data.rds" %>% paste0("data/", .))
+reliabilities %>% write_rds("Merz_reliability.rds" %>% paste0("data/", .))
+```
+
 ``` {r old: reliability across stimuli (stratified), eval=F}
 data_wide = data_long %>% mutate(condition = paste(transformation, range_cor, sep="_"),
                                  condition = condition %>% gsub("_none", "", .) %>% gsub("_", "_rc_", .)) %>% 
