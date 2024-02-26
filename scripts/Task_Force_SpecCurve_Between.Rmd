@@ -256,5 +256,3 @@ plot_spec_NHST
 
 ```
 
-
-
