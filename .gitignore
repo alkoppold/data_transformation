@@ -1,6 +1,4 @@
 .DS_Store
-data/*.sav
-data/*.Rdata
 literature/
 .Rproj.user
 .Rhistory
