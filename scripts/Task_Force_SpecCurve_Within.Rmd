@@ -19,6 +19,10 @@ library(MASS)
 library(patchwork)
 ```
 
+``` {r load data}
+data_multiverse = read_rds("data/Merz_multiverse.rds")
+```
+
 ```{r data}
 # loading the original data 
 #X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")

@@ -72,26 +72,15 @@ fnFishZ = function(r, fn=mean, prune=.999, ...) {
 
 ```{r data}
 # loading the original data 
-#X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
-
-#TODO for better reproducibility, should we add the code for reshaping the data here?
-#good idea! 
+data_long = haven::read_sav("data/Merz.sav") %>% rename(id = Versuchspersonennummer) %>% 
+  pivot_longer(-id, names_to = "condition", values_to = "scr_raw") %>% 
+  separate(condition, into=c(NA, NA, NA, "stimulus", "trialnr"), sep="_") %>% 
+  mutate(trialnr = trialnr %>% str_extract("\\d+") %>% as.integer()) %>% 
   
-  
-# in long format 
-load("./data/long_EDA_merz.Rdata") #variable: data_long
-
-# Rename some variables, delete variable condition and delete cspu, ucsm and ucsw
-# names(data_long)[grep("Versuchspersonennummer", names(data_long))] <- "id"
-# names(data_long)[grep("scr", names(data_long))] <- "scr_raw"
-# data_long <- data_long[ ,c("id","trialnr","stimulus","scr_raw")]
-# data_long <- data_long[-grep("cspu|ucsm|ucsw", data_long$stimulus) , ]
-
-data_long = data_long %>% rename(id = Versuchspersonennummer, scr_raw = scr) %>% 
   filter(stimulus %in% c("cspe", "csm", "ucs")) %>% #only keep responses to CS+ (will be extinguished), CS-, and UCS
   mutate(stimulus = if_else(stimulus == "cspe", "csp", stimulus), #rename cspe to csp for generalizability to other data sets
-         stim_cat = if_else(stimulus %>% startsWith("cs"), "cs", "ucs")) %>% 
-  select(id, trialnr, stimulus, stim_cat, scr_raw) #get rid of "condition" and reorder
+         stim_cat = if_else(stimulus %>% startsWith("cs"), "cs", "ucs")) %>% #option to calculate boxcox across CS- and CS+
+  select(id, trialnr, stimulus, stim_cat, scr_raw) #reorder
 ```
 
 ```{r transformations}
@@ -220,6 +209,10 @@ data_long = data_long %>% filter(transformation=="raw", stimulus=="csd") %>%
   bind_rows(data_long %>% filter(transformation!="box" | stimulus!="csd"), .) #%>% full_join(data_long, by = c("id", "trialnr", "stimulus", "stim_cat", "transformation", "range_cor")) %>% filter(scr.x != scr.y) %>% select(stimulus, stim_cat, transformation, range_cor) %>% unique()
 ```
 
+``` {r export trial-level data}
+data_long %>% write_rds("Merz_transformations.rds" %>% paste0("data/", .))
+```
+
 #### Reliability
 
 ```{r reliability}
@@ -278,12 +271,12 @@ reliabilities %>% filter(range_cor=="none") %>% arrange(rank_trans)
 ``` {r effect size}
 effects = data_long %>% filter(stimulus=="csd") %>% 
   group_by(transformation, range_cor, id) %>% summarise(scr = mean(scr)) %>% #subject-level aggregates for correct between SD calculation
-  summarise(d = mean(scr)/sd(scr), #checked against apa::cohens_d(scr) #TODO use Hedge's g instead
+  summarise(effect = mean(scr)/sd(scr), #checked against apa::cohens_d(scr) #TODO use Hedge's g instead
             helper = apa::t_test(scr) %>% apa::t_apa(es_ci=T, print=F) %>% gsub("\\[", ";", .) %>% gsub("\\]", "", .)) %>% 
   separate_wider_delim(helper, delim=";", names=c(NA, "CI95.lo", "CI95.hi")) %>% mutate(across(contains("CI"), as.numeric)) %>%
-  group_by(transformation) %>% mutate(rank_rc = rank(-d)) %>% ungroup() %>% 
-  group_by(range_cor) %>% mutate(rank_trans = rank(-d)) %>% ungroup() %>% 
-  arrange(desc(d))
+  group_by(transformation) %>% mutate(rank_rc = rank(-effect)) %>% ungroup() %>% 
+  group_by(range_cor) %>% mutate(rank_trans = rank(-effect)) %>% ungroup() %>% 
+  arrange(desc(effect))
 
 effects
 
@@ -291,9 +284,10 @@ effects %>% summarise(mean_rank = rank_trans %>% mean(), .by=transformation) %>%
 effects %>% summarise(mean_rank = rank_rc %>% mean(), .by=range_cor) %>% arrange(mean_rank)
 ```
 
-``` {r export data}
-data_long %>% write_rds("Merz_data.rds" %>% paste0("data/", .))
-reliabilities %>% write_rds("Merz_reliability.rds" %>% paste0("data/", .))
+``` {r export data multiverse}
+data_multiverse = effects %>% select(-contains("rank")) %>% rename_with(function(x) paste0("effect_", x), .cols=contains("CI")) %>% 
+  full_join(reliabilities %>% rename(rel = m) %>% select(transformation, range_cor, rel, contains("CI")) %>% rename_with(function(x) paste0("rel_", x), .cols=contains("CI")))
+data_multiverse %>% write_rds("Merz_multiverse.rds" %>% paste0("data/", .))
 ```
 
 ``` {r old: reliability across stimuli (stratified), eval=F}

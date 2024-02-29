@@ -19,7 +19,7 @@ library(tidyverse)
 ```
 
 ``` {r load data}
-data_long = read_rds("data/Merz_data.rds")
+data_long = read_rds("data/Merz_transformations.rds")
 ```
 
 ```{r histograms}
