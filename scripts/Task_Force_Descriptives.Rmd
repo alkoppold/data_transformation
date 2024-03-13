@@ -16,7 +16,18 @@ library(moments)
 library(patchwork)
 library(tidyverse)
 
-myGgTheme = theme_bw()
+myGgTheme = theme(
+    axis.title.x = element_text(size = 12, face = "bold"),
+    axis.title.y = element_text(size = 12, face = "bold"),
+    axis.text.y = element_text(size = 10, face = "bold"),
+    axis.text.x = element_text(size = 10, face = "bold"),
+    strip.background = element_blank(),
+    panel.border = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.background = element_blank(),
+    axis.line.x = element_line(colour = 'black', size = 0.5, linetype='solid'),
+    axis.line.y = element_line(colour = 'black', size = 0.5, linetype='solid'))
 ```
 
 ``` {r load data}
@@ -238,79 +249,6 @@ lineplot_scr_raw
 
 ```
 
-```{r lineplot-different-transformations-csp}
-
-# Select CS+ responses
-# data_CSP <- data_long %>% filter(stimulus=="csp")
-# 
-# # Exclude max SCR
-# #data_CSP <- data_CSP[ ,-grep("_max_", names(data_CSP))]
-# 
-# # Convert data from wide to long and delete condition column as well as stimulus columns
-# #data_CSP <- gather(data_CSP, key = "approach", value = "scr_mean", - c(id, trialnr, stimulus, stim_cat))
-# data_CSP = data_CSP %>% mutate(approach = paste(transformation, range_cor, sep="_")) %>% rename(scr_mean = scr_raw)
-# data_CSP <- data_CSP[ ,-grep("stimulus", names(data_CSP))]
-# 
-# # Factorize approach
-# data_CSP$approach <- as.factor(data_CSP$approach)
-# 
-# # Delete box cox, looks strange...
-# #data_CSP <- data_CSP[-grep("box", data_CSP$approach), ]
-
-data_CSP <- data_long %>% filter(stimulus=="csp") %>% 
-  mutate(approach = paste(transformation, range_cor, sep="_") %>% as_factor()) %>% 
-  rename(scr_mean = scr)
-
-
-# Summarise within transformations (means and SEMs)
-rm(data_triallevel)
-data_triallevel = data_CSP %>%
-  group_by(trialnr, approach) %>%
-  summarise(scr.mean = mean(as.numeric(scr_mean), na.rm = T), 
-            scr.sem = sd(as.numeric(scr_mean), na.rm = T)/sqrt(length(scr_mean))) #not correct if missing values
-
-# Add confidence intervals to the dataframe (95%)
-data_triallevel$lower <- data_triallevel$scr.mean - 1.96*data_triallevel$scr.sem
-data_triallevel$upper <- data_triallevel$scr.mean + 1.96*data_triallevel$scr.sem
-n_data = length(unique(data_old$id))
-
-#### LINEPLOT: different transformations
-gp2 <- ggplot(data_triallevel, aes(x=trialnr, y=scr.mean, colour=approach, group=approach)) +
-   geom_point(aes(group=approach), size=2) +
-  
-  # Add lines between points
-  geom_line(aes(group=approach), size=1.2) +
-  # Add CI
-  geom_ribbon(aes(ymin=lower, ymax=upper, fill=approach, color=NULL), alpha=0.2) +
-  
-  scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
-  # Title of axes
-  xlab("Acquisition trials") +
-  ylab("SCR") +
-  # Title of the whole plot can be added here
-  ggtitle("") +
-  # Add number of participants as text in plot
-  annotate("text", x = 8, y = .8, label = paste("n =", n_data), size = 6) +
-  # Settings for fonts, ticks, legend and background of the plot
-  theme(plot.title = element_text(size=20, face="bold", hjust=0.5),
-        axis.text.x = element_text(size=16, face="bold", color="black"),
-        axis.text.y = element_text(size=16, face="bold", color="black"), 
-        axis.title.x = element_text(size=20, face="bold"),
-        axis.title.y = element_text(size=20, face="bold", margin=margin(0,10,0,0)),
-        legend.title = element_text(size=16, face="bold"),
-        legend.text = element_text(size=16),
-        legend.key = element_blank(),
-        axis.line.x = element_line(color="black", size = 1),
-        axis.line.y = element_line(color="black", size = 1),
-        axis.ticks.x=element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank())
-
-gp2
-
-```
 
 ```{r mainEffectlog}
 # tranformation 1 
