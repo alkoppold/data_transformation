@@ -1,0 +1,327 @@
+---
+title: "Outtakes_data_transformations"
+author: "Maren Klingelhöfer-Jens"
+date: "2024-03-13"
+output: html_document
+---
+
+```{r data-transformations}
+
+# # Log-transform the raw data
+# data_long$scr_log <- log10(1+data_long$scr_raw)
+# 
+# # Square root transform the raw data
+# data_long$scr_sqr <- sqrt(data_long$scr_raw)
+# 
+# # Box cox transform the data: the added positive constant is the smallest raw SCR within the data set
+# b <- boxcox(lm(data_long$scr_raw - min(data_long$scr_raw) + 1 ~ 1), plotit=F)
+# # Extract lambda
+# lambda <- b$x[which.max(b$y)]
+# lambda
+# data_long$scr_box <- (data_long$scr_raw ^ lambda - 1)/lambda
+# 
+# # z transform the data
+# data_long$scr_ztr <- scale(data_long$scr_raw)[,1] #[,1] to get rid of M and SD which is also returned
+
+
+#######################################################################################################################
+### Prepare range correction by calculating max SCR of CS and US responses
+# Max amplitude CS
+# data_long$scr_max_cs <- NA
+# for (i in unique(data_long$id)) {
+#   data_select <- data_long[which(data_long$id == i & grep("^cs", data_long$stimulus)), ]
+#   max_ampl_cs <- max(data_select$scr_raw, na.rm = T)
+#   data_long$scr_max_cs[which(data_long$id == i)] <- max_ampl_cs
+# }
+# 
+# # Max amplitude US
+# data_long$scr_max_us <- NA
+# for (i in unique(data_long$id)) {
+#   data_select <- data_long[which(data_long$id == i & grep("ucs", data_long$stimulus)), ]
+#   max_ampl_us <- max(data_select$scr_raw, na.rm = T)
+#   data_long$scr_max_us[which(data_long$id == i)] <- max_ampl_us
+# }
+# 
+# 
+# ### Range correct all transformation types with CS-rc
+# data_long$scr_raw_rc_cs <- data_long$scr_raw/data_long$scr_max_cs
+# data_long$scr_log_rc_cs <- data_long$scr_log/data_long$scr_max_cs #TODO this also divides by the max raw value but should be max log value?
+# data_long$scr_sqr_rc_cs <- data_long$scr_sqr/data_long$scr_max_cs
+# data_long$scr_box_rc_cs <- data_long$scr_box/data_long$scr_max_cs
+# data_long$scr_ztr_rc_cs <- data_long$scr_ztr/data_long$scr_max_cs
+# 
+# ### Range correct all transformation types with US-rc
+# data_long$scr_raw_rc_us <- data_long$scr_raw/data_long$scr_max_us
+# data_long$scr_log_rc_us <- data_long$scr_log/data_long$scr_max_us
+# data_long$scr_sqr_rc_us <- data_long$scr_sqr/data_long$scr_max_us
+# data_long$scr_box_rc_us <- data_long$scr_box/data_long$scr_max_us
+# data_long$scr_ztr_rc_us <- data_long$scr_ztr/data_long$scr_max_us
+
+######################################################################################################################
+
+### Add CS discrimination
+# Select data and calculate CS discrimination
+# data_cs_dis <- data_long[grep("cspe|csm", data_long$stimulus), ]
+# data_cs_dis <- spread(data_cs_dis, stimulus, scr_raw)
+# data_cs_dis$csd <- data_cs_dis$cspe - data_cs_dis$csm
+# 
+# # Reshape data back to wide format
+# data_cs_dis <- gather(data_cs_dis, stimulus, scr_raw, csm:csd, factor_key = TRUE)
+# 
+# # Melt it with US responses in data_long
+# data_long <- rbind(data_cs_dis, data_long[grep("ucs", data_long$stimulus) , ])
+
+```
+
+
+```{r descriptives}
+
+# Select CS+ responses
+# data_CSP <- data_long %>% filter(stimulus=="csp")
+# 
+# # Exclude max SCR
+# #data_CSP <- data_CSP[ ,-grep("_max_", names(data_CSP))]
+# 
+# # Convert data from wide to long and delete condition column as well as stimulus columns
+# #data_CSP <- gather(data_CSP, key = "approach", value = "scr_mean", - c(id, trialnr, stimulus, stim_cat))
+# data_CSP = data_CSP %>% mutate(approach = paste(transformation, range_cor, sep="_")) %>% rename(scr_mean = scr_raw)
+# data_CSP <- data_CSP[ ,-grep("stimulus", names(data_CSP))]
+# 
+# # Factorize approach
+# data_CSP$approach <- as.factor(data_CSP$approach)
+# 
+# # Delete box cox, looks strange...
+# #data_CSP <- data_CSP[-grep("box", data_CSP$approach), ]
+
+data_CSP <- data_long %>% filter(stimulus=="csp") %>% 
+  mutate(approach = paste(transformation, range_cor, sep="_") %>% as_factor()) %>% 
+  rename(scr_mean = scr)
+
+
+# Summarise within transformations (means and SEMs)
+rm(data_triallevel)
+data_triallevel = data_CSP %>%
+  group_by(trialnr, approach) %>%
+  summarise(scr.mean = mean(as.numeric(scr_mean), na.rm = T), 
+            scr.sem = sd(as.numeric(scr_mean), na.rm = T)/sqrt(length(scr_mean))) #not correct if missing values
+
+# Add confidence intervals to the dataframe (95%)
+data_triallevel$lower <- data_triallevel$scr.mean - 1.96*data_triallevel$scr.sem
+data_triallevel$upper <- data_triallevel$scr.mean + 1.96*data_triallevel$scr.sem
+n_data = length(unique(data_old$id))
+
+#### LINEPLOT: different transformations
+gp2 <- ggplot(data_triallevel, aes(x=trialnr, y=scr.mean, colour=approach, group=approach)) +
+   geom_point(aes(group=approach), size=2) +
+  
+  # Add lines between points
+  geom_line(aes(group=approach), size=1.2) +
+  # Add CI
+  geom_ribbon(aes(ymin=lower, ymax=upper, fill=approach, color=NULL), alpha=0.2) +
+  
+  scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
+  # Title of axes
+  xlab("Acquisition trials") +
+  ylab("SCR") +
+  # Title of the whole plot can be added here
+  ggtitle("") +
+  # Add number of participants as text in plot
+  annotate("text", x = 8, y = .8, label = paste("n =", n_data), size = 6) +
+  # Settings for fonts, ticks, legend and background of the plot
+  theme(plot.title = element_text(size=20, face="bold", hjust=0.5),
+        axis.text.x = element_text(size=16, face="bold", color="black"),
+        axis.text.y = element_text(size=16, face="bold", color="black"), 
+        axis.title.x = element_text(size=20, face="bold"),
+        axis.title.y = element_text(size=20, face="bold", margin=margin(0,10,0,0)),
+        legend.title = element_text(size=16, face="bold"),
+        legend.text = element_text(size=16),
+        legend.key = element_blank(),
+        axis.line.x = element_line(color="black", size = 1),
+        axis.line.y = element_line(color="black", size = 1),
+        axis.ticks.x=element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+gp2
+
+```
+
+```{r specification-curve}
+
+### Transformations
+
+# loading the original data 
+#X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
+  
+# in long format 
+load("./data/long_EDA_merz.Rdata")
+
+# Rename some variables
+names(data_long)[grep("Versuchspersonennummer", names(data_long))] <- "id"
+names(data_long)[grep("scr", names(data_long))] <- "scr_raw"
+
+### Add different transformations
+# Log-transform the raw data
+data_long$scr_log <- log10(1+data_long$scr_raw)
+
+# Square root transform the raw data
+data_long$scr_sqr <- sqrt(data_long$scr_raw)
+
+# Box cox transform the data: the added positive constant is the smallest raw SCR wihtin the data set
+b <- boxcox(lm(0.009995+data_long$scr_raw ~ 1))
+# Extract lambda
+lambda <- b$x[which.max(b$y)]
+lambda
+data_long$scr_box <- (data_long$scr_raw ^ lambda - 1)/lambda
+
+# z transform the data
+data_long$scr_ztr <- scale(data_long$scr_raw)
+
+
+### Prepare range correction by calculating max SCR of CS and US responses
+# Max amplitude CS
+data_long$scr_max_cs <- NA
+for (i in unique(data_long$id)) {
+  data_select <- data_long[which(data_long$id == i & grep("_cs", data_long$condition)), ]
+  max_ampl_cs <- max(data_select$scr_raw, na.rm = T)
+  data_long$scr_max_cs[which(data_long$id == i)] <- max_ampl_cs
+}
+
+# Max amplitude US
+data_long$scr_max_us <- NA
+for (i in unique(data_long$id)) {
+  data_select <- data_long[which(data_long$id == i & grep("_uc", data_long$condition)), ]
+  max_ampl_us <- max(data_select$scr_raw, na.rm = T)
+  data_long$scr_max_us[which(data_long$id == i)] <- max_ampl_us
+}
+
+
+### Range correct all transformation types with CS-rc
+data_long$scr_raw_rc_cs <- data_long$scr_raw/data_long$scr_max_cs
+data_long$scr_log_rc_cs <- data_long$scr_log/data_long$scr_max_cs
+data_long$scr_sqr_rc_cs <- data_long$scr_sqr/data_long$scr_max_cs
+data_long$scr_box_rc_cs <- data_long$scr_box/data_long$scr_max_cs
+data_long$scr_ztr_rc_cs <- data_long$scr_ztr/data_long$scr_max_cs
+
+### Range correct all transformation types with US-rc
+data_long$scr_raw_rc_us <- data_long$scr_raw/data_long$scr_max_us
+data_long$scr_log_rc_us <- data_long$scr_log/data_long$scr_max_us
+data_long$scr_sqr_rc_us <- data_long$scr_sqr/data_long$scr_max_us
+data_long$scr_box_rc_us <- data_long$scr_box/data_long$scr_max_us
+data_long$scr_ztr_rc_us <- data_long$scr_ztr/data_long$scr_max_us
+
+############################################################################################################
+
+### Calculate t-tests, effect sizes asf (NHST)
+data <- gather(data_long, key = "approach", value = "scr_mean", - c(id,condition, trialnr, stimulus ))
+data <- data %>% filter(approach != "scr_max_cs") # this is not a transformation procedure 
+data <- data %>% filter(approach != "scr_max_us")
+
+
+res_ttest_means <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
+  group_by(approach) %>%
+  summarise(scr_mean_csp = mean(scr_mean[stimulus == 'cspe'], na.rm = T),
+            scr_mean_csm = mean(scr_mean[stimulus == 'csm'], na.rm = T),
+            scr_sd_csp = sd(scr_mean[stimulus == 'cspe'], na.rm = T),
+            scr_sd_csm = sd(scr_mean[stimulus == 'csm'], na.rm = T))
+  
+# t test; select csp and csm 
+res_ttest <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
+  group_by(approach) %>%
+  rstatix::t_test(scr_mean ~ stimulus, data = ., paired = T) 
+
+
+# effect size (using Hedges G)
+res_ttest_g <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
+  group_by(approach) %>%
+rstatix::cohens_d(scr_mean ~ stimulus, data = .,paired = T,ci = T,hedges.correction = TRUE)
+
+### For positive Cohen's d: convert ESs and CIs to absolute values
+res_ttest_g$effsize <- abs(res_ttest_g$effsize)
+res_ttest_g$conf.low <- abs(res_ttest_g$conf.low)
+res_ttest_g$conf.high <- abs(res_ttest_g$conf.high)
+
+# add index to order by effect size
+# we have n + 1 unique approaches
+res_ttest_g$approach_num <-  1:nrow(res_ttest_g)
+res_ttest_g[order(res_ttest_g$effsize),'approach_eff_order'] <-  1:nrow(res_ttest_g)
+
+### Add columns for transformation (log, sqrt, box cox, z-transformation) and range correction type (none, CS corrected, US corrected)
+res_ttest_g$transf_type <- str_split_fixed(res_ttest_g$approach, "_", 3)[,2]
+res_ttest_g$rc_type <- str_split_fixed(res_ttest_g$approach, "_", 3)[,3]
+res_ttest_g$rc_type[res_ttest_g$rc_type == ""] <- "none"
+
+
+###############################################################################################################
+### BAYESIAN PART ####
+appr_list <- names(data_long)[grep("^scr_", names(data_long))]
+appr_list <- appr_list[appr_list != "scr_max_cs" & appr_list != "scr_max_us"]
+n_appr = length(appr_list)
+
+#*****
+n_its <- 1000  # number of iterations, should this be 1000000? Then I run into problems, too big.
+res_tBF <- list(approach = NA, 
+                ttest_BF = NA,
+                ttest_BF_post = NA) 
+
+
+for(ind in 1:n_appr){
+  # extract name of approach
+  appr <- appr_list[ind]
+  
+  # build dummy dataframe with one approach only
+  dat_dummy <- data %>% 
+    filter(stimulus %in% c('cspe','csm')) %>%
+    filter(approach == appr)
+  
+  # copmute BF (note: when using the formula notation, paired does not work)
+  #bf <- ttestBF(formula = scr_mean ~ stimType, data = dat_dummy, paired = T)
+  bf <- ttestBF(dat_dummy$scr_mean[dat_dummy$stimulus == 'cspe'], 
+                dat_dummy$scr_mean[dat_dummy$stimulus == 'csm'], paired = T)
+  bf_post <- posterior(bf, iterations = n_its) 
+  
+  # put in dataframe
+  res_tBF$approach[ind] <- appr
+  res_tBF$ttest_BF[ind] <- list(bf)
+  res_tBF$ttest_BF_post[ind] <- list(bf_post)
+  
+}
+
+
+
+# extract relevant information from list, build empty dataframe
+results_BF_effsize <- data.frame(approach = NA,
+                                 approach_num = NA,
+                                 effsize = NA,
+                                 effsize_low =NA,
+                                 effsize_upp = NA,
+                                 BF_ln = NA)
+
+for (ind in 1:n_appr){
+  results_BF_effsize[ind, 'approach'] <- as.character(res_tBF$approach[ind])
+  results_BF_effsize[ind, 'approach_num'] <- ind
+  # extract effect size and 95% interval around effect size
+  results_BF_effsize[ind,'effsize'] <- median(res_tBF$ttest_BF_post[[ind]][,'delta'])
+  # extract CI around estimate
+  results_BF_effsize[ind, 'effsize_low'] <- summary(res_tBF$ttest_BF_post[[ind]])$quantiles['delta',][1]
+  results_BF_effsize[ind, 'effsize_upp'] <-summary(res_tBF$ttest_BF_post[[ind]])$quantiles['delta',][5]
+  # add log BF
+  results_BF_effsize[ind, 'BF_ln'] <- res_tBF$ttest_BF[[ind]]@bayesFactor[['bf']]
+}
+
+# add parameters seperately
+results_BF_effsize$approach <- factor(results_BF_effsize$approach)
+# this is not optimal:
+results_BF_effsize <- merge(results_BF_effsize, data.frame(res_ttest[1:5]))
+
+# add column for ordered effect sizes
+results_BF_effsize[order( results_BF_effsize$effsize),'approach_eff_order'] <-  1:nrow(results_BF_effsize)
+
+```
+
+```
+
+
+

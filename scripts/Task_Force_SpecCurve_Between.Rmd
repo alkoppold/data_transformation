@@ -25,65 +25,29 @@ library(patchwork)
 #X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
   
 # in long format 
-load("./data/long_EDA_merz.Rdata")
+#load("./data/long_EDA_merz.Rdata")
 
 # Rename some variables
-names(data_long)[grep("Versuchspersonennummer", names(data_long))] <- "id"
-names(data_long)[grep("scr", names(data_long))] <- "scr_raw"
+#names(data_long)[grep("Versuchspersonennummer", names(data_long))] <- "id"
+#names(data_long)[grep("scr", names(data_long))] <- "scr_raw"
+
+# load new data (Marios)
+data_merz = read_rds("data/Merz_multiverse.rds")
+
+# Factorize range correction type
+data_merz$range_cor <- as.factor(data_merz$range_cor)
+data_merz$range_cor <- factor(data_merz$range_cor, levels = c("none","cs","us"))
+
 
 # variables of interest
-data_long$reinforcement_rate = "62.5"
-data_long$n = "97"
-data_long$CS_duration = "6s" 
-data_long$CS_stimuli = "picture"
-data_long$training = "instructed"
-data_long$max_us_raw = "1.96"
-data_long$max_cs_raw = "1.96"
-data_long$dataset= "Merz"
-
-```
-
-```{r ttest-NHST}
-# Gather data and delete max amplitude
-data <- gather(data_long, key = "approach", value = "value", - c(id, condition, trialnr,stimulus, scr_raw, dataset))
-data$approach<- with(data, paste0(approach, value))
-colnames(data)[3] = "scr_mean"
-
-
-res_ttest_means <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
-  group_by(approach, dataset) %>%
-  summarise(scr_mean_csp = mean(scr_mean[stimulus == 'cspe'], na.rm = T),
-            scr_mean_csm = mean(scr_mean[stimulus == 'csm'], na.rm = T),
-            scr_sd_csp = sd(scr_mean[stimulus == 'cspe'], na.rm = T),
-            scr_sd_csm = sd(scr_mean[stimulus == 'csm'], na.rm = T))
-  
-# t test; select csp and csm 
-res_ttest <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
-  group_by(approach, dataset) %>%
-  rstatix::t_test(scr_mean ~ stimulus, data = ., paired = T) 
-
-
-# effect size (using Hedges G)
-res_ttest_g <- data %>% filter(stimulus %in% c('cspe', 'csm')) %>%
-  group_by(approach, dataset) %>%
-rstatix::cohens_d(scr_mean ~ stimulus, data = .,paired = T,ci = T,hedges.correction = TRUE)
-
-### For positive Cohen's d: convert ESs and CIs to absolute values
-res_ttest_g$effsize <- abs(res_ttest_g$effsize)
-res_ttest_g$conf.low <- abs(res_ttest_g$conf.low)
-res_ttest_g$conf.high <- abs(res_ttest_g$conf.high)
-
-# add index to order by effect size
-# we have n + 1 unique approaches
-res_ttest_g$approach_num <-  1:nrow(res_ttest_g)
-res_ttest_g[order(res_ttest_g$effsize),'approach_eff_order'] <-  1:nrow(res_ttest_g)
-
-### Add columns for transformation (log, sqrt, box cox, z-transformation) and range correction type (none, CS corrected, US corrected)
-res_ttest_g$transf_type <- str_split_fixed(res_ttest_g$approach, "_", 3)[,2]
-res_ttest_g$rc_type <- str_split_fixed(res_ttest_g$approach, "_", 3)[,3]
-res_ttest_g$rc_type[res_ttest_g$rc_type == ""] <- "none"
-
-dataset1= res_ttest_g 
+data_merz$reinforcement_rate = "62.5"
+data_merz$n = "97"
+data_merz$CS_duration = "6s" 
+data_merz$CS_stimuli = "picture"
+data_merz$training = "instructed"
+data_merz$max_us_raw = "1.96"
+data_merz$max_cs_raw = "1.96"
+data_merz$dataset = "Merz"
 
 ```
 
@@ -93,43 +57,188 @@ dataset1= res_ttest_g
 # define variables of interest 
 ```{r sanity-check-B07}
 
-# Load data
+# Load data (only ACQ and T0)?
 load("./data/dataSCR_B07.RData")
-
-# Select ACQ and T0
-#dataSCR <- dataSCR[which(dataSCR$phase == "acq" & dataSCR$timepoint == "T0"), ]
+data_B07 <- dataSCR
 
 # Exclude some participants: as Rachel: 10, 81
 # and 17 because has one missing trial
 id_excl <- c(10, 17, 81)
-dataSCR <- dataSCR[!is.element(dataSCR$id, id_excl), ]
+data_B07 <- data_B07[!is.element(data_B07$id, id_excl), ]
 
-# Who has zero responses only? -> range correction does not work!
-id_zero_cs <- unique(dataSCR$id[which(dataSCR$scr_max_cs == 0)])
-id_zero_us <- unique(dataSCR$id[which(dataSCR$scr_max_us == 0)])
+######################## Exclusion due to non-responding? Still has to be decided
+# # Who has zero responses only? -> range correction does not work!
+# id_zero_cs <- unique(data_B07$id[which(data_B07$scr_max_cs == 0)])
+# id_zero_us <- unique(data_B07$id[which(data_B07$scr_max_us == 0)])
+# 
+# # Exclude these participants: 30, 33, 60, 91
+# id_excl_zero <- c(30, 33, 60, 91)
+# data_B07 <- data_B07[!is.element(data_B07$id, id_excl_zero), ]
 
-# Exclude these participants: 30, 33, 60, 91
-id_excl_zero <- c(30, 33, 60, 91)
-dataSCR <- dataSCR[!is.element(dataSCR$id, id_excl_zero), ]
 
-
-# Select columns
-#dataSCR <- dataSCR[ ,c("id","cs_time","cs","raw.ampl")]
+###################################################################################
 
 # Rename some variables
-#names(dataSCR)[grep("raw.ampl", names(dataSCR))] <- "scr_raw"
-names(dataSCR)[grep("stim_type", names(dataSCR))] <- "cs"
-names(dataSCR)[grep("trial", names(dataSCR))] <- "trialnr"
+names(data_B07)[grep("trial", names(data_B07))] <- "trialnr"
+names(data_B07)[grep("stim_type", names(data_B07))] <- "stimulus"
+names(data_B07)[grep("trial", names(data_B07))] <- "trialnr"
+data_B07$stimulus <- gsub("CS_P","csp", data_B07$stimulus)
+data_B07$stimulus <- gsub("CS_M","csm", data_B07$stimulus)
+data_B07$stimulus <- gsub("US","us", data_B07$stimulus)
+
+# Add variable: category of stimulus
+data_B07$stim_cat <- NA
+data_B07$stim_cat[grep("cs", data_B07$stimulus)] <- "cs"
+data_B07$stim_cat[grep("us", data_B07$stimulus)] <- "us"
+
+# Reorder the data frame
+data_B07 <- data_B07[ ,c("id","trialnr","stimulus","stim_cat","scr_raw")]
+
+
+### helpers
+boxcoxvec = function(x, min=1) { #cf. scales::boxcox_trans()
+  if (min %>% is.numeric()) x = x - min(x, na.rm=T) + min
+  lambda = MASS::boxcox(x ~ 1, plotit=F) %>% 
+    bind_cols() %>% filter(y == max(y)) %>% pull(x) %>% mean()
+  return((x ^ lambda - 1) / lambda)
+}
+
+prune = function(x, low=-Inf, high=+Inf, abs=NA) {
+  result = if_else(x < low, low, x) %>% if_else(. > high, high, .)
+  if (abs %>% is.na() == F) result = if_else(abs(result) > abs, abs * if_else(result > 0, 1, -1), result)
+  return(result)
+}
+
+reliability_helper = function(data, fn_score, replications, #need to be specified
+                              participants="id", stratification=NULL, #constant for one data set
+                              fn_coef=splithalfr::spearman_brown, ncores=parallel::detectCores() - 1, careful=F, verbose=F) #sensible defaults
+{
+  if (stratification %>% is.null() == F) stratification = data %>% pull(!!stratification)
+  splithalfr::by_split(data=data, fn_score=fn_score, replications=replications,
+                       participants = data %>% pull(!!participants), 
+                       stratification = stratification,
+                       ncores=ncores, careful=careful, verbose=verbose) %>% 
+    splithalfr::split_coefs(fn_coef=fn_coef)
+}
+
+fn_score_mean = function(column, na.rm=T) { #idea: create a function that
+  return(function(df) { #returns another function 
+    return(mean(dplyr::pull(df, !!column), na.rm=na.rm)) #with specifications (column & na.rm) from the parent-function => parameter df gets filled inside by_split function call
+    #note: this would not be needed if by_split had a "..." argument that gets passed into fn_score
+    
+    #return(df %>% pull(!!column) %>% mean(na.rm=na.rm)) #requires library(tidyverse) for parallel (inefficient)
+  })
+}
+
+rToFishZ = function(r) { return(.5*log((1+r)/(1-r))) }
+fishZtoR = function(Z) { return(ifelse(Z==Inf, 1, (exp(2*Z)-1)/(exp(2*Z)+1))) }
+fnFishZ = function(r, fn=mean, prune=.999, ...) { 
+  warning.txt = ""
+  if (any(abs(r) >= 1, na.rm=T)) {
+    warning.txt = "Correlation(s) contain(s) values at or beyond 1. This will bias results for summary functions." %>% paste0(warning.txt, .)
+    if (prune %>% is.na()) warning = "Consider setting prune parameter." %>% paste(warning.txt, .)
+    else {
+      warning.txt = paste0("Pruning to ", prune, ".") %>% paste(warning.txt, .)
+      
+      r = r %>% prune(abs=prune) #if_else(abs(r) >= 1, prune * if_else(r > 0, 1, -1), r)
+    }
+    warning(warning.txt)
+  }
+  
+  return(r %>% rToFishZ() %>% fn(...) %>% fishZtoR()) 
+}
+
+# loading the original data 
+data_long = haven::read_sav("data/Merz.sav") %>% rename(id = Versuchspersonennummer) %>% 
+  pivot_longer(-id, names_to = "condition", values_to = "scr_raw") %>% 
+  separate(condition, into=c(NA, NA, NA, "stimulus", "trialnr"), sep="_") %>% 
+  mutate(trialnr = trialnr %>% str_extract("\\d+") %>% as.integer()) %>% 
+  
+  filter(stimulus %in% c("cspe", "csm", "ucs")) %>% #only keep responses to CS+ (will be extinguished), CS-, and UCS
+  mutate(stimulus = if_else(stimulus == "cspe", "csp", stimulus), #rename cspe to csp for generalizability to other data sets
+         stim_cat = if_else(stimulus %>% startsWith("cs"), "cs", "ucs")) %>% #option to calculate boxcox across CS- and CS+
+  select(id, trialnr, stimulus, stim_cat, scr_raw) #reorder
+
+
+### transformations
+# Log-transform the raw data
+data_long = data_long %>% 
+  mutate(scr_log = log10(1+scr_raw),
+         scr_sqr = sqrt(scr_raw)) %>% 
+  
+  # group_by(stimulus) %>% mutate(scr_shift = scr_raw - min(scr_raw) + 1, 
+  #                               lambda = boxcox(scr_shift ~ 1, plotit=F) %>% 
+  #                                 bind_cols() %>% filter(y == max(y)) %>% pull(x) %>% mean()) %>% ungroup() %>% 
+  # mutate(scr_box_check = (scr_shift ^ lambda - 1) / lambda) %>% 
+  group_by(stimulus) %>% mutate(scr_box = boxcoxvec(scr_raw)) %>% ungroup() %>% 
+  
+  #group_by(id) %>% #this implicitly invokes something similar to a range correction => don't do it? How is it used in the literature?
+  mutate(scr_ztr = scale(scr_raw)[,1],
+         scr_ztr = scr_ztr - min(scr_ztr)) #make sure that minimum response is 0 (and not negative)
+
+#View(data_long)
+#data_long %>% ggplot(aes(x = scr_raw, y = scr_box, color = stimulus)) + geom_point() + theme_bw()
+#data_long %>% filter(transformation %>% grepl("box", .)) %>% pivot_wider(names_from=transformation, values_from=scr) %>% filter(scr_box != scr_box_check)
+
+data_long = data_long %>% 
+  #select(-scr_shift, -lambda) %>% #remove helping variables
+  pivot_longer(starts_with("scr_"), names_to = "transformation", values_to = "scr")
+
+
+### range correction
+# Prepare range correction by calculating max SCR of CS and US responses
+data_long.max = data_long %>% 
+  summarise(scr_max = max(scr, na.rm=T), .by = c(id, stim_cat, transformation)) %>% 
+  pivot_wider(names_from = stim_cat, names_prefix = "max_", values_from = scr_max, id_cols = c("id", "transformation"))
+
+data_long.max %>% summarise(across(starts_with("max"), list("min" = min, "max" = max)))
+#some participant's max response is negative (probably due to z-transform across all participants, i.e., their max is still below the group average)
+# => absolute value of minimum has been "added" to shift z-scored values to a minimum of 0
+
+data_long.max %>% filter(max_cs == 0 | max_ucs == 0)
+#subject 446: only zero responses to CSs
+
+data_long.max = data_long.max %>% mutate(across(starts_with("max_"), function(x) {if_else(x == 0, Inf, x)})) #replace 0 with Inf (such that scr / Inf == 0)
+
+data_long = data_long %>% full_join(data_long.max) %>% 
+  mutate(scr_rc_cs = scr / max_cs,
+         scr_rc_us = scr / max_ucs) %>% 
+         #stimulus = if_else(stimulus %>% is.na(), "ucs", stimulus) %>% as_factor()) %>% 
+  select(-starts_with("max_")) %>% rename(scr_rc_none = scr) %>% 
+  pivot_longer(starts_with("scr_rc_"), names_to = "range_cor", values_to = "scr") %>% 
+  mutate(transformation = transformation %>% gsub("scr_", "", .) %>% as_factor(),
+         range_cor = range_cor %>% gsub("scr_rc_", "", .) %>% as_factor())
+
+#data_long %>% filter(scr %>% is.nan())
+
+
+### cs discrimination}
+### Add CS discrimination
+data_long = data_long %>% filter(stimulus != "ucs") %>% 
+  pivot_wider(names_from = stimulus, values_from = "scr") %>% 
+  mutate(csd = csp - csm, #"trial"-level cs-difference only works because same amount of cs+ and cs- trials (and trials are counted with cs category)
+         stimulus = "csd") %>% rename(scr = csd) %>% #a bit hacky preparation for bind_rows
+  select(-csp, -csm) %>% bind_rows(data_long, .)
+
+
+### boxcox & csd
+#TODO does it make sense for boxcox to transform first and then calculate difference? Probably not due to different non-linear transformations = non-comparable scales => do boxcox again for raw csd (separate for range_cor, which is a linear transformation)
+data_long = data_long %>% filter(transformation=="raw", stimulus=="csd") %>% 
+  group_by(range_cor) %>% mutate(scr = boxcoxvec(scr)) %>% ungroup() %>% 
+  mutate(transformation="box") %>% 
+  bind_rows(data_long %>% filter(transformation!="box" | stimulus!="csd"), .) #%>% full_join(data_long, by = c("id", "trialnr", "stimulus", "stim_cat", "transformation", "range_cor")) %>% filter(scr.x != scr.y) %>% select(stimulus, stim_cat, transformation, range_cor) %>% unique()
+
+
 
 # variables of interest
-dataSCR$reinforcement_rate = "100"
-dataSCR$n = "113"
-dataSCR$CS_duration = "6s" 
-dataSCR$CS_stimuli = "picture"
-dataSCR$training = "uninstructed"
-dataSCR$max_us_raw = "1.49" 
-dataSCR$max_cs_raw = "0.89"
-dataSCR$dataset = "B07"
+data_B07$reinforcement_rate = "100"
+data_B07$n = "113"
+data_B07$CS_duration = "6s" 
+data_B07$CS_stimuli = "picture"
+data_B07$training = "uninstructed"
+data_B07$max_us_raw = "1.49" 
+data_B07$max_cs_raw = "0.89"
+data_B07$dataset = "B07"
 
 
 ```
@@ -137,7 +246,7 @@ dataSCR$dataset = "B07"
 ```{r ttest-NHST}
 
 # Gather data and delete max amplitude
-data <- gather(dataSCR, key = "approach", value = "value", - c(id, cs, trialnr, scr_raw,dataset))
+data <- gather(data_B07, key = "approach", value = "value", - c(id, cs, trialnr, scr_raw,dataset))
 data$approach<- with(data, paste0(approach, value))
 colnames(data)[4] = "scr_mean"
 

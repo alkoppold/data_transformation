@@ -84,22 +84,7 @@ data_long = haven::read_sav("data/Merz.sav") %>% rename(id = Versuchspersonennum
 ```
 
 ```{r transformations}
-# # Log-transform the raw data
-# data_long$scr_log <- log10(1+data_long$scr_raw)
-# 
-# # Square root transform the raw data
-# data_long$scr_sqr <- sqrt(data_long$scr_raw)
-# 
-# # Box cox transform the data: the added positive constant is the smallest raw SCR within the data set
-# b <- boxcox(lm(data_long$scr_raw - min(data_long$scr_raw) + 1 ~ 1), plotit=F)
-# # Extract lambda
-# lambda <- b$x[which.max(b$y)]
-# lambda
-# data_long$scr_box <- (data_long$scr_raw ^ lambda - 1)/lambda
-# 
-# # z transform the data
-# data_long$scr_ztr <- scale(data_long$scr_raw)[,1] #[,1] to get rid of M and SD which is also returned
-
+# Log-transform the raw data
 data_long = data_long %>% 
   mutate(scr_log = log10(1+scr_raw),
          scr_sqr = sqrt(scr_raw)) %>% 
@@ -124,38 +109,7 @@ data_long = data_long %>%
 ```
 
 ```{r range correction}
-### Prepare range correction by calculating max SCR of CS and US responses
-# Max amplitude CS
-# data_long$scr_max_cs <- NA
-# for (i in unique(data_long$id)) {
-#   data_select <- data_long[which(data_long$id == i & grep("^cs", data_long$stimulus)), ]
-#   max_ampl_cs <- max(data_select$scr_raw, na.rm = T)
-#   data_long$scr_max_cs[which(data_long$id == i)] <- max_ampl_cs
-# }
-# 
-# # Max amplitude US
-# data_long$scr_max_us <- NA
-# for (i in unique(data_long$id)) {
-#   data_select <- data_long[which(data_long$id == i & grep("ucs", data_long$stimulus)), ]
-#   max_ampl_us <- max(data_select$scr_raw, na.rm = T)
-#   data_long$scr_max_us[which(data_long$id == i)] <- max_ampl_us
-# }
-# 
-# 
-# ### Range correct all transformation types with CS-rc
-# data_long$scr_raw_rc_cs <- data_long$scr_raw/data_long$scr_max_cs
-# data_long$scr_log_rc_cs <- data_long$scr_log/data_long$scr_max_cs #TODO this also divides by the max raw value but should be max log value?
-# data_long$scr_sqr_rc_cs <- data_long$scr_sqr/data_long$scr_max_cs
-# data_long$scr_box_rc_cs <- data_long$scr_box/data_long$scr_max_cs
-# data_long$scr_ztr_rc_cs <- data_long$scr_ztr/data_long$scr_max_cs
-# 
-# ### Range correct all transformation types with US-rc
-# data_long$scr_raw_rc_us <- data_long$scr_raw/data_long$scr_max_us
-# data_long$scr_log_rc_us <- data_long$scr_log/data_long$scr_max_us
-# data_long$scr_sqr_rc_us <- data_long$scr_sqr/data_long$scr_max_us
-# data_long$scr_box_rc_us <- data_long$scr_box/data_long$scr_max_us
-# data_long$scr_ztr_rc_us <- data_long$scr_ztr/data_long$scr_max_us
-
+# Prepare range correction by calculating max SCR of CS and US responses
 data_long.max = data_long %>% 
   summarise(scr_max = max(scr, na.rm=T), .by = c(id, stim_cat, transformation)) %>% 
   pivot_wider(names_from = stim_cat, names_prefix = "max_", values_from = scr_max, id_cols = c("id", "transformation"))
@@ -183,17 +137,6 @@ data_long = data_long %>% full_join(data_long.max) %>%
 
 ```{r cs discrimination}
 ### Add CS discrimination
-# Select data and calculate CS discrimination
-# data_cs_dis <- data_long[grep("cspe|csm", data_long$stimulus), ]
-# data_cs_dis <- spread(data_cs_dis, stimulus, scr_raw)
-# data_cs_dis$csd <- data_cs_dis$cspe - data_cs_dis$csm
-# 
-# # Reshape data back to wide format
-# data_cs_dis <- gather(data_cs_dis, stimulus, scr_raw, csm:csd, factor_key = TRUE)
-# 
-# # Melt it with US responses in data_long
-# data_long <- rbind(data_cs_dis, data_long[grep("ucs", data_long$stimulus) , ])
-
 data_long = data_long %>% filter(stimulus != "ucs") %>% 
   pivot_wider(names_from = stimulus, values_from = "scr") %>% 
   mutate(csd = csp - csm, #"trial"-level cs-difference only works because same amount of cs+ and cs- trials (and trials are counted with cs category)
