@@ -113,7 +113,7 @@ data_multi_rel <- data_multiverse
 # Add index to order by size of reliability
 # We have n + 1 unique approaches
 data_multi_rel$approach_num <-  1:nrow(data_multi_rel)
-data_multi_rel[order(data_multi_rel$rel),'approach_eff_order'] <-  1:nrow(data_multi_rel)
+data_multi_rel[order(data_multi_rel$rel),'approach_rel_order'] <-  1:nrow(data_multi_rel)
 
 # labels
 x_lab <- 'Approach number ordered by size of reliability'
@@ -122,7 +122,7 @@ y_lab <- 'Reliability (split-half)'
 # Order by size of reliability
 # Colored by approach
 p_reliability <- data_multi_rel %>%
-  ggplot(aes(x = approach_eff_order, y = rel, color = transformation)) +
+  ggplot(aes(x = approach_rel_order, y = rel, color = transformation)) +
   geom_point() +
   geom_errorbar(aes(ymin = rel_CI95.lo, ymax = rel_CI95.hi)) +
   scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("box cox", "log-transformed", 
@@ -137,7 +137,7 @@ p_reliability <- data_multi_rel %>%
 
 
 # plot specifications of parameters
-s_reliability <- ggplot(data_multi_rel, aes(x = approach_eff_order, y = range_cor)) +
+s_reliability <- ggplot(data_multi_rel, aes(x = approach_rel_order, y = range_cor)) +
   geom_point(shape = '|', size = size_point) +
    #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
   scale_y_discrete(name = 'Range correction', labels = c("none", "CS corrected", "US corrected")) +
