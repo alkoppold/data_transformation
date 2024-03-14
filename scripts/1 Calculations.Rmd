@@ -214,9 +214,12 @@ reliabilities %>% filter(range_cor=="none") %>% arrange(rank_trans)
 ``` {r effect size}
 effects = data_long %>% filter(stimulus=="csd") %>% 
   group_by(transformation, range_cor, id) %>% summarise(scr = mean(scr)) %>% #subject-level aggregates for correct between SD calculation
+  # TODO remove effect column
   summarise(effect = mean(scr)/sd(scr), #checked against apa::cohens_d(scr) #TODO use Hedge's g instead
+            hedges_g_apa = apa::cohens_d(scr, corr = "hedges_g"), #hedges g calculated with the apa package
             helper = apa::t_test(scr) %>% apa::t_apa(es_ci=T, print=F) %>% gsub("\\[", ";", .) %>% gsub("\\]", "", .)) %>% 
   separate_wider_delim(helper, delim=";", names=c(NA, "CI95.lo", "CI95.hi")) %>% mutate(across(contains("CI"), as.numeric)) %>%
+  mutate(hedges_g_manual = effect * (1 - (3 / (4 * 95 - 1) ))) %>% # manually added hedges g from Cumming,2012
   group_by(transformation) %>% mutate(rank_rc = rank(-effect)) %>% ungroup() %>% 
   group_by(range_cor) %>% mutate(rank_trans = rank(-effect)) %>% ungroup() %>% 
   arrange(desc(effect))
