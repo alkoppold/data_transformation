@@ -39,7 +39,7 @@ data_merz$range_cor <- as.factor(data_merz$range_cor)
 data_merz$range_cor <- factor(data_merz$range_cor, levels = c("none","cs","us"))
 
 
-# variables of interest
+# Add variables of interest
 data_merz$reinforcement_rate = "62.5"
 data_merz$n = "97"
 data_merz$CS_duration = "6s" 
@@ -57,246 +57,10 @@ data_merz$dataset = "Merz"
 # define variables of interest 
 ```{r sanity-check-B07}
 
-# Load data (only ACQ and T0)?
-load("./data/dataSCR_B07.RData")
-data_B07 <- dataSCR
-
-# Exclude some participants: as Rachel: 10, 81
-# and 17 because has one missing trial
-id_excl <- c(10, 17, 81)
-data_B07 <- data_B07[!is.element(data_B07$id, id_excl), ]
-
-######################## Exclusion due to non-responding? Still has to be decided
-# # Who has zero responses only? -> range correction does not work!
-# id_zero_cs <- unique(data_B07$id[which(data_B07$scr_max_cs == 0)])
-# id_zero_us <- unique(data_B07$id[which(data_B07$scr_max_us == 0)])
-# 
-# # Exclude these participants: 30, 33, 60, 91
-# id_excl_zero <- c(30, 33, 60, 91)
-# data_B07 <- data_B07[!is.element(data_B07$id, id_excl_zero), ]
+data_B07 = read_rds("data/B07_multiverse.rds")
 
 
-###################################################################################
-
-# Rename some variables
-names(data_B07)[grep("trial", names(data_B07))] <- "trialnr"
-names(data_B07)[grep("stim_type", names(data_B07))] <- "stimulus"
-names(data_B07)[grep("trial", names(data_B07))] <- "trialnr"
-data_B07$stimulus <- gsub("CS_P","csp", data_B07$stimulus)
-data_B07$stimulus <- gsub("CS_M","csm", data_B07$stimulus)
-data_B07$stimulus <- gsub("US","ucs", data_B07$stimulus)
-
-# Add variable: category of stimulus
-data_B07$stim_cat <- NA
-data_B07$stim_cat[grep("cs", data_B07$stimulus)] <- "cs"
-data_B07$stim_cat[grep("ucs", data_B07$stimulus)] <- "ucs"
-
-# Reorder the data frame
-data_B07 <- data_B07[ ,c("id","trialnr","stimulus","stim_cat","scr_raw")]
-
-
-### helpers
-boxcoxvec = function(x, min=1) { #cf. scales::boxcox_trans()
-  if (min %>% is.numeric()) x = x - min(x, na.rm=T) + min
-  lambda = MASS::boxcox(x ~ 1, plotit=F) %>% 
-    bind_cols() %>% filter(y == max(y)) %>% pull(x) %>% mean()
-  return((x ^ lambda - 1) / lambda)
-}
-
-prune = function(x, low=-Inf, high=+Inf, abs=NA) {
-  result = if_else(x < low, low, x) %>% if_else(. > high, high, .)
-  if (abs %>% is.na() == F) result = if_else(abs(result) > abs, abs * if_else(result > 0, 1, -1), result)
-  return(result)
-}
-
-reliability_helper = function(data, fn_score, replications, #need to be specified
-                              participants="id", stratification=NULL, #constant for one data set
-                              fn_coef=splithalfr::spearman_brown, ncores=parallel::detectCores() - 1, careful=F, verbose=F) #sensible defaults
-{
-  if (stratification %>% is.null() == F) stratification = data %>% pull(!!stratification)
-  splithalfr::by_split(data=data, fn_score=fn_score, replications=replications,
-                       participants = data %>% pull(!!participants), 
-                       stratification = stratification,
-                       ncores=ncores, careful=careful, verbose=verbose) %>% 
-    splithalfr::split_coefs(fn_coef=fn_coef)
-}
-
-fn_score_mean = function(column, na.rm=T) { #idea: create a function that
-  return(function(df) { #returns another function 
-    return(mean(dplyr::pull(df, !!column), na.rm=na.rm)) #with specifications (column & na.rm) from the parent-function => parameter df gets filled inside by_split function call
-    #note: this would not be needed if by_split had a "..." argument that gets passed into fn_score
-    
-    #return(df %>% pull(!!column) %>% mean(na.rm=na.rm)) #requires library(tidyverse) for parallel (inefficient)
-  })
-}
-
-rToFishZ = function(r) { return(.5*log((1+r)/(1-r))) }
-fishZtoR = function(Z) { return(ifelse(Z==Inf, 1, (exp(2*Z)-1)/(exp(2*Z)+1))) }
-fnFishZ = function(r, fn=mean, prune=.999, ...) { 
-  warning.txt = ""
-  if (any(abs(r) >= 1, na.rm=T)) {
-    warning.txt = "Correlation(s) contain(s) values at or beyond 1. This will bias results for summary functions." %>% paste0(warning.txt, .)
-    if (prune %>% is.na()) warning = "Consider setting prune parameter." %>% paste(warning.txt, .)
-    else {
-      warning.txt = paste0("Pruning to ", prune, ".") %>% paste(warning.txt, .)
-      
-      r = r %>% prune(abs=prune) #if_else(abs(r) >= 1, prune * if_else(r > 0, 1, -1), r)
-    }
-    warning(warning.txt)
-  }
-  
-  return(r %>% rToFishZ() %>% fn(...) %>% fishZtoR()) 
-}
-
-
-### transformations
-# Log-transform the raw data
-data_B07 = data_B07 %>% 
-  mutate(scr_log = log10(1+scr_raw),
-         scr_sqr = sqrt(scr_raw)) %>% 
-  
-  # group_by(stimulus) %>% mutate(scr_shift = scr_raw - min(scr_raw) + 1, 
-  #                               lambda = boxcox(scr_shift ~ 1, plotit=F) %>% 
-  #                                 bind_cols() %>% filter(y == max(y)) %>% pull(x) %>% mean()) %>% ungroup() %>% 
-  # mutate(scr_box_check = (scr_shift ^ lambda - 1) / lambda) %>% 
-  group_by(stimulus) %>% mutate(scr_box = boxcoxvec(scr_raw)) %>% ungroup() %>% 
-  
-  #group_by(id) %>% #this implicitly invokes something similar to a range correction => don't do it? How is it used in the literature?
-  mutate(scr_ztr = scale(scr_raw)[,1],
-         scr_ztr = scr_ztr - min(scr_ztr)) #make sure that minimum response is 0 (and not negative)
-
-#View(data_B07)
-#data_B07 %>% ggplot(aes(x = scr_raw, y = scr_box, color = stimulus)) + geom_point() + theme_bw()
-#data_B07 %>% filter(transformation %>% grepl("box", .)) %>% pivot_wider(names_from=transformation, values_from=scr) %>% filter(scr_box != scr_box_check)
-
-data_B07 = data_B07 %>% 
-  #select(-scr_shift, -lambda) %>% #remove helping variables
-  pivot_longer(starts_with("scr_"), names_to = "transformation", values_to = "scr")
-
-
-### range correction
-# Prepare range correction by calculating max SCR of CS and US responses
-data_B07.max = data_B07 %>% 
-  summarise(scr_max = max(scr, na.rm=T), .by = c(id, stim_cat, transformation)) %>% 
-  pivot_wider(names_from = stim_cat, names_prefix = "max_", values_from = scr_max, id_cols = c("id", "transformation"))
-
-data_B07.max %>% summarise(across(starts_with("max"), list("min" = min, "max" = max)))
-#some participant's max response is negative (probably due to z-transform across all participants, i.e., their max is still below the group average)
-# => absolute value of minimum has been "added" to shift z-scored values to a minimum of 0
-
-data_B07.max %>% filter(max_cs == 0 | max_ucs == 0)
-# no subject showed only zero responses to CSs
-
-data_B07.max = data_B07.max %>% mutate(across(starts_with("max_"), function(x) {if_else(x == 0, Inf, x)})) #replace 0 with Inf (such that scr / Inf == 0)
-
-data_B07 = data_B07 %>% full_join(data_B07.max) %>% 
-  mutate(scr_rc_cs = scr / max_cs,
-         scr_rc_us = scr / max_ucs) %>% 
-         #stimulus = if_else(stimulus %>% is.na(), "ucs", stimulus) %>% as_factor()) %>% 
-  dplyr::select(-starts_with("max_")) %>% rename(scr_rc_none = scr) %>% 
-  pivot_longer(starts_with("scr_rc_"), names_to = "range_cor", values_to = "scr") %>% 
-  mutate(transformation = transformation %>% gsub("scr_", "", .) %>% as_factor(),
-         range_cor = range_cor %>% gsub("scr_rc_", "", .) %>% as_factor())
-
-#data_B07 %>% filter(scr %>% is.nan())
-
-
-### CS discrimination
-### Add CS discrimination
-data_B07 = data_B07 %>% filter(stimulus != "ucs") %>% 
-  pivot_wider(names_from = stimulus, values_from = "scr") %>% 
-  mutate(csd = csp - csm, #"trial"-level cs-difference only works because same amount of cs+ and cs- trials (and trials are counted with cs category)
-         stimulus = "csd") %>% rename(scr = csd) %>% #a bit hacky preparation for bind_rows
-  dplyr::select(-csp, -csm) %>% bind_rows(data_B07, .)
-
-
-### Boxcox & csd
-#TODO does it make sense for boxcox to transform first and then calculate difference? Probably not due to different non-linear transformations = non-comparable scales => do boxcox again for raw csd (separate for range_cor, which is a linear transformation)
-data_B07 = data_B07 %>% filter(transformation=="raw", stimulus=="csd") %>% 
-  group_by(range_cor) %>% mutate(scr = boxcoxvec(scr)) %>% ungroup() %>% 
-  mutate(transformation="box") %>% 
-  bind_rows(data_B07 %>% filter(transformation!="box" | stimulus!="csd"), .) #%>% full_join(data_B07, by = c("id", "trialnr", "stimulus", "stim_cat", "transformation", "range_cor")) %>% filter(scr.x != scr.y) %>% select(stimulus, stim_cat, transformation, range_cor) %>% unique()
-
-
-### Reliability
-#checks
-data_B07 %>% summarise(trials = max(trialnr), .by = stimulus)
-#data_B07 %>% group_by(stimulus, id) %>% summarise(trials = n()) %>% summarise(trials = mean(trials))
-
-#reliability cs difference
-data_wide_csd = data_B07 %>% filter(stimulus=="csd") %>% 
-  mutate(condition = paste(transformation, range_cor, sep="_"),
-                                 condition = condition %>% gsub("_none", "", .) %>% gsub("_", "_rc_", .)) %>% 
-  pivot_wider(names_from=condition, values_from=scr, id_cols=c(id, trialnr, stimulus))
-
-replications = 1000
-set.seed(6723094)
-reliabilities.permutations = tibble(
-  raw = reliability_helper(data_wide_csd, fn_score_mean("raw"), replications),
-  log = reliability_helper(data_wide_csd, fn_score_mean("log"), replications),
-  sqr = reliability_helper(data_wide_csd, fn_score_mean("sqr"), replications),
-  box = reliability_helper(data_wide_csd, fn_score_mean("box"), replications),
-  ztr = reliability_helper(data_wide_csd, fn_score_mean("ztr"), replications),
-  
-  raw_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("raw_rc_cs"), replications),
-  log_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("log_rc_cs"), replications),
-  sqr_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("sqr_rc_cs"), replications),
-  box_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("box_rc_cs"), replications),
-  ztr_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("ztr_rc_cs"), replications),
-  
-  raw_rc_us = reliability_helper(data_wide_csd, fn_score_mean("raw_rc_us"), replications),
-  log_rc_us = reliability_helper(data_wide_csd, fn_score_mean("log_rc_us"), replications),
-  sqr_rc_us = reliability_helper(data_wide_csd, fn_score_mean("sqr_rc_us"), replications),
-  box_rc_us = reliability_helper(data_wide_csd, fn_score_mean("box_rc_us"), replications),
-  ztr_rc_us = reliability_helper(data_wide_csd, fn_score_mean("ztr_rc_us"), replications)
-)
-reliabilities = reliabilities.permutations %>% 
-  summarise(across(.fns=list(m = fnFishZ, sd = ~ fnFishZ(.x, fn=sd),
-                             CI95.lo = ~ fnFishZ(.x, fn=quantile, probs=.025),
-                             CI95.hi = ~ fnFishZ(.x, fn=quantile, probs=.975)), 
-            .cols=everything(), .names="{.col}_x_{.fn}")) %>% 
-  pivot_longer(cols=everything()) %>% separate(col=name, into=c("method", "metric"), sep="_x_") %>% 
-  pivot_wider(names_from = "metric", id_cols = "method") %>% arrange(desc(m)) %>% 
-  separate(method, into=c("transformation", "range_cor"), sep="_rc_", fill="right", remove=F) %>% 
-  mutate(range_cor = range_cor %>% replace_na("none")) %>% 
-  group_by(transformation) %>% mutate(rank_rc = rank(-m)) %>% ungroup() %>% 
-  group_by(range_cor) %>% mutate(rank_trans = rank(-m)) %>% ungroup()
-
-reliabilities #overall descending
-
-reliabilities %>% summarise(mean_rank = rank_rc %>% mean(), .by=range_cor)
-#reliabilities %>% arrange(transformation, rank_rc)
-
-reliabilities %>% summarise(mean_rank = rank_trans %>% mean(), .by=transformation) %>% arrange(mean_rank)
-reliabilities %>% filter(range_cor=="none") %>% arrange(rank_trans)
-
-
-### Effect size
-effects = data_B07 %>% filter(stimulus=="csd") %>% 
-  group_by(transformation, range_cor, id) %>% summarise(scr = mean(scr)) %>% #subject-level aggregates for correct between SD calculation
-  summarise(effect = mean(scr)/sd(scr), #checked against apa::cohens_d(scr) #TODO use Hedge's g instead
-            helper = apa::t_test(scr) %>% apa::t_apa(es_ci=T, print=F) %>% gsub("\\[", ";", .) %>% gsub("\\]", "", .)) %>% 
-  separate_wider_delim(helper, delim=";", names=c(NA, "CI95.lo", "CI95.hi")) %>% mutate(across(contains("CI"), as.numeric)) %>%
-  group_by(transformation) %>% mutate(rank_rc = rank(-effect)) %>% ungroup() %>% 
-  group_by(range_cor) %>% mutate(rank_trans = rank(-effect)) %>% ungroup() %>% 
-  arrange(desc(effect))
-
-effects
-
-effects %>% summarise(mean_rank = rank_trans %>% mean(), .by=transformation) %>% arrange(mean_rank)
-effects %>% summarise(mean_rank = rank_rc %>% mean(), .by=range_cor) %>% arrange(mean_rank)
-
-
-### Create data set for the specification curve
-data_multiverse = effects %>% select(-contains("rank")) %>% rename_with(function(x) paste0("effect_", x), .cols=contains("CI")) %>% 
-  full_join(reliabilities %>% rename(rel = m) %>% select(transformation, range_cor, rel, contains("CI")) %>% rename_with(function(x) paste0("rel_", x), .cols=contains("CI")))
-data_multiverse %>% write_rds("Merz_multiverse.rds" %>% paste0("data/", .))
-
-
-
-
-
-# variables of interest
+# Add variables of interest
 data_B07$reinforcement_rate = "100"
 data_B07$n = "113"
 data_B07$CS_duration = "6s" 
@@ -309,52 +73,9 @@ data_B07$dataset = "B07"
 
 ```
 
-```{r ttest-NHST}
-
-# Gather data and delete max amplitude
-data <- gather(data_B07, key = "approach", value = "value", - c(id, cs, trialnr, scr_raw,dataset))
-data$approach<- with(data, paste0(approach, value))
-colnames(data)[4] = "scr_mean"
-
-res_ttest_means <- data %>% filter(cs %in% c('CS_P', 'CS_M')) %>%
-  group_by(approach, dataset) %>%
-  summarise(scr_mean_csp = mean(scr_mean[cs== 'CS_P'], na.rm = T),
-            scr_mean_CS_M = mean(scr_mean[cs== 'CS_M'], na.rm = T),
-            scr_sd_csp = sd(scr_mean[cs== 'CS_P'], na.rm = T),
-            scr_sd_CS_M = sd(scr_mean[cs== 'CS_M'], na.rm = T))
-  
-# t test; select CS_P and CS_M 
-res_ttest <- data %>% filter(cs %in% c('CS_P', 'CS_M')) %>%
-  group_by(approach, dataset) %>%
-  rstatix::t_test(scr_mean ~ cs, data = ., paired = T) 
-
-# effect size
-res_ttest_d <- data %>% filter(cs %in% c('CS_P', 'CS_M')) %>%
-  group_by(approach, dataset) %>%
-rstatix::cohens_d(scr_mean ~ cs, data = .,paired = T,ci = T)
-
-### For positive Cohen's d: convert ESs and CIs to absolute values
-res_ttest_d$effsize <- abs(res_ttest_d$effsize)
-res_ttest_d$conf.low <- abs(res_ttest_d$conf.low)
-res_ttest_d$conf.high <- abs(res_ttest_d$conf.high)
-
-# add index to order by effect size
-# we have n + 1 unique approaches
-res_ttest_d$approach_num <-  1:nrow(res_ttest_d)
-res_ttest_d[order(res_ttest_d$effsize),'approach_eff_order'] <-  1:nrow(res_ttest_d)
-
-### Add columns for transformation (log, sqrt, box cox, z-transformation) and range correction type (none, CS corrected, US corrected)
-res_ttest_d$transf_type <- str_split_fixed(res_ttest_d$approach, "_", 3)[,2]
-res_ttest_d$rc_type <- str_split_fixed(res_ttest_d$approach, "_", 3)[,3]
-res_ttest_d$rc_type[res_ttest_d$rc_type == ""] <- "none"
-
-dataset2= res_ttest_d 
-
-```
-
 
 ```{r}
-merged_datasets = rbind(dataset1, dataset2)
+merged_datasets = rbind(data_merz, data_B07)
 ```
 
 # Plot needs to be adjusted
@@ -371,7 +92,7 @@ clrs <- c("#D1D646",
 "#17A398",
 "#A05C7B",
 "#435058")
-barplot(1:6, col=clrs)
+barplot(1:8, col=clrs)
 # set sizes 
 size_point <- 5  # lines in categories under spec curve
 size_text  <- 12 # text and ticks on x and y axis
@@ -382,8 +103,175 @@ fig_res <- 300
 
 # labels
 x_lab <- 'Approach number ordered by effect size'
-y_lab <- 'Effect size (Cohen\'s D)'
+y_lab <- 'Effect size (...)'
 
+```
+
+
+```{r plot-curves-effect-size}
+
+# Data must be ordered separately for effect size and rel -> set up a new data set
+data_multi_es <- merged_datasets
+
+# Add index to order by effect size
+# We have n + 1 unique approaches
+data_multi_es$approach_num <-  1:nrow(data_multi_es)
+data_multi_es[order(data_multi_es$effect),'approach_eff_order'] <-  1:nrow(data_multi_es)
+
+# labels
+x_lab <- 'Approach number ordered by effect size'
+y_lab <- 'Effect size (Hedge\'s g)'
+
+# order by effect size
+# colored by approach
+p_effect <- data_multi_es %>%
+  ggplot(aes(x = approach_eff_order, y = effect, color = transformation)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = effect_CI95.lo, ymax = effect_CI95.hi)) +
+  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("box cox", "log-transformed", 
+  "none", "square-root", "z-transformed")) +
+  scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
+  theme_classic() +
+  theme(text = element_text(size=size_text),
+        legend.position = 'top') +
+  xlab(x_lab) +
+  ylab(y_lab) + 
+  guides(color = guide_legend(nrow = 1))
+
+
+# plot specifications of parameters: range correction
+s_effect_range_cor <- ggplot(data_multi_es, aes(x = approach_eff_order, y = range_cor)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'Range correction', labels = c("none", "CS corrected", "US corrected")) +
+    scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+# plot specifications of parameters: reinforcement rate
+s_effect_reinf_rate <- ggplot(data_multi_es, aes(x = approach_eff_order, y = reinforcement_rate)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'Reinforcement rate') +
+    scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+# plot specifications of parameters: instruction of ACQ
+s_effect_instr <- ggplot(data_multi_es, aes(x = approach_eff_order, y = training)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'ACQ instruction') +
+    scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+# Combine plots
+
+plot_spec_effect <- p_effect / s_effect_range_cor / s_effect_reinf_rate / s_effect_instr
+plot_spec_effect
+
+```
+
+
+
+```{r plot-curves-reliability}
+
+# Data must be ordered separately for effect size and rel -> set up a new data set
+data_multi_rel <- merged_datasets
+
+# Add index to order by size of reliability
+# We have n + 1 unique approaches
+data_multi_rel$approach_num <-  1:nrow(data_multi_rel)
+data_multi_rel[order(data_multi_rel$rel),'approach_rel_order'] <-  1:nrow(data_multi_rel)
+
+# labels
+x_lab <- 'Approach number ordered by size of reliability'
+y_lab <- 'Reliability (split-half)'
+
+# Order by size of reliability
+# Colored by approach
+p_reliability <- data_multi_rel %>%
+  ggplot(aes(x = approach_rel_order, y = rel, color = transformation)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = rel_CI95.lo, ymax = rel_CI95.hi)) +
+  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("box cox", "log-transformed", 
+  "none", "square-root", "z-transformed")) +
+  scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
+  theme_classic() +
+  theme(text = element_text(size=size_text),
+        legend.position = 'top') +
+  xlab(x_lab) +
+  ylab(y_lab) + 
+  guides(color = guide_legend(nrow = 1))
+
+
+# plot specifications of parameters: range correction
+s_reliability_range_cor <- ggplot(data_multi_rel, aes(x = approach_rel_order, y = range_cor)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'Range correction', labels = c("none", "CS corrected", "US corrected")) +
+    scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+# plot specifications of parameters: reinforcement rate
+s_reliability_reinf_rate <- ggplot(data_multi_rel, aes(x = approach_rel_order, y = reinforcement_rate)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'Reinforcement rate') +
+    scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+# plot specifications of parameters: instruction of ACQ
+s_reliability_instr <- ggplot(data_multi_rel, aes(x = approach_rel_order, y = training)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'ACQ instruction') +
+    scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+
+# Combine plots
+
+plot_spec_reliability <- p_reliability / s_reliability_range_cor / s_reliability_reinf_rate / s_reliability_instr
+plot_spec_reliability
+
+```
+
+
+
+
+
+```{r alinas-code}
+
+########################################################################################## ALINAS CODE
 # order by effect size
 # colored by approach
 p1 <- merged_datasets %>%
