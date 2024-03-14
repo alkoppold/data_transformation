@@ -20,7 +20,7 @@ library(patchwork)
 
 
 ### Preparation Dataset 1 
-```{r data}
+```{r load-data-merz}
 # loading the original data 
 #X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
   
@@ -55,7 +55,7 @@ data_merz$dataset = "Merz"
 ### Preparation Dataset 2 B07
 # implementation of hedges g missing here 
 # define variables of interest 
-```{r sanity-check-B07}
+```{r load-data-B07}
 
 data_B07 = read_rds("data/B07_multiverse.rds")
 
@@ -170,7 +170,46 @@ s_effect_instr <- ggplot(data_multi_es, aes(x = approach_eff_order, y = training
   geom_point(shape = '|', size = size_point) +
    #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
   scale_y_discrete(name = 'ACQ instruction') +
-    scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
+    scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+# plot specifications of parameters: n
+s_effect_n <- ggplot(data_multi_es, aes(x = approach_eff_order, y = n)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'Sample size') +
+    scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+# plot specifications of parameters: max CS raw
+s_effect_max_cs_raw <- ggplot(data_multi_es, aes(x = approach_eff_order, y = max_cs_raw)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'Max. raw SCR to CS') +
+    scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+# plot specifications of parameters: max US raw
+s_effect_max_us_raw <- ggplot(data_multi_es, aes(x = approach_eff_order, y = max_us_raw)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'Max. raw SCR to US') +
+    scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(), 
         axis.ticks.x = element_blank(),
@@ -180,7 +219,7 @@ s_effect_instr <- ggplot(data_multi_es, aes(x = approach_eff_order, y = training
 
 # Combine plots
 
-plot_spec_effect <- p_effect / s_effect_range_cor / s_effect_reinf_rate / s_effect_instr
+plot_spec_effect <- p_effect / s_effect_range_cor / s_effect_reinf_rate / s_effect_instr / s_effect_n / s_effect_max_cs_raw / s_effect_max_us_raw
 plot_spec_effect
 
 ```
@@ -257,10 +296,49 @@ s_reliability_instr <- ggplot(data_multi_rel, aes(x = approach_rel_order, y = tr
         legend.position = 'none') +
   theme(text = element_text(size=size_text)) 
 
+# plot specifications of parameters: n
+s_reliability_n <- ggplot(data_multi_rel, aes(x = approach_rel_order, y = n)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'Sample size') +
+    scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+# plot specifications of parameters: max CS raw
+s_reliability_max_cs_raw <- ggplot(data_multi_rel, aes(x = approach_rel_order, y = max_cs_raw)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'Max. raw SCR to CS') +
+    scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+# plot specifications of parameters: max US raw
+s_reliability_max_us_raw <- ggplot(data_multi_rel, aes(x = approach_rel_order, y = max_us_raw)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'Max. raw SCR to US') +
+    scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
 
 # Combine plots
 
-plot_spec_reliability <- p_reliability / s_reliability_range_cor / s_reliability_reinf_rate / s_reliability_instr
+plot_spec_reliability <- p_reliability / s_reliability_range_cor / s_reliability_reinf_rate / s_reliability_instr / s_reliability_n / s_reliability_max_cs_raw / s_reliability_max_us_raw
 plot_spec_reliability
 
 ```
