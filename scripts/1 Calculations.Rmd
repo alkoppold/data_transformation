@@ -264,6 +264,198 @@ reliabilities.strat = reliabilities.strat.permutations %>%
 reliabilities.strat
 ```
 
+
+
+```{r prep-B07-data-set}
+
+# Load data (only ACQ and T0)?
+load("./data/dataSCR_B07.RData")
+data_B07 <- dataSCR
+
+
+# Exclude some participants: as Rachel: 10, 81
+# and 17 because has one missing trial
+id_excl <- c(10, 17, 81)
+data_B07 <- data_B07[!is.element(data_B07$id, id_excl), ]
+
+######################## Exclusion due to non-responding? Still has to be decided
+# # Who has zero responses only? -> range correction does not work!
+# id_zero_cs <- unique(data_B07$id[which(data_B07$scr_max_cs == 0)])
+# id_zero_us <- unique(data_B07$id[which(data_B07$scr_max_us == 0)])
+# 
+# # Exclude these participants: 30, 33, 60, 91
+# id_excl_zero <- c(30, 33, 60, 91)
+# data_B07 <- data_B07[!is.element(data_B07$id, id_excl_zero), ]
+
+
+###################################################################################
+
+# Rename some variables
+names(data_B07)[grep("trial", names(data_B07))] <- "trialnr"
+names(data_B07)[grep("stim_type", names(data_B07))] <- "stimulus"
+names(data_B07)[grep("trial", names(data_B07))] <- "trialnr"
+data_B07$stimulus <- gsub("CS_P","csp", data_B07$stimulus)
+data_B07$stimulus <- gsub("CS_M","csm", data_B07$stimulus)
+data_B07$stimulus <- gsub("US","ucs", data_B07$stimulus)
+
+# Add variable: category of stimulus
+data_B07$stim_cat <- NA
+data_B07$stim_cat[grep("cs", data_B07$stimulus)] <- "cs"
+data_B07$stim_cat[grep("ucs", data_B07$stimulus)] <- "ucs"
+
+# Reorder the data frame
+data_B07 <- data_B07[ ,c("id","trialnr","stimulus","stim_cat","scr_raw")]
+
+
+### Transformations
+# Log-transform the raw data
+data_B07 = data_B07 %>% 
+  mutate(scr_log = log10(1+scr_raw),
+         scr_sqr = sqrt(scr_raw)) %>% 
+  
+  # group_by(stimulus) %>% mutate(scr_shift = scr_raw - min(scr_raw) + 1, 
+  #                               lambda = boxcox(scr_shift ~ 1, plotit=F) %>% 
+  #                                 bind_cols() %>% filter(y == max(y)) %>% pull(x) %>% mean()) %>% ungroup() %>% 
+  # mutate(scr_box_check = (scr_shift ^ lambda - 1) / lambda) %>% 
+  group_by(stimulus) %>% mutate(scr_box = boxcoxvec(scr_raw)) %>% ungroup() %>% 
+  
+  #group_by(id) %>% #this implicitly invokes something similar to a range correction => don't do it? How is it used in the literature?
+  mutate(scr_ztr = scale(scr_raw)[,1],
+         scr_ztr = scr_ztr - min(scr_ztr)) #make sure that minimum response is 0 (and not negative)
+
+#View(data_B07)
+#data_B07 %>% ggplot(aes(x = scr_raw, y = scr_box, color = stimulus)) + geom_point() + theme_bw()
+#data_B07 %>% filter(transformation %>% grepl("box", .)) %>% pivot_wider(names_from=transformation, values_from=scr) %>% filter(scr_box != scr_box_check)
+
+data_B07 = data_B07 %>% 
+  #select(-scr_shift, -lambda) %>% #remove helping variables
+  pivot_longer(starts_with("scr_"), names_to = "transformation", values_to = "scr")
+
+
+### range correction
+# Prepare range correction by calculating max SCR of CS and US responses
+data_B07.max = data_B07 %>% 
+  summarise(scr_max = max(scr, na.rm=T), .by = c(id, stim_cat, transformation)) %>% 
+  pivot_wider(names_from = stim_cat, names_prefix = "max_", values_from = scr_max, id_cols = c("id", "transformation"))
+
+data_B07.max %>% summarise(across(starts_with("max"), list("min" = min, "max" = max)))
+#some participant's max response is negative (probably due to z-transform across all participants, i.e., their max is still below the group average)
+# => absolute value of minimum has been "added" to shift z-scored values to a minimum of 0
+
+data_B07.max %>% filter(max_cs == 0 | max_ucs == 0)
+# no subject showed only zero responses to CSs
+
+data_B07.max = data_B07.max %>% mutate(across(starts_with("max_"), function(x) {if_else(x == 0, Inf, x)})) #replace 0 with Inf (such that scr / Inf == 0)
+
+data_B07 = data_B07 %>% full_join(data_B07.max) %>% 
+  mutate(scr_rc_cs = scr / max_cs,
+         scr_rc_us = scr / max_ucs) %>% 
+         #stimulus = if_else(stimulus %>% is.na(), "ucs", stimulus) %>% as_factor()) %>% 
+  dplyr::select(-starts_with("max_")) %>% rename(scr_rc_none = scr) %>% 
+  pivot_longer(starts_with("scr_rc_"), names_to = "range_cor", values_to = "scr") %>% 
+  mutate(transformation = transformation %>% gsub("scr_", "", .) %>% as_factor(),
+         range_cor = range_cor %>% gsub("scr_rc_", "", .) %>% as_factor())
+
+#data_B07 %>% filter(scr %>% is.nan())
+
+
+### CS discrimination
+### Add CS discrimination
+data_B07 = data_B07 %>% filter(stimulus != "ucs") %>% 
+  pivot_wider(names_from = stimulus, values_from = "scr") %>% 
+  mutate(csd = csp - csm, #"trial"-level cs-difference only works because same amount of cs+ and cs- trials (and trials are counted with cs category)
+         stimulus = "csd") %>% rename(scr = csd) %>% #a bit hacky preparation for bind_rows
+  dplyr::select(-csp, -csm) %>% bind_rows(data_B07, .)
+
+
+### Boxcox & csd
+#TODO does it make sense for boxcox to transform first and then calculate difference? Probably not due to different non-linear transformations = non-comparable scales => do boxcox again for raw csd (separate for range_cor, which is a linear transformation)
+data_B07 = data_B07 %>% filter(transformation=="raw", stimulus=="csd") %>% 
+  group_by(range_cor) %>% mutate(scr = boxcoxvec(scr)) %>% ungroup() %>% 
+  mutate(transformation="box") %>% 
+  bind_rows(data_B07 %>% filter(transformation!="box" | stimulus!="csd"), .) #%>% full_join(data_B07, by = c("id", "trialnr", "stimulus", "stim_cat", "transformation", "range_cor")) %>% filter(scr.x != scr.y) %>% select(stimulus, stim_cat, transformation, range_cor) %>% unique()
+
+
+### Reliability
+#checks
+data_B07 %>% summarise(trials = max(trialnr), .by = stimulus)
+#data_B07 %>% group_by(stimulus, id) %>% summarise(trials = n()) %>% summarise(trials = mean(trials))
+
+#reliability cs difference
+data_wide_csd = data_B07 %>% filter(stimulus=="csd") %>% 
+  mutate(condition = paste(transformation, range_cor, sep="_"),
+                                 condition = condition %>% gsub("_none", "", .) %>% gsub("_", "_rc_", .)) %>% 
+  pivot_wider(names_from=condition, values_from=scr, id_cols=c(id, trialnr, stimulus))
+
+replications = 1000
+set.seed(6723094)
+reliabilities.permutations = tibble(
+  raw = reliability_helper(data_wide_csd, fn_score_mean("raw"), replications),
+  log = reliability_helper(data_wide_csd, fn_score_mean("log"), replications),
+  sqr = reliability_helper(data_wide_csd, fn_score_mean("sqr"), replications),
+  box = reliability_helper(data_wide_csd, fn_score_mean("box"), replications),
+  ztr = reliability_helper(data_wide_csd, fn_score_mean("ztr"), replications),
+  
+  raw_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("raw_rc_cs"), replications),
+  log_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("log_rc_cs"), replications),
+  sqr_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("sqr_rc_cs"), replications),
+  box_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("box_rc_cs"), replications),
+  ztr_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("ztr_rc_cs"), replications),
+  
+  raw_rc_us = reliability_helper(data_wide_csd, fn_score_mean("raw_rc_us"), replications),
+  log_rc_us = reliability_helper(data_wide_csd, fn_score_mean("log_rc_us"), replications),
+  sqr_rc_us = reliability_helper(data_wide_csd, fn_score_mean("sqr_rc_us"), replications),
+  box_rc_us = reliability_helper(data_wide_csd, fn_score_mean("box_rc_us"), replications),
+  ztr_rc_us = reliability_helper(data_wide_csd, fn_score_mean("ztr_rc_us"), replications)
+)
+reliabilities = reliabilities.permutations %>% 
+  summarise(across(.fns=list(m = fnFishZ, sd = ~ fnFishZ(.x, fn=sd),
+                             CI95.lo = ~ fnFishZ(.x, fn=quantile, probs=.025),
+                             CI95.hi = ~ fnFishZ(.x, fn=quantile, probs=.975)), 
+            .cols=everything(), .names="{.col}_x_{.fn}")) %>% 
+  pivot_longer(cols=everything()) %>% separate(col=name, into=c("method", "metric"), sep="_x_") %>% 
+  pivot_wider(names_from = "metric", id_cols = "method") %>% arrange(desc(m)) %>% 
+  separate(method, into=c("transformation", "range_cor"), sep="_rc_", fill="right", remove=F) %>% 
+  mutate(range_cor = range_cor %>% replace_na("none")) %>% 
+  group_by(transformation) %>% mutate(rank_rc = rank(-m)) %>% ungroup() %>% 
+  group_by(range_cor) %>% mutate(rank_trans = rank(-m)) %>% ungroup()
+
+reliabilities #overall descending
+
+reliabilities %>% summarise(mean_rank = rank_rc %>% mean(), .by=range_cor)
+#reliabilities %>% arrange(transformation, rank_rc)
+
+reliabilities %>% summarise(mean_rank = rank_trans %>% mean(), .by=transformation) %>% arrange(mean_rank)
+reliabilities %>% filter(range_cor=="none") %>% arrange(rank_trans)
+
+
+### Effect size
+effects = data_B07 %>% filter(stimulus=="csd") %>% 
+  group_by(transformation, range_cor, id) %>% summarise(scr = mean(scr)) %>% #subject-level aggregates for correct between SD calculation
+  summarise(effect = mean(scr)/sd(scr), #checked against apa::cohens_d(scr) #TODO use Hedge's g instead
+            helper = apa::t_test(scr) %>% apa::t_apa(es_ci=T, print=F) %>% gsub("\\[", ";", .) %>% gsub("\\]", "", .)) %>% 
+  separate_wider_delim(helper, delim=";", names=c(NA, "CI95.lo", "CI95.hi")) %>% mutate(across(contains("CI"), as.numeric)) %>%
+  group_by(transformation) %>% mutate(rank_rc = rank(-effect)) %>% ungroup() %>% 
+  group_by(range_cor) %>% mutate(rank_trans = rank(-effect)) %>% ungroup() %>% 
+  arrange(desc(effect))
+
+effects
+
+effects %>% summarise(mean_rank = rank_trans %>% mean(), .by=transformation) %>% arrange(mean_rank)
+effects %>% summarise(mean_rank = rank_rc %>% mean(), .by=range_cor) %>% arrange(mean_rank)
+
+
+### Create data set for the specification curve
+data_multiverse_B07 = effects %>% dplyr::select(-contains("rank")) %>% rename_with(function(x) paste0("effect_", x), .cols=contains("CI")) %>% 
+  full_join(reliabilities %>% rename(rel = m) %>% dplyr::select(transformation, range_cor, rel, contains("CI")) %>% rename_with(function(x) paste0("rel_", x), .cols=contains("CI")))
+data_multiverse_B07 %>% write_rds("B07_multiverse.rds" %>% paste0("data/", .))
+
+
+
+```
+
+
+
 #### Krippendorf's alpha
 
 ```{r krippendorfs}
