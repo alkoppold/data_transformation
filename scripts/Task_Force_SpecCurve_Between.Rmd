@@ -34,9 +34,11 @@ library(patchwork)
 # load new data (Marios)
 data_merz = read_rds("data/Merz_multiverse.rds")
 
-# Factorize range correction type
+# Factorize transformation and range correction type
 data_merz$range_cor <- as.factor(data_merz$range_cor)
 data_merz$range_cor <- factor(data_merz$range_cor, levels = c("none","cs","us"))
+data_merz$transformation <- as.factor(data_merz$transformation)
+data_merz$transformation <- factor(data_merz$transformation, levels = c("raw", "box", "log", "sqr", "ztr"))
 
 
 # Add variables of interest
@@ -58,6 +60,12 @@ data_merz$dataset = "Merz"
 ```{r load-data-B07}
 
 data_B07 = read_rds("data/B07_multiverse.rds")
+
+# Factorize transformation and range correction type
+data_B07$range_cor <- as.factor(data_B07$range_cor)
+data_B07$range_cor <- factor(data_B07$range_cor, levels = c("none","cs","us"))
+data_B07$transformation <- as.factor(data_B07$transformation)
+data_B07$transformation <- factor(data_B07$transformation, levels = c("raw", "box", "log", "sqr", "ztr"))
 
 
 # Add variables of interest
@@ -128,8 +136,8 @@ p_effect <- data_multi_es %>%
   ggplot(aes(x = approach_eff_order, y = effect, color = transformation)) +
   geom_point() +
   geom_errorbar(aes(ymin = effect_CI95.lo, ymax = effect_CI95.hi)) +
-  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("box cox", "log-transformed", 
-  "none", "square-root", "z-transformed")) +
+  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("none", "box-cox", "log-transformed", 
+  "square-root", "z-transformed")) +
   scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
   theme_classic() +
   theme(text = element_text(size=size_text),
@@ -246,8 +254,8 @@ p_reliability <- data_multi_rel %>%
   ggplot(aes(x = approach_rel_order, y = rel, color = transformation)) +
   geom_point() +
   geom_errorbar(aes(ymin = rel_CI95.lo, ymax = rel_CI95.hi)) +
-  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("box cox", "log-transformed", 
-  "none", "square-root", "z-transformed")) +
+  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("none", "box-cox", "log-transformed", 
+  "square-root", "z-transformed")) +
   scale_x_continuous(breaks = c(1:30), labels = c(1:30)) +
   theme_classic() +
   theme(text = element_text(size=size_text),
