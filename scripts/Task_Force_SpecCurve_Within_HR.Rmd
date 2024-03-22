@@ -19,7 +19,7 @@ library(patchwork)
 ```
 
 ``` {r load-prepare-data}
-data_multiverse = read_rds("data/Reutter_transformations.rds")
+data_multiverse = read_rds("data/Reutter_multiverse.rds")
 
 # Factorize range correction type
 data_multiverse$range_cor <- as.factor(data_multiverse$range_cor)
