@@ -21,9 +21,11 @@ library(patchwork)
 ``` {r load-prepare-data}
 data_multiverse = read_rds("data/Merz_multiverse.rds")
 
-# Factorize range correction type
+# Factorize transformation and range correction type
 data_multiverse$range_cor <- as.factor(data_multiverse$range_cor)
 data_multiverse$range_cor <- factor(data_multiverse$range_cor, levels = c("none","cs","us"))
+data_multiverse$transformation <- as.factor(data_multiverse$transformation)
+data_multiverse$transformation <- factor(data_multiverse$transformation, levels = c("raw", "box", "log", "sqr", "ztr"))
 
 ```
 
@@ -62,6 +64,8 @@ data_multi_es <- data_multiverse
 data_multi_es$approach_num <-  1:nrow(data_multi_es)
 data_multi_es[order(data_multi_es$effect),'approach_eff_order'] <-  1:nrow(data_multi_es)
 
+# Factorize some variables
+
 # labels
 x_lab <- 'Approach number ordered by effect size'
 y_lab <- 'Effect size (Hedge\'s g)'
@@ -72,8 +76,8 @@ p_effect <- data_multi_es %>%
   ggplot(aes(x = approach_eff_order, y = effect, color = transformation)) +
   geom_point() +
   geom_errorbar(aes(ymin = effect_CI95.lo, ymax = effect_CI95.hi)) +
-  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("box cox", "log-transformed", 
-  "none", "square-root", "z-transformed")) +
+  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("none", "box-cox", "log-transformed", 
+  "square-root", "z-transformed")) +
   scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
   theme_classic() +
   theme(text = element_text(size=size_text),
@@ -125,8 +129,8 @@ p_reliability <- data_multi_rel %>%
   ggplot(aes(x = approach_rel_order, y = rel, color = transformation)) +
   geom_point() +
   geom_errorbar(aes(ymin = rel_CI95.lo, ymax = rel_CI95.hi)) +
-  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("box cox", "log-transformed", 
-  "none", "square-root", "z-transformed")) +
+  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("none", "box-cox", "log-transformed", 
+  "square-root", "z-transformed")) +
   scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
   theme_classic() +
   theme(text = element_text(size=size_text),
