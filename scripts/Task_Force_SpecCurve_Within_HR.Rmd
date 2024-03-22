@@ -19,15 +19,7 @@ library(patchwork)
 ```
 
 ``` {r load-prepare-data}
-data_multiverse = read_rds("data/heart.rds")
-
-data_multiverse = as.data.frame(data_multiverse)
-#new alina
-data_multiverse = data_multiverse %>% 
-  filter(threat %in% c(1, 6)) %>% 
-  filter(phase == "Gen") %>%
-  mutate(raw_rr = 60000/hrbl) %>% 
-  dplyr::select(subject, trial, threat, time, raw_rr)
+data_multiverse = read_rds("data/Reutter_transformations.rds")
 
 # Factorize range correction type
 data_multiverse$range_cor <- as.factor(data_multiverse$range_cor)

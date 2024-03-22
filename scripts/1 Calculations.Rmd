@@ -71,17 +71,51 @@ fnFishZ = function(r, fn=mean, prune=.999, ...) {
 ```
 
 ```{r data}
-# loading the original data 
-data_long = haven::read_sav("data/Merz.sav") %>% rename(id = Versuchspersonennummer) %>% 
-  pivot_longer(-id, names_to = "condition", values_to = "scr_raw") %>% 
-  separate(condition, into=c(NA, NA, NA, "stimulus", "trialnr"), sep="_") %>% 
-  mutate(trialnr = trialnr %>% str_extract("\\d+") %>% as.integer()) %>% 
-  
-  filter(stimulus %in% c("cspe", "csm", "ucs")) %>% #only keep responses to CS+ (will be extinguished), CS-, and UCS
-  mutate(stimulus = if_else(stimulus == "cspe", "csp", stimulus), #rename cspe to csp for generalizability to other data sets
-         stim_cat = if_else(stimulus %>% startsWith("cs"), "cs", "ucs")) %>% #option to calculate boxcox across CS- and CS+
-  select(id, trialnr, stimulus, stim_cat, scr_raw) #reorder
+
+# Choose the dataset
+data_choice <- readline(prompt = "Enter the number of the dataset you want to use (1 = merz eda, 2 = klingelh eda, 3 = reutter hr): ") 
+data_of_interest <- switch(data_choice,
+                            "1" = "merz_eda",
+                            "2" = "klingelh_eda",
+                            "3" = "reutter_hr",
+                            "")
+
+# Load the selected dataset
+if (data_of_interest == "merz_eda") {
+  data_long <- haven::read_sav("data/Merz.sav") %>%
+    rename(id = Versuchspersonennummer) %>%
+    pivot_longer(-id, names_to = "condition", values_to = "scr_raw") %>%
+    separate(condition, into = c(NA, NA, NA, "stimulus", "trialnr"), sep = "_") %>%
+    mutate(trialnr = trialnr %>% str_extract("\\d+") %>% as.integer()) %>%
+    filter(stimulus %in% c("cspe", "csm", "ucs")) %>%
+    mutate(stimulus = if_else(stimulus == "cspe", "csp", stimulus),
+           stim_cat = if_else(startsWith(stimulus, "cs"), "cs", "ucs")) %>%
+    select(id, trialnr, stimulus, stim_cat, scr_raw)
+} else if (data_of_interest == "klingelh_eda") {
+  # Code to load klingelh_eda dataset
+} else if (data_of_interest == "reutter_hr") {
+  data_multiverse <- readRDS("data/heart.rds") %>%
+    filter(threat %in% c(1, 6)) %>%
+    filter(phase == "Gen") %>%
+    mutate(scr_raw = round(60000 / (hrbl + HRchange), digits = 0)) %>%
+    select(subject, trial, threat, time, scr_raw) %>%
+    rename(stimulus = threat,
+           id = subject,
+           trialnr = trial) %>%
+    mutate(stim_cat = if_else(stimulus == 6, "cs", "ucs"),
+           stimulus = if_else(stimulus == 6, "csp", "csm"))
+
+  data_long <- data_multiverse %>%
+    group_by(id, trialnr, stimulus, stim_cat) %>%
+    summarise(scr_raw = round(mean(scr_raw, na.rm = TRUE), digits = 0))
+} else {
+  stop("Invalid choice.")
+}
+
+# Now you have the selected dataset loaded in 'data_long'
+
 ```
+
 
 ```{r transformations}
 # Log-transform the raw data
@@ -114,7 +148,7 @@ data_long.max = data_long %>%
   summarise(scr_max = max(scr, na.rm=T), .by = c(id, stim_cat, transformation)) %>% 
   pivot_wider(names_from = stim_cat, names_prefix = "max_", values_from = scr_max, id_cols = c("id", "transformation"))
 
-data_long.max %>% summarise(across(starts_with("max"), list("min" = min, "max" = max)))
+data_long.max %>% dplyr::summarise(across(starts_with("max"), list("min" = min, "max" = max)))
 #some participant's max response is negative (probably due to z-transform across all participants, i.e., their max is still below the group average)
 # => absolute value of minimum has been "added" to shift z-scored values to a minimum of 0
 
@@ -127,7 +161,7 @@ data_long = data_long %>% full_join(data_long.max) %>%
   mutate(scr_rc_cs = scr / max_cs,
          scr_rc_us = scr / max_ucs) %>% 
          #stimulus = if_else(stimulus %>% is.na(), "ucs", stimulus) %>% as_factor()) %>% 
-  select(-starts_with("max_")) %>% rename(scr_rc_none = scr) %>% 
+  dplyr::select(-starts_with("max_")) %>% rename(scr_rc_none = scr) %>% 
   pivot_longer(starts_with("scr_rc_"), names_to = "range_cor", values_to = "scr") %>% 
   mutate(transformation = transformation %>% gsub("scr_", "", .) %>% as_factor(),
          range_cor = range_cor %>% gsub("scr_rc_", "", .) %>% as_factor())
@@ -141,7 +175,7 @@ data_long = data_long %>% filter(stimulus != "ucs") %>%
   pivot_wider(names_from = stimulus, values_from = "scr") %>% 
   mutate(csd = csp - csm, #"trial"-level cs-difference only works because same amount of cs+ and cs- trials (and trials are counted with cs category)
          stimulus = "csd") %>% rename(scr = csd) %>% #a bit hacky preparation for bind_rows
-  select(-csp, -csm) %>% bind_rows(data_long, .)
+  dplyr::select(-csp, -csm) %>% bind_rows(data_long, .)
 ```
 
 ```{r boxcox & csd}
@@ -153,7 +187,8 @@ data_long = data_long %>% filter(transformation=="raw", stimulus=="csd") %>%
 ```
 
 ``` {r export trial-level data}
-data_long %>% write_rds("Merz_transformations.rds" %>% paste0("data/", .))
+#data_long %>% write_rds("Merz_transformations.rds" %>% paste0("data/", .))
+data_long %>% write_rds("Reutter_transformations.rds" %>% paste0("data/", .))
 ```
 
 #### Reliability
@@ -231,8 +266,8 @@ effects %>% summarise(mean_rank = rank_rc %>% mean(), .by=range_cor) %>% arrange
 ```
 
 ``` {r export data multiverse}
-data_multiverse = effects %>% select(-contains("rank")) %>% rename_with(function(x) paste0("effect_", x), .cols=contains("CI")) %>% 
-  full_join(reliabilities %>% rename(rel = m) %>% select(transformation, range_cor, rel, contains("CI")) %>% rename_with(function(x) paste0("rel_", x), .cols=contains("CI")))
+data_multiverse = effects %>% dplyr::select(-contains("rank")) %>% rename_with(function(x) paste0("effect_", x), .cols=contains("CI")) %>% 
+  full_join(reliabilities %>% rename(rel = m) %>% dplyr::select(transformation, range_cor, rel, contains("CI")) %>% rename_with(function(x) paste0("rel_", x), .cols=contains("CI")))
 data_multiverse %>% write_rds("Merz_multiverse.rds" %>% paste0("data/", .))
 ```
 
@@ -331,7 +366,7 @@ data_B07 = data_B07 %>%
 #data_B07 %>% filter(transformation %>% grepl("box", .)) %>% pivot_wider(names_from=transformation, values_from=scr) %>% filter(scr_box != scr_box_check)
 
 data_B07 = data_B07 %>% 
-  #select(-scr_shift, -lambda) %>% #remove helping variables
+  #dplyr::select(-scr_shift, -lambda) %>% #remove helping variables
   pivot_longer(starts_with("scr_"), names_to = "transformation", values_to = "scr")
 
 
@@ -376,7 +411,7 @@ data_B07 = data_B07 %>% filter(stimulus != "ucs") %>%
 data_B07 = data_B07 %>% filter(transformation=="raw", stimulus=="csd") %>% 
   group_by(range_cor) %>% mutate(scr = boxcoxvec(scr)) %>% ungroup() %>% 
   mutate(transformation="box") %>% 
-  bind_rows(data_B07 %>% filter(transformation!="box" | stimulus!="csd"), .) #%>% full_join(data_B07, by = c("id", "trialnr", "stimulus", "stim_cat", "transformation", "range_cor")) %>% filter(scr.x != scr.y) %>% select(stimulus, stim_cat, transformation, range_cor) %>% unique()
+  bind_rows(data_B07 %>% filter(transformation!="box" | stimulus!="csd"), .) #%>% full_join(data_B07, by = c("id", "trialnr", "stimulus", "stim_cat", "transformation", "range_cor")) %>% filter(scr.x != scr.y) %>% dplyr::select(stimulus, stim_cat, transformation, range_cor) %>% unique()
 
 
 ### Reliability
