@@ -54,6 +54,12 @@ fig_res <- 300
 
 ```{r plot-curves-effect-size}
 
+# remove us range correction as there is no data for it (data in current dataset is just simulation)
+data_multiverse = data_multiverse %>% filter(range_cor != "us")
+
+# WITHOUT BOXCOX TRANSFORMATION TO DIFFERENTIATE OTHER TRANSFORMATIONS BETTER
+#data_multiverse = data_multiverse %>% filter(transformation != "box")
+
 # Data must be ordered separately for effect size and rel -> set up a new data set
 data_multi_es <- data_multiverse
 
@@ -72,9 +78,11 @@ p_effect <- data_multi_es %>%
   ggplot(aes(x = approach_eff_order, y = effect, color = transformation)) +
   geom_point() +
   geom_errorbar(aes(ymin = effect_CI95.lo, ymax = effect_CI95.hi)) +
-  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("box cox", "log-transformed", 
+  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c(#"box cox",
+    "log-transformed", 
   "none", "square-root", "z-transformed")) +
   scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
+  scale_y_continuous(limits = c(-.5,1))+
   theme_classic() +
   theme(text = element_text(size=size_text),
         legend.position = 'top') +

@@ -56,6 +56,9 @@ fig_res <- 300
 
 ```{r plot-curves-effect-size}
 
+# WITHOUT BOXCOX TRANSFORMATION TO DIFFERENTIATE OTHER TRANSFORMATIONS BETTER
+data_multiverse = data_multiverse %>% filter(transformation != "box")
+
 # Data must be ordered separately for effect size and rel -> set up a new data set
 data_multi_es <- data_multiverse
 
@@ -76,7 +79,8 @@ p_effect <- data_multi_es %>%
   ggplot(aes(x = approach_eff_order, y = effect, color = transformation)) +
   geom_point() +
   geom_errorbar(aes(ymin = effect_CI95.lo, ymax = effect_CI95.hi)) +
-  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("none", "box-cox", "log-transformed", 
+  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("none", #"box-cox", 
+                                                                                "log-transformed", 
   "square-root", "z-transformed")) +
   scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
   theme_classic() +
@@ -92,7 +96,7 @@ s_effect <- ggplot(data_multi_es, aes(x = approach_eff_order, y = range_cor)) +
   geom_point(shape = '|', size = size_point) +
    #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
   scale_y_discrete(name = 'Range correction', labels = c("none", "CS corrected", "US corrected")) +
-    scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
+  scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(), 
         axis.ticks.x = element_blank(),
