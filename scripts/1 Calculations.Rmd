@@ -73,14 +73,16 @@ fnFishZ = function(r, fn=mean, prune=.999, ...) {
 ```{r data}
 
 # Choose the dataset
-data_choice <- readline(prompt = "Enter the number of the dataset you want to use (1 = merz eda, 2 = klingelh eda, 3 = reutter hr): ") 
+data_choice <- readline(prompt = "Enter the number of the dataset you want to use (1 = merz eda, 2 = klingelh eda, 3 = reutter hr, 4 = reutter pupil): ") 
 data_of_interest <- switch(data_choice,
-                            "1" = "merz_eda", "2" = "klingelh_eda",
-                            "3" = "reutter_hr",
+                            "1" = "Merz", 
+                           "2" = "Klingelh",
+                            "3" = "Reutter_hr",
+                           "4" = "Reutter_pupil",
                             "")
 
 # Load the selected dataset
-if (data_of_interest == "merz_eda") {
+if (data_of_interest == "Merz") {
   data_long <- haven::read_sav("data/Merz.sav") %>%
     rename(id = Versuchspersonennummer) %>%
     pivot_longer(-id, names_to = "condition", values_to = "scr_raw") %>%
@@ -90,9 +92,9 @@ if (data_of_interest == "merz_eda") {
     mutate(stimulus = if_else(stimulus == "cspe", "csp", stimulus),
            stim_cat = if_else(startsWith(stimulus, "cs"), "cs", "ucs")) %>%
     select(id, trialnr, stimulus, stim_cat, scr_raw)
-} else if (data_of_interest == "klingelh_eda") {
+} else if (data_of_interest == "Klingelh") {
   # Code to load klingelh_eda dataset
-} else if (data_of_interest == "reutter_hr") {
+} else if (data_of_interest == "Reutter_hr") {
   data_multiverse <- readRDS("data/heart.rds") %>%
     filter(threat %in% c(1, 6)) %>%
     filter(phase == "Gen") %>%
@@ -117,6 +119,31 @@ data_multiverse <- data_multiverse %>%
   data_long <- data_multiverse %>%
     group_by(id, trialnr, stimulus, stim_cat) %>%
     summarise(scr_raw = round(mean(scr_raw, na.rm = TRUE), digits = 0))
+ } else if (data_of_interest == "Reutter_pupil") {
+    data_multiverse <- readRDS("data/Reutter_pupil.trial.avg.rds")%>%
+    filter(threat %in% c("CS+", "CS-")) %>%
+    filter(phase == "Gen") %>%
+    select(subject, trial, threat, mmChange) %>%
+    rename(stimulus = threat,
+           id = subject) %>%
+    mutate(stim_cat = "cs",
+           stimulus = if_else(stimulus == "CS+", "csp", "csm"))
+  
+  data_multiverse$id <- as.numeric(as.character(data_multiverse$id))
+  data_multiverse$trial <- as.numeric(as.character(data_multiverse$trial))
+  # Order the dataframe based on ID and trialnr
+  data_multiverse <- data_multiverse %>% arrange(id, trial)
+
+# Create a new variable trialnr_new using group_by and mutate
+data_multiverse <- data_multiverse %>%
+  group_by(id, stimulus) %>%
+  mutate(trialnr = row_number()) %>%
+  ungroup()
+
+  data_long <- data_multiverse %>%
+    group_by(id, trialnr, stimulus, stim_cat) %>%
+    summarise(scr_raw = round(mean(mmChange, na.rm = TRUE), digits = 4))
+    
 } else {
   stop("Invalid choice.")
 }
@@ -196,8 +223,7 @@ data_long = data_long %>% filter(transformation=="raw", stimulus=="csd") %>%
 ```
 
 ``` {r export trial-level data}
-#data_long %>% write_rds("Merz_transformations.rds" %>% paste0("data/", .))
-data_long %>% write_rds("Reutter_transformations.rds" %>% paste0("data/", .))
+data_long %>% write_rds(paste0(data_of_interest, "_transformations.rds") %>% paste0("data/", .))
 ```
 
 #### Reliability
@@ -277,8 +303,7 @@ effects %>% summarise(mean_rank = rank_rc %>% mean(), .by=range_cor) %>% arrange
 ``` {r export data multiverse}
 data_multiverse = effects %>% dplyr::select(-contains("rank")) %>% rename_with(function(x) paste0("effect_", x), .cols=contains("CI")) %>% 
   full_join(reliabilities %>% rename(rel = m) %>% dplyr::select(transformation, range_cor, rel, contains("CI")) %>% rename_with(function(x) paste0("rel_", x), .cols=contains("CI")))
-#data_multiverse %>% write_rds("Merz_multiverse.rds" %>% paste0("data/", .))
-data_multiverse %>% write_rds("Reutter_multiverse.rds" %>% paste0("data/", .))
+data_multiverse %>% write_rds(paste0(data_of_interest, "_multiverse.rds") %>% paste0("data/", .))
 
 ```
 

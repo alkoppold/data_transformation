@@ -31,7 +31,7 @@ myGgTheme = theme(
 ```
 
 ``` {r load data}
-data_long = read_rds("data/Reutter_transformations.rds")
+data_long = read_rds("data/Reutter_hr_transformations.rds")
 ```
 
 ```{r histograms}
@@ -92,7 +92,7 @@ data_old = data_long %>%
   filter(transformation=="raw", range_cor=="none") %>% rename(scr_raw = scr) %>% mutate(stimulus = if_else(stimulus=="csp", "cspe", stimulus)) #backwards compatibility
 
 # Create stimulus variable for loop
-stim <- c("csd","cspe","csm","ucs")
+stim <- c("csd","cspe","csm")
 
 for (i in unique(stim)) {
   
@@ -185,7 +185,7 @@ assign(paste0("hist_scr_raw_",i), hist_scr_raw)
 
 
 ### Combine plots
-hist_scr_raw_csd + hist_scr_raw_cspe + hist_scr_raw_csm + hist_scr_raw_ucs + plot_layout(ncol = 1)
+hist_scr_raw_csd + hist_scr_raw_cspe + hist_scr_raw_csm + plot_layout(ncol = 1)
 
 ```
 
@@ -195,7 +195,7 @@ hist_scr_raw_csd + hist_scr_raw_cspe + hist_scr_raw_csm + hist_scr_raw_ucs + plo
 data_line <- data_old #backwards compatibility
 
 data_line$stimulus <- as.factor(data_line$stimulus)
-data_line$stimulus <- factor(data_line$stimulus, levels = c("csd","cspe","csm","ucs"))
+data_line$stimulus <- factor(data_line$stimulus, levels = c("csd","cspe","csm"))
 
 
 # Summarise within stimuli and trials (means and SEMs)
@@ -220,12 +220,12 @@ lineplot_scr_raw <- ggplot(data_line, aes(x=trialnr, y=scr.mean, colour=stimulus
   geom_ribbon(aes(ymin=lower, ymax=upper, fill=stimulus, color=NULL), alpha=0.2) +
   
   # Change colors and names of stimuli
-  scale_colour_manual(values=c("darkmagenta","darkred","navy","black"), name = "", breaks=c("csd","cspe","csm","ucs"),
-                      labels=c("CS discrimination","CS+", "CS-","US")) +
-  scale_fill_manual(values=c("darkmagenta","darkred","navy","black"), name = "", breaks=c("csd","cspe","csm","ucs"),
-                      labels=c("CS discrimination","CS+", "CS-","US")) +
+  scale_colour_manual(values=c("darkmagenta","darkred","navy"), name = "", breaks=c("csd","cspe","csm"),
+                      labels=c("CS discrimination","CS+", "CS-")) +
+  scale_fill_manual(values=c("darkmagenta","darkred","navy"), name = "", breaks=c("csd","cspe","csm"),
+                      labels=c("CS discrimination","CS+", "CS-")) +
   scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
-  scale_y_continuous(limits = c(0,1000))+
+  scale_y_continuous(limits = c(750,900))+
   # Title of axes
   xlab("Acquisition trials") +
   ylab("SCR (µS, raw)") +
