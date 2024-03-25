@@ -284,7 +284,9 @@ reliabilities %>% filter(range_cor=="none") %>% arrange(rank_trans)
 ``` {r effect size}
 effects = data_long %>% filter(stimulus=="csd") %>% 
   group_by(transformation, range_cor, id) %>% summarise(scr = mean(scr)) %>% #subject-level aggregates for correct between SD calculation
-  # TODO remove effect column
+           #TODO 
+           # - calculate the Cohen's d (effect variable) by calculating it exactly as the original formula using the t statistic
+           # - reasonably rename variables 
   dplyr::summarise(effect = mean(scr)/sd(scr), #checked against apa::cohens_d(scr) #TODO use Hedge's g instead
             helper = apa::t_test(scr) %>% apa::t_apa(es_ci=T, print=F) %>% gsub("\\[", ";", .) %>% gsub("\\]", "", .)) %>% 
   tidyr::separate_wider_delim(helper, delim=";", names=c(NA, "CI95.lo", "CI95.hi")) %>% mutate(across(contains("CI"), as.numeric)) %>%
