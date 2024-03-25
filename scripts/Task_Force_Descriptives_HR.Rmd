@@ -15,6 +15,9 @@ library(DescTools)
 library(moments)
 library(patchwork)
 library(tidyverse)
+#devtools::install_github("hughjonesd/ggmagnify")
+#install.packages(c("ggfx", "ggforce")
+library(ggmagnify)
 
 myGgTheme = theme(
     axis.title.x = element_text(size = 12, face = "bold"),
@@ -225,7 +228,7 @@ lineplot_scr_raw <- ggplot(data_line, aes(x=trialnr, y=scr.mean, colour=stimulus
   scale_fill_manual(values=c("darkmagenta","darkred","navy"), name = "", breaks=c("csd","cspe","csm"),
                       labels=c("CS discrimination","CS+", "CS-")) +
   scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
-  scale_y_continuous(limits = c(750,900))+
+  #scale_y_continuous(limits = c(750,900))+
   # Title of axes
   xlab("Acquisition trials") +
   ylab("SCR (µS, raw)") +
@@ -251,6 +254,18 @@ lineplot_scr_raw <- ggplot(data_line, aes(x=trialnr, y=scr.mean, colour=stimulus
         panel.grid.minor = element_blank())
 
 lineplot_scr_raw
+
+## zoom effect: 
+lineplot_scr_raw_zoom <- ggplot(data_line, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus)) +
+   geom_point(aes(group=stimulus), size=2) +
+  xlim(c(0,15))+
+  ylim(c(-100, 1500))+
+  # Add lines between points
+  geom_line(aes(group=stimulus), size=1.2) 
+
+from  <- c(xmin = 1, xmax = 11, ymin = 750, ymax = 950)
+to  <- c(xmin = 0, xmax = 13, ymin = 1000, ymax = 1400)
+lineplot_scr_raw_zoom +geom_magnify(from = from, to = to,corners = 0.1, shadow = T)
 
 ```
 
