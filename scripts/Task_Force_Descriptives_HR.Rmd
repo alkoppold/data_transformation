@@ -252,20 +252,54 @@ lineplot_scr_raw <- ggplot(data_line, aes(x=trialnr, y=scr.mean, colour=stimulus
         panel.background = element_blank(),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
-
 lineplot_scr_raw
 
 ## zoom effect: 
 lineplot_scr_raw_zoom <- ggplot(data_line, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus)) +
    geom_point(aes(group=stimulus), size=2) +
-  xlim(c(0,15))+
+  xlim(c(-5,15))+
   ylim(c(-100, 1500))+
   # Add lines between points
-  geom_line(aes(group=stimulus), size=1.2) 
+  geom_line(aes(group=stimulus), size=1.2) +
+  
+  # Change colors and names of stimuli
+  scale_colour_manual(values=c("orange","darkred","navy"), name = "", breaks=c("csd","cspe","csm"),
+                      labels=c("CS discrimination","CS+", "CS-")) +
+  scale_fill_manual(values=c("orange","darkred","navy"), name = "", breaks=c("csd","cspe","csm"),
+                      labels=c("CS discrimination","CS+", "CS-")) +
+  #scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
+  #scale_y_continuous(limits = c(750,900))+
+  # Title of axes
+  xlab("Acquisition trials") +
+  ylab("HR (IBI, raw)") +
+  # Title of the whole plot can be added here
+  ggtitle("") +
+  # Add number of participants as text in plot
+  annotate("text", x = 13, y = -20, label = paste("n =", n_data), size = 6) +
+  # Settings for fonts, ticks, legend and background of the plot
+  theme(plot.title = element_text(size=20, face="bold", hjust=0.5),
+        axis.text.x = element_text(size=16, face="bold", color="black"),
+        axis.text.y = element_text(size=16, face="bold", color="black"), 
+        axis.title.x = element_text(size=20, face="bold"),
+        axis.title.y = element_text(size=20, face="bold", margin=margin(0,10,0,0)),
+        legend.title = element_text(size=16, face="bold"),
+        legend.text = element_text(size=16),
+        legend.position = "top",
+        legend.key = element_blank(),
+        axis.line.x = element_line(color="black", size = 1),
+        axis.line.y = element_line(color="black", size = 1),
+        axis.ticks.x=element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
 
-from  <- c(xmin = 1, xmax = 11, ymin = 750, ymax = 950)
-to  <- c(xmin = 0, xmax = 13, ymin = 1000, ymax = 1400)
-lineplot_scr_raw_zoom +geom_magnify(from = from, to = to,corners = 0.1, shadow = T)
+from  <- c(xmin = 1, xmax = 11, ymin = 810, ymax = 870)
+to  <- c(xmin = -2, xmax = 15, ymin = 1000, ymax = 1500)
+lineplot_scr_raw_zoom +geom_magnify(from = from, to = to,corners = 0.1, 
+                                    proj = "single",
+                                    shadow = F, colour= "grey")+
+  geom_ribbon(data = data_line, aes(ymin=lower, ymax=upper, fill=stimulus, color=NULL), alpha=0.2)
 
 ```
 
