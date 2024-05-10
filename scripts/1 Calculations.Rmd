@@ -324,14 +324,13 @@ effects = data_long %>% filter(stimulus=="csd") %>%
                    #d_effsize = effsize::cohen.d(scr, NA)$estimate,
                    helper = apa::t_test(scr) %>% apa::t_apa(es_ci=T, print=F) %>% gsub("\\[", ";", .) %>% gsub("\\]", "", .),
                    n = scr %>% na.omit() %>% length(),
-                   hedges_g = cohen_d * (1 - (3 / (4 * (n-1) - 1))), #for one-sample & within: df = N - 1 [for between: df = N - 2]
-                   hedges_g_betweenDF = cohen_d * (1 - (3 / (4 * (n-2) - 1))),
-                   hedges_g2 = effsize::cohen.d(scr, NA, hedges.correction=T)$estimate,
-                   check = hedges_g == hedges_g2,
-                   check2 = hedges_g_betweenDF == hedges_g2,
+                   hedges_g = cohen_d * (1 - (3 / (4 * (n-1) - 1))), #for one-sample & within: df = N - 1 (for between: df = N - 2) [see Cumming (2011) p. 294; https://doi.org/10.4324/9780203807002]
+                   # hedges_g_betweenDF = cohen_d * (1 - (3 / (4 * (n-2) - 1))),
+                   # hedges_g2 = effsize::cohen.d(scr, NA, hedges.correction=T)$estimate,
+                   # check = hedges_g == hedges_g2,
+                   # check2 = hedges_g_betweenDF == hedges_g2,
                    effect = hedges_g) %>% 
-  tidyr::separate_wider_delim(helper, delim=";", names=c(NA, "CI95.lo", "CI95.hi")) %>% mutate(across(contains("CI"), as.numeric)) %>%
-  #mutate(hedges_g = effect * (1 - (3 / (4 * (length(unique(data_long$id))-2) - 1) ))) %>% # manually added hedges g from Cumming,2012
+  tidyr::separate_wider_delim(helper, delim=";", names=c(NA, "CI95.lo", "CI95.hi")) %>% mutate(across(contains("CI"), as.numeric)) %>% #note: effect size estimate is biased => Hedge's g but CI around Cohen's d is unbiased [see Cumming (2011) p. 305; https://doi.org/10.4324/9780203807002]
   group_by(transformation) %>% mutate(rank_rc = rank(-effect)) %>% ungroup() %>% 
   group_by(range_cor) %>% mutate(rank_trans = rank(-effect)) %>% ungroup() %>% 
   arrange(desc(effect))
