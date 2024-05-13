@@ -19,7 +19,7 @@ library(patchwork)
 ```
 
 ``` {r load-prepare-data}
-data_long = read_rds("/Users/alexandroskastrinogiannis/Documents/GitHub/data_transformation/data/Reutter_pupil_transformations.rds")
+data_multiverse = read_rds("/Users/alexandroskastrinogiannis/Documents/GitHub/data_transformation/data/Reutter_pupil_multiverse.rds")
 #data_multiverse = read_rds("data/Reutter_hr_multiverse.rds")
 
 # Factorize range correction type
@@ -82,8 +82,8 @@ p_effect <- data_multi_es %>%
   scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c(#"box cox",
     "log-transformed", 
   "none", "square-root", "z-transformed")) +
-  scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
-  scale_y_continuous(limits = c(-.5,1))+
+  scale_x_continuous(limits = c(0,11), breaks = c(1:10)) +
+  scale_y_continuous(limits = c(-.5,20))+
   theme_classic() +
   theme(text = element_text(size=size_text),
         legend.position = 'top') +
@@ -97,7 +97,7 @@ s_effect <- ggplot(data_multi_es, aes(x = approach_eff_order, y = range_cor)) +
   geom_point(shape = '|', size = size_point) +
    #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
   scale_y_discrete(name = 'Range correction', labels = c("none", "CS corrected", "US corrected")) +
-    scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
+    scale_x_continuous(limits = c(0,11), breaks = c(1:10)) +
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(), 
         axis.ticks.x = element_blank(),

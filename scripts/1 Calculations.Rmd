@@ -166,7 +166,7 @@ data_multiverse <- data_multiverse %>%
 
   data_long <- data_multiverse %>%
     group_by(id, trialnr, stimulus, stim_cat) %>%
-    summarise(scr_raw = round(mean(scr_raw, na.rm = TRUE), digits = 4))
+    summarise(scr_raw = round(mean(mmChange, na.rm = TRUE), digits = 4))
  } else if (data_of_interest == "Klingelh_FPS") {
   load("./data/dataFPS_statAnx.RData")
    names(dataFPS)[grep("FPS",names(dataFPS))] <- "scr_raw"
@@ -217,14 +217,16 @@ data_long.max %>% dplyr::summarise(across(starts_with("max"), list("min" = min, 
 #some participant's max response is negative (probably due to z-transform across all participants, i.e., their max is still below the group average)
 # => absolute value of minimum has been "added" to shift z-scored values to a minimum of 0
 
-data_long.max %>% filter(max_cs == 0 | max_ucs == 0)
+data_long.max %>% filter(max_cs == 0) # run on pupil data -- they do not have US stimuli
+#data_long.max %>% filter(max_cs == 0 | max_ucs == 0) 
 #subject 446: only zero responses to CSs
 
 data_long.max = data_long.max %>% mutate(across(starts_with("max_"), function(x) {if_else(x == 0, Inf, x)})) #replace 0 with Inf (such that scr / Inf == 0)
 
 data_long = data_long %>% full_join(data_long.max) %>% 
-  mutate(scr_rc_cs = scr / max_cs,
-         scr_rc_us = if ("max_ucs" %in% names(.)) scr / max_ucs else scr) %>% # new by alina, for hr
+  mutate(scr_rc_cs = scr / max_cs
+         #scr_rc_us = if ("max_ucs" %in% names(.)) scr / max_ucs else scr) %>% # new by alina, for hr // Do not run this line for pupil data since they do not have USs
+         ) %>% 
          #stimulus = if_else(stimulus %>% is.na(), "ucs", stimulus) %>% as_factor()) %>% 
   dplyr::select(-starts_with("max_")) %>% rename(scr_rc_none = scr) %>% 
   pivot_longer(starts_with("scr_rc_"), names_to = "range_cor", values_to = "scr") %>% 
@@ -270,6 +272,7 @@ data_wide_csd = data_long %>% filter(stimulus=="csd") %>%
 
 replications = 1000
 set.seed(6723094)
+
 reliabilities.permutations = tibble(
   raw = reliability_helper(data_wide_csd, fn_score_mean("raw"), replications),
   log = reliability_helper(data_wide_csd, fn_score_mean("log"), replications),
@@ -281,13 +284,13 @@ reliabilities.permutations = tibble(
   log_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("log_rc_cs"), replications),
   sqr_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("sqr_rc_cs"), replications),
   box_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("box_rc_cs"), replications),
-  ztr_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("ztr_rc_cs"), replications),
-  
-  raw_rc_us = reliability_helper(data_wide_csd, fn_score_mean("raw_rc_us"), replications),
-  log_rc_us = reliability_helper(data_wide_csd, fn_score_mean("log_rc_us"), replications),
-  sqr_rc_us = reliability_helper(data_wide_csd, fn_score_mean("sqr_rc_us"), replications),
-  box_rc_us = reliability_helper(data_wide_csd, fn_score_mean("box_rc_us"), replications),
-  ztr_rc_us = reliability_helper(data_wide_csd, fn_score_mean("ztr_rc_us"), replications)
+  ztr_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("ztr_rc_cs"), replications)
+  # Added by Alex: For pupil data we exclude the following rows, since the there is no US inn the pupil data
+  # raw_rc_us = reliability_helper(data_wide_csd, fn_score_mean("raw_rc_us"), replications),
+  # log_rc_us = reliability_helper(data_wide_csd, fn_score_mean("log_rc_us"), replications),
+  # sqr_rc_us = reliability_helper(data_wide_csd, fn_score_mean("sqr_rc_us"), replications),
+  # box_rc_us = reliability_helper(data_wide_csd, fn_score_mean("box_rc_us"), replications),
+  # ztr_rc_us = reliability_helper(data_wide_csd, fn_score_mean("ztr_rc_us"), replications)
 )
 reliabilities = reliabilities.permutations %>% 
   summarise(across(.fns=list(m = fnFishZ, sd = ~ fnFishZ(.x, fn=sd),
@@ -314,7 +317,7 @@ reliabilities %>% filter(range_cor=="none") %>% arrange(rank_trans)
 # test = with(data_long %>% filter(stimulus=="csd") %>% 
 #     group_by(transformation, range_cor, id) %>% summarise(scr = mean(scr)), effsize::cohen.d(scr, NA, hedges.correction=T)) #check returned data format
 
-effects = data_long %>% filter(stimulus=="csd") %>% 
+effects = na.omit(data_long) %>% filter(stimulus=="csd") %>%  # Added by Alex: na.omit needs to be wrapped around "data_long" otherwise NA value are created when calculating the cohen_d and t_tests.
   group_by(transformation, range_cor, id) %>% summarise(scr = mean(scr)) %>% #subject-level aggregates for correct between SD calculation
            #TODO 
            # - calculate the Cohen's d (effect variable) by calculating it exactly as the original formula using the t statistic
@@ -352,6 +355,9 @@ data_multiverse %>% write_rds(paste0(data_of_interest, "_multiverse.rds") %>% pa
 data_wide = data_long %>% mutate(condition = paste(transformation, range_cor, sep="_"),
                                  condition = condition %>% gsub("_none", "", .) %>% gsub("_", "_rc_", .)) %>% 
   pivot_wider(names_from=condition, values_from=scr, id_cols=c(id, trialnr, stimulus))
+
+data_wide <- na.omit(data_wide)
+
 reliabilities.strat.permutations = tibble(
   raw = reliability_helper(data_wide, fn_score_mean("raw"), replications, stratification="stimulus"),
   log = reliability_helper(data_wide, fn_score_mean("log"), replications, stratification="stimulus"),
