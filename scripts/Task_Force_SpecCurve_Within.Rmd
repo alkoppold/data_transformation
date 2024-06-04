@@ -163,3 +163,58 @@ plot_spec_reliability <- p_reliability / s_reliability
 plot_spec_reliability
 
 ```
+
+
+
+```{r plot-curves-effect-size-lines-only}
+
+# labels
+x_lab <- 'Approach number ordered by effect size'
+y_lab <- 'Effect size (Hedge\'s g)'
+
+# order by effect size
+
+p_effect <- data_multi_es %>%
+  ggplot(aes(x = approach_eff_order, y = effect)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = effect_CI95.lo, ymax = effect_CI95.hi)) +
+
+  scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
+  theme_classic() +
+  theme(text = element_text(size=size_text),
+        legend.position = 'top') +
+  xlab(x_lab) +
+  ylab(y_lab) + 
+  guides(color = guide_legend(nrow = 1))
+
+
+# plot specifications of parameters: transformation type
+s_effect_1 <- ggplot(data_multi_es, aes(x = approach_eff_order, y = transformation)) +
+  geom_point(shape = '|', size = size_point) +
+  scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+
+# plot specifications of parameters: range correction type
+s_effect_2 <- ggplot(data_multi_es, aes(x = approach_eff_order, y = range_cor)) +
+  geom_point(shape = '|', size = size_point) +
+  scale_y_discrete(name = 'Range correction', labels = c("none", "CS corrected", "US corrected")) +
+  scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+
+# Combine plots
+
+plot_spec_effect_lines_only <- p_effect / s_effect_1 / s_effect_2
+plot_spec_effect_lines_only
+
+```
