@@ -292,7 +292,9 @@ reliabilities.permutations = tibble(
 reliabilities = reliabilities.permutations %>% 
   summarise(across(.fns=list(m = fnFishZ, sd = ~ fnFishZ(.x, fn=sd),
                              CI95.lo = ~ fnFishZ(.x, fn=quantile, probs=.025),
-                             CI95.hi = ~ fnFishZ(.x, fn=quantile, probs=.975)), 
+                             CI95.hi = ~ fnFishZ(.x, fn=quantile, probs=.975)
+                             #TODO check m against OP5 correction by Shieh (2010; https://doi.org/10.3758/BRM.42.4.906), implemented in AATtools::cormean
+                             ),
             .cols=everything(), .names="{.col}_x_{.fn}")) %>% 
   pivot_longer(cols=everything()) %>% separate(col=name, into=c("method", "metric"), sep="_x_") %>% 
   pivot_wider(names_from = "metric", id_cols = "method") %>% arrange(desc(m)) %>% 
