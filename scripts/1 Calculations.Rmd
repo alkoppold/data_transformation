@@ -21,7 +21,8 @@ library(tidyverse)
 ```{r helpers}
 boxcoxvec = function(x, min=1) { #cf. scales::boxcox_trans()
   if (min %>% is.numeric()) x = x - min(x, na.rm=T) + min
-  lambda = MASS::boxcox(x ~ 1, plotit=F) %>% 
+  x.noNA = x %>% discard(is.na)
+  lambda = MASS::boxcox(x.noNA ~ 1, plotit=F) %>% 
     bind_cols() %>% filter(y == max(y)) %>% pull(x) %>% mean()
   return((x ^ lambda - 1) / lambda)
 }
