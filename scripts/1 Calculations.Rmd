@@ -150,8 +150,8 @@ data_multiverse <- data_multiverse %>%
   ungroup()
 
   data_long <- data_multiverse %>%
-    group_by(id, trialnr, stimulus, stim_cat) %>%
-    summarise(scr_raw = round(mean(scr_raw, na.rm = TRUE), digits = 0))
+    summarise(.by=c(id, trialnr, stimulus, stim_cat),
+              scr_raw = round(mean(scr_raw, na.rm = TRUE), digits = 0))
  } else if (data_of_interest == "Reutter_pupil") {
     data_multiverse <- readRDS("data/Reutter_pupil.trial.avg.rds")%>%
     filter(threat %in% c("CS+", "CS-")) %>%
@@ -174,8 +174,8 @@ data_multiverse <- data_multiverse %>%
   ungroup()
 
   data_long <- data_multiverse %>%
-    group_by(id, trialnr, stimulus, stim_cat) %>%
-    summarise(scr_raw = round(mean(mmChange, na.rm = TRUE), digits = 4))
+    summarise(.by=c(id, trialnr, stimulus, stim_cat),
+              scr_raw = round(mean(mmChange, na.rm = TRUE), digits = 4))
  } else if (data_of_interest == "Klingelh_FPS") {
   load("./data/dataFPS_statAnx.RData")
    names(dataFPS)[grep("FPS",names(dataFPS))] <- "scr_raw"
