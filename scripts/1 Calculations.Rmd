@@ -217,6 +217,7 @@ data_long = data_long %>%
 data_long.max = data_long %>% 
   summarise(scr_max = max(scr, na.rm=T), .by = c(id, stim_cat, transformation)) %>% 
   pivot_wider(names_from = stim_cat, names_prefix = "max_", values_from = scr_max, id_cols = c("id", "transformation"))
+if ("max_ucs" %in% names(data_long.max) == F) data_long.max = data_long.max %>% mutate(max_ucs = NA) #add empty column if max_ucs doesn't exist
 
 data_long.max %>% summarise(across(starts_with("max"), list("min" = min, "max" = max)))
 #some participant's max response is negative (probably due to z-transform across all participants, i.e., their max is still below the group average)
@@ -229,7 +230,7 @@ data_long.max = data_long.max %>% mutate(across(starts_with("max_"), function(x)
 
 data_long = data_long %>% full_join(data_long.max) %>% 
   mutate(scr_rc_cs = scr / max_cs,
-         scr_rc_us = if ("max_ucs" %in% names(.)) scr / max_ucs else NA) %>% # new by alina, for hr
+         scr_rc_us = scr / max_ucs) %>% 
          #stimulus = if_else(stimulus %>% is.na(), "ucs", stimulus) %>% as_factor()) %>% 
   select(-starts_with("max_")) %>% rename(scr_rc_none = scr) %>% 
   pivot_longer(starts_with("scr_rc_"), names_to = "range_cor", values_to = "scr") %>% 
