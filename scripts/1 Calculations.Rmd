@@ -197,10 +197,6 @@ data_long = data_long %>%
   mutate(scr_log = log10(1+scr_raw),
          scr_sqr = sqrt(scr_raw)) %>% 
   
-  # group_by(stimulus) %>% mutate(scr_shift = scr_raw - min(scr_raw) + 1, 
-  #                               lambda = boxcox(scr_shift ~ 1, plotit=F) %>% 
-  #                                 bind_cols() %>% filter(y == max(y)) %>% pull(x) %>% mean()) %>% ungroup() %>% 
-  # mutate(scr_box_check = (scr_shift ^ lambda - 1) / lambda) %>% 
   group_by(stimulus) %>% mutate(scr_box = boxcoxvec(scr_raw)) %>% ungroup() %>% 
   
   #group_by(id) %>% #this implicitly invokes something similar to a range correction => don't do it? How is it used in the literature?
