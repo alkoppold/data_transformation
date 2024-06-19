@@ -25,11 +25,17 @@ rm(list = ls() %>% setdiff("params"))
 ```
 
 ```{r helpers}
-boxcoxvec = function(x, min=1) { #cf. scales::boxcox_trans()
-  if (min %>% is.numeric()) x = x - min(x, na.rm=T) + min
+boxcoxvec = function(x, min=1, ...) { #cf. scales::boxcox_trans()
+  if (x %>% na.omit() %>% length() == 0) return(x) #special case: all NAs => returned input vector unaltered
+  if (min %>% is.numeric()) x = x - min(x, na.rm=T) + min #shift distribution such that minimum in data == supplied min
+  
   x.noNA = x %>% discard(is.na)
-  lambda = MASS::boxcox(x.noNA ~ 1, plotit=F) %>% 
-    bind_cols() %>% filter(y == max(y)) %>% pull(x) %>% mean()
+  lambdas = MASS::boxcox(x.noNA ~ 1, plotit=F, ...) %>% bind_cols()
+  
+  if (all(lambdas %>% pull(y) == Inf)) return(x) #special case: skewness == 0
+  lambda = lambdas %>% filter(y == max(y)) %>% pull(x) %>% mean()
+  if ({lambdas %>% pull(y) == lambda} %>% which() %>% {c(1, nrow(lambdas)) %in% .} %>% any())
+    warning("Best lambda at border. Consider supplying lambda argument with broader search bounds.")
   return((x ^ lambda - 1) / lambda)
 }
 
