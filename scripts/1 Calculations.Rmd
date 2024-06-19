@@ -17,7 +17,7 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 rm(list = ls())
 library(haven)
-library(MASS)
+#library(MASS) #don't load MASS to not override dplyr::select
 library(splithalfr)
 #library(effsize)
 #library(esci)
@@ -53,7 +53,7 @@ reliability_helper = function(data, fn_score, replications, #need to be specifie
 
 fn_score_mean = function(column, na.rm=T) { #idea: create a function that
   return(function(df) { #returns another function 
-    return(mean(dplyr::pull(df, !!column), na.rm=na.rm)) #with specifications (column & na.rm) from the parent-function => parameter df gets filled inside by_split function call
+    return(mean(pull(df, !!column), na.rm=na.rm)) #with specifications (column & na.rm) from the parent-function => parameter df gets filled inside by_split function call
     #note: this would not be needed if by_split had a "..." argument that gets passed into fn_score
     
     #return(df %>% pull(!!column) %>% mean(na.rm=na.rm)) #requires library(tidyverse) for parallel (inefficient)
@@ -222,7 +222,7 @@ data_long.max = data_long %>%
   summarise(scr_max = max(scr, na.rm=T), .by = c(id, stim_cat, transformation)) %>% 
   pivot_wider(names_from = stim_cat, names_prefix = "max_", values_from = scr_max, id_cols = c("id", "transformation"))
 
-data_long.max %>% dplyr::summarise(across(starts_with("max"), list("min" = min, "max" = max)))
+data_long.max %>% summarise(across(starts_with("max"), list("min" = min, "max" = max)))
 #some participant's max response is negative (probably due to z-transform across all participants, i.e., their max is still below the group average)
 # => absolute value of minimum has been "added" to shift z-scored values to a minimum of 0
 
@@ -233,9 +233,9 @@ data_long.max = data_long.max %>% mutate(across(starts_with("max_"), function(x)
 
 data_long = data_long %>% full_join(data_long.max) %>% 
   mutate(scr_rc_cs = scr / max_cs,
-         scr_rc_us = if ("max_ucs" %in% names(.)) scr / max_ucs else scr) %>% # new by alina, for hr
+         scr_rc_us = if ("max_ucs" %in% names(.)) scr / max_ucs else NA) %>% # new by alina, for hr
          #stimulus = if_else(stimulus %>% is.na(), "ucs", stimulus) %>% as_factor()) %>% 
-  dplyr::select(-starts_with("max_")) %>% rename(scr_rc_none = scr) %>% 
+  select(-starts_with("max_")) %>% rename(scr_rc_none = scr) %>% 
   pivot_longer(starts_with("scr_rc_"), names_to = "range_cor", values_to = "scr") %>% 
   mutate(transformation = transformation %>% gsub("scr_", "", .) %>% as_factor(),
          range_cor = range_cor %>% gsub("scr_rc_", "", .) %>% as_factor())
@@ -249,7 +249,7 @@ data_long = data_long %>% filter(stimulus != "ucs") %>%
   pivot_wider(names_from = stimulus, values_from = "scr") %>% 
   mutate(csd = csp - csm, #"trial"-level cs-difference only works because same amount of cs+ and cs- trials (and trials are counted with cs category)
          stimulus = "csd") %>% rename(scr = csd) %>% #a bit hacky preparation for bind_rows
-  dplyr::select(-csp, -csm) %>% bind_rows(data_long, .)
+  select(-csp, -csm) %>% bind_rows(data_long, .)
 ```
 
 ```{r boxcox & csd}
@@ -330,7 +330,7 @@ effects = data_long %>% filter(stimulus=="csd") %>%
            #TODO 
            # - calculate the Cohen's d (effect variable) by calculating it exactly as the original formula using the t statistic
            # - reasonably rename variables 
-  dplyr::summarise(cohen_d = mean(scr, na.rm=T)/sd(scr, na.rm=T), #checked against apa::cohens_d(scr)
+  summarise(cohen_d = mean(scr, na.rm=T)/sd(scr, na.rm=T), #checked against apa::cohens_d(scr)
                    #d_apa = apa::cohens_d(scr),
                    #d_effsize = effsize::cohen.d(scr, NA)$estimate,
                    helper = apa::t_test(scr) %>% apa::t_apa(es_ci=T, print=F) %>% gsub("\\[", ";", .) %>% gsub("\\]", "", .),
@@ -353,8 +353,8 @@ effects %>% summarise(mean_rank = rank_rc %>% mean(), .by=range_cor) %>% arrange
 ```
 
 ``` {r export data multiverse}
-data_multiverse = effects %>% dplyr::select(-contains("rank")) %>% rename_with(function(x) paste0("effect_", x), .cols=contains("CI")) %>% 
-  full_join(reliabilities %>% rename(rel = m) %>% dplyr::select(transformation, range_cor, rel, contains("CI")) %>% rename_with(function(x) paste0("rel_", x), .cols=contains("CI")))
+data_multiverse = effects %>% select(-contains("rank")) %>% rename_with(function(x) paste0("effect_", x), .cols=contains("CI")) %>% 
+  full_join(reliabilities %>% rename(rel = m) %>% select(transformation, range_cor, rel, contains("CI")) %>% rename_with(function(x) paste0("rel_", x), .cols=contains("CI")))
 data_multiverse %>% write_rds(paste0(data_of_interest, "_multiverse.rds") %>% paste0("data/", .))
 
 ```
