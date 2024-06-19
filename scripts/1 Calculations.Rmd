@@ -2,6 +2,12 @@
 title: "1_Calculations"
 author: "Alina Koppold"
 date: "2023-11-08"
+params:
+  # data: "1" #"Merz"
+  # data: "2" #"Klingelh"
+  # data: "3" #"Reutter_hr"
+  data: "4" #"Reutter_pupil"
+  # data: "5" #"Klingelh_FPS",
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -76,11 +82,13 @@ fnFishZ = function(r, fn=mean, prune=.999, ...) {
 ```{r data}
 
 # Choose the dataset
-data_choice <- readline(prompt = "Enter the number of the dataset you want to use (1 = merz eda, 2 = klingelh eda, 3 = reutter hr, 4 = reutter pupil): ") 
+# data_choice <- readline(prompt = "Enter the number of the dataset you want to use (1 = merz eda, 2 = klingelh eda, 3 = reutter hr, 4 = reutter pupil): ") 
+# readline doesn't work with RMarkdown: https://stackoverflow.com/a/45904949/4011953
+data_choice = {function() return(params$data)}()
 data_of_interest <- switch(data_choice,
-                            "1" = "Merz", 
+                           "1" = "Merz",
                            "2" = "Klingelh",
-                            "3" = "Reutter_hr",
+                           "3" = "Reutter_hr",
                            "4" = "Reutter_pupil",
                            "5" = "Klingelh_FPS",
                             "")
