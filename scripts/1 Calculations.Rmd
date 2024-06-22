@@ -49,9 +49,9 @@ reliability_helper = function(data, fn_score, replications, #need to be specifie
                               participants="id", stratification=NULL, #constant for one data set
                               fn_coef=splithalfr::spearman_brown, ncores=parallel::detectCores() - 1, careful=F, verbose=F) #sensible defaults
 {
-  if (stratification %>% is.null() == F) stratification = data %>% pull(!!stratification)
+  if (stratification %>% is.null() == F) stratification = data[,stratification] #data %>% pull(!!stratification)
   splithalfr::by_split(data=data, fn_score=fn_score, replications=replications,
-                       participants = data %>% pull(!!participants), 
+                       participants = data[,participants], #data %>% pull(!!participants), 
                        stratification = stratification,
                        ncores=ncores, careful=careful, verbose=verbose) %>% 
     splithalfr::split_coefs(fn_coef=fn_coef)
@@ -59,10 +59,11 @@ reliability_helper = function(data, fn_score, replications, #need to be specifie
 
 fn_score_mean = function(column, na.rm=T) { #idea: create a function that
   return(function(df) { #returns another function 
-    return(mean(pull(df, !!column), na.rm=na.rm)) #with specifications (column & na.rm) from the parent-function => parameter df gets filled inside by_split function call
+    #with specifications (column & na.rm) from the parent-function => parameter df gets filled inside by_split function call
     #note: this would not be needed if by_split had a "..." argument that gets passed into fn_score
     
     #return(df %>% pull(!!column) %>% mean(na.rm=na.rm)) #requires library(tidyverse) for parallel (inefficient)
+    return(mean(dplyr::pull(df, !!column), na.rm=na.rm)) #call dplyr::pull explicitly to not having to load tidyverse (or dplyr)
   })
 }
 
