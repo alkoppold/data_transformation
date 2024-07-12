@@ -9,36 +9,24 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-rm(list = ls())
 library(haven)
-library(MASS)
+#library(MASS) #don't load MASS to not override dplyr::select
 library(splithalfr)
 #library(effsize)
 #library(esci)
 library(tidyverse)
+library(patchwork)
 ```
 
 ```{r helpers}
-boxcoxvec = function(x, min=1) { #cf. scales::boxcox_trans()
-  if (min %>% is.numeric()) x = x - min(x, na.rm=T) + min
-  lambda = MASS::boxcox(x ~ 1, plotit=F) %>% 
-    bind_cols() %>% filter(y == max(y)) %>% pull(x) %>% mean()
-  return((x ^ lambda - 1) / lambda)
-}
-
-prune = function(x, low=-Inf, high=+Inf, abs=NA) {
-  result = if_else(x < low, low, x) %>% if_else(. > high, high, .)
-  if (abs %>% is.na() == F) result = if_else(abs(result) > abs, abs * if_else(result > 0, 1, -1), result)
-  return(result)
-}
 
 reliability_helper = function(data, fn_score, replications, #need to be specified
                               participants="id", stratification=NULL, #constant for one data set
                               fn_coef=splithalfr::spearman_brown, ncores=parallel::detectCores() - 1, careful=F, verbose=F) #sensible defaults
 {
-  if (stratification %>% is.null() == F) stratification = data %>% pull(!!stratification)
+  if (stratification %>% is.null() == F) stratification = data[,stratification] #data %>% pull(!!stratification)
   splithalfr::by_split(data=data, fn_score=fn_score, replications=replications,
-                       participants = data %>% pull(!!participants), 
+                       participants = data[,participants], #data %>% pull(!!participants), 
                        stratification = stratification,
                        ncores=ncores, careful=careful, verbose=verbose) %>% 
     splithalfr::split_coefs(fn_coef=fn_coef)
@@ -46,133 +34,36 @@ reliability_helper = function(data, fn_score, replications, #need to be specifie
 
 fn_score_mean = function(column, na.rm=T) { #idea: create a function that
   return(function(df) { #returns another function 
-    return(mean(dplyr::pull(df, !!column), na.rm=na.rm)) #with specifications (column & na.rm) from the parent-function => parameter df gets filled inside by_split function call
+    #with specifications (column & na.rm) from the parent-function => parameter df gets filled inside by_split function call
     #note: this would not be needed if by_split had a "..." argument that gets passed into fn_score
     
     #return(df %>% pull(!!column) %>% mean(na.rm=na.rm)) #requires library(tidyverse) for parallel (inefficient)
+    return(mean(dplyr::pull(df, !!column), na.rm=na.rm)) #call dplyr::pull explicitly to not having to load tidyverse (or dplyr)
   })
 }
 
-rToFishZ = function(r) { return(.5*log((1+r)/(1-r))) }
-fishZtoR = function(Z) { return(ifelse(Z==Inf, 1, (exp(2*Z)-1)/(exp(2*Z)+1))) }
-fnFishZ = function(r, fn=mean, prune=.999, ...) { 
-  warning.txt = ""
-  if (any(abs(r) >= 1, na.rm=T)) {
-    warning.txt = "Correlation(s) contain(s) values at or beyond 1. This will bias results for summary functions." %>% paste0(warning.txt, .)
-    if (prune %>% is.na()) warning = "Consider setting prune parameter." %>% paste(warning.txt, .)
-    else {
-      warning.txt = paste0("Pruning to ", prune, ".") %>% paste(warning.txt, .)
-      
-      r = r %>% prune(abs=prune) #if_else(abs(r) >= 1, prune * if_else(r > 0, 1, -1), r)
-    }
-    warning(warning.txt)
-  }
-  
-  return(r %>% rToFishZ() %>% fn(...) %>% fishZtoR()) 
-}
 ```
 
-```{r data}
 
-  data_long <- haven::read_sav("data/Merz.sav") %>%
-    rename(id = Versuchspersonennummer) %>%
-    pivot_longer(-id, names_to = "condition", values_to = "scr_raw") %>%
-    separate(condition, into = c(NA, NA, NA, "stimulus", "trialnr"), sep = "_") %>%
-    mutate(trialnr = trialnr %>% str_extract("\\d+") %>% as.integer()) %>%
-    filter(stimulus %in% c("cspe", "csm", "ucs")) %>%
-    mutate(stimulus = if_else(stimulus == "cspe", "csp", stimulus),
-           stim_cat = if_else(startsWith(stimulus, "cs"), "cs", "ucs")) %>%
-    dplyr::select(id, trialnr, stimulus, stim_cat, scr_raw)
+```{r import-triallevel-data}
 
+data_long <- readRDS("data/Merz_transformations.rds")
 
 ```
 
 
-```{r transformations}
-# Log-transform the raw data
-data_long = data_long %>% 
-  mutate(scr_log = log10(1+scr_raw),
-         scr_sqr = sqrt(scr_raw)) %>% 
-  
-  # group_by(stimulus) %>% mutate(scr_shift = scr_raw - min(scr_raw) + 1, 
-  #                               lambda = boxcox(scr_shift ~ 1, plotit=F) %>% 
-  #                                 bind_cols() %>% filter(y == max(y)) %>% pull(x) %>% mean()) %>% ungroup() %>% 
-  # mutate(scr_box_check = (scr_shift ^ lambda - 1) / lambda) %>% 
-  group_by(stimulus) %>% mutate(scr_box = boxcoxvec(scr_raw)) %>% ungroup() %>% 
-  
-  #group_by(id) %>% #this implicitly invokes something similar to a range correction => don't do it? How is it used in the literature?
-  mutate(scr_ztr = scale(scr_raw)[,1],
-         scr_ztr = scr_ztr - min(scr_ztr)) #make sure that minimum response is 0 (and not negative)
-
-#View(data_long)
-#data_long %>% ggplot(aes(x = scr_raw, y = scr_box, color = stimulus)) + geom_point() + theme_bw()
-#data_long %>% filter(transformation %>% grepl("box", .)) %>% pivot_wider(names_from=transformation, values_from=scr) %>% filter(scr_box != scr_box_check)
-
-data_long = data_long %>% 
-  #select(-scr_shift, -lambda) %>% #remove helping variables
-  pivot_longer(starts_with("scr_"), names_to = "transformation", values_to = "scr")
-```
-
-```{r range correction}
-# Prepare range correction by calculating max SCR of CS and US responses
-data_long.max = data_long %>% 
-  summarise(scr_max = max(scr, na.rm=T), .by = c(id, stim_cat, transformation)) %>% 
-  pivot_wider(names_from = stim_cat, names_prefix = "max_", values_from = scr_max, id_cols = c("id", "transformation"))
-
-data_long.max %>% dplyr::summarise(across(starts_with("max"), list("min" = min, "max" = max)))
-#some participant's max response is negative (probably due to z-transform across all participants, i.e., their max is still below the group average)
-# => absolute value of minimum has been "added" to shift z-scored values to a minimum of 0
-
-data_long.max %>% filter(max_cs == 0 | max_ucs == 0)
-#subject 446: only zero responses to CSs
-
-data_long.max = data_long.max %>% mutate(across(starts_with("max_"), function(x) {if_else(x == 0, Inf, x)})) #replace 0 with Inf (such that scr / Inf == 0)
-
-data_long = data_long %>% full_join(data_long.max) %>% 
-  mutate(scr_rc_cs = scr / max_cs,
-         scr_rc_us = if ("max_ucs" %in% names(.)) scr / max_ucs else scr) %>% # new by alina, for hr
-         #stimulus = if_else(stimulus %>% is.na(), "ucs", stimulus) %>% as_factor()) %>% 
-  dplyr::select(-starts_with("max_")) %>% rename(scr_rc_none = scr) %>% 
-  pivot_longer(starts_with("scr_rc_"), names_to = "range_cor", values_to = "scr") %>% 
-  mutate(transformation = transformation %>% gsub("scr_", "", .) %>% as_factor(),
-         range_cor = range_cor %>% gsub("scr_rc_", "", .) %>% as_factor())
-
-#data_long %>% filter(scr %>% is.nan())
-```
-
-```{r cs discrimination}
-### Add CS discrimination
-data_long = data_long %>% filter(stimulus != "ucs") %>% 
-  pivot_wider(names_from = stimulus, values_from = "scr") %>% 
-  mutate(csd = csp - csm, #"trial"-level cs-difference only works because same amount of cs+ and cs- trials (and trials are counted with cs category)
-         stimulus = "csd") %>% rename(scr = csd) %>% #a bit hacky preparation for bind_rows
-  dplyr::select(-csp, -csm) %>% bind_rows(data_long, .)
-```
-
-```{r boxcox & csd}
-#TODO does it make sense for boxcox to transform first and then calculate difference? Probably not due to different non-linear transformations = non-comparable scales => do boxcox again for raw csd (separate for range_cor, which is a linear transformation)
-data_long = data_long %>% filter(transformation=="raw", stimulus=="csd") %>% 
-  group_by(range_cor) %>% mutate(scr = boxcoxvec(scr)) %>% ungroup() %>% 
-  mutate(transformation="box") %>% 
-  bind_rows(data_long %>% filter(transformation!="box" | stimulus!="csd"), .) #%>% full_join(data_long, by = c("id", "trialnr", "stimulus", "stim_cat", "transformation", "range_cor")) %>% filter(scr.x != scr.y) %>% select(stimulus, stim_cat, transformation, range_cor) %>% unique()
-```
-
-``` {r export trial-level data}
-#data_long %>% write_rds("Merz_transformations_boot.rds" %>% paste0("data/", .))
-```
-
-
-```{r bootstrapping}
+```{r bootstrapping-calc-rel-es}
 
 #### Start the bootstrapping
+# sampling with replacement
 
-# Number of iterations
-n_iter <- c(1:20)
+# Number of iterations: How often should the subjects be sampled?
+n_iter <- c(1:2)
 
 # Store ids in a variable
 id_data <- unique(data_long$id)
 
-# Sample size of bootstrap sample
+# Sample size of bootstrap sample: How many participants should each bootstrapping sample contain?
 sample_size_boot <- 30
 
 ################################## START THE LOOP
@@ -187,19 +78,20 @@ id_select <- sample(id_data, sample_size_boot, replace = TRUE)
 data_select <- data_long[is.element(data_long$id, id_select), ]
 
 
-####################################################### RELIABILITY
+#######################################################
 
 #### Main Calculations for Multiverse
 
+####################################################### RELIABILITY
 
 #checks
-data_select %>% summarise(trials = max(trialnr), .by = stimulus)
-#data_select %>% group_by(stimulus, id) %>% summarise(trials = n()) %>% summarise(trials = mean(trials))
+data_long %>% summarise(trials = max(trialnr), .by = stimulus)
+#data_long %>% group_by(stimulus, id) %>% summarise(trials = n()) %>% summarise(trials = mean(trials))
 
 #reliability cs difference
-data_wide_csd = data_select %>% filter(stimulus=="csd") %>%
+data_wide_csd = data_long %>% filter(stimulus=="csd") %>% 
   mutate(condition = paste(transformation, range_cor, sep="_"),
-                                 condition = condition %>% gsub("_none", "", .) %>% gsub("_", "_rc_", .)) %>%
+                                 condition = condition %>% gsub("_none", "", .) %>% gsub("_", "_rc_", .)) %>% 
   pivot_wider(names_from=condition, values_from=scr, id_cols=c(id, trialnr, stimulus))
 
 replications = 1000
@@ -210,29 +102,31 @@ reliabilities.permutations = tibble(
   sqr = reliability_helper(data_wide_csd, fn_score_mean("sqr"), replications),
   box = reliability_helper(data_wide_csd, fn_score_mean("box"), replications),
   ztr = reliability_helper(data_wide_csd, fn_score_mean("ztr"), replications),
-
+  
   raw_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("raw_rc_cs"), replications),
   log_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("log_rc_cs"), replications),
   sqr_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("sqr_rc_cs"), replications),
   box_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("box_rc_cs"), replications),
   ztr_rc_cs = reliability_helper(data_wide_csd, fn_score_mean("ztr_rc_cs"), replications),
-
+  
   raw_rc_us = reliability_helper(data_wide_csd, fn_score_mean("raw_rc_us"), replications),
   log_rc_us = reliability_helper(data_wide_csd, fn_score_mean("log_rc_us"), replications),
   sqr_rc_us = reliability_helper(data_wide_csd, fn_score_mean("sqr_rc_us"), replications),
   box_rc_us = reliability_helper(data_wide_csd, fn_score_mean("box_rc_us"), replications),
   ztr_rc_us = reliability_helper(data_wide_csd, fn_score_mean("ztr_rc_us"), replications)
 )
-reliabilities = reliabilities.permutations %>%
+reliabilities = reliabilities.permutations %>% 
   summarise(across(.fns=list(m = fnFishZ, sd = ~ fnFishZ(.x, fn=sd),
                              CI95.lo = ~ fnFishZ(.x, fn=quantile, probs=.025),
-                             CI95.hi = ~ fnFishZ(.x, fn=quantile, probs=.975)),
-            .cols=everything(), .names="{.col}_x_{.fn}")) %>%
-  pivot_longer(cols=everything()) %>% separate(col=name, into=c("method", "metric"), sep="_x_") %>%
-  pivot_wider(names_from = "metric", id_cols = "method") %>% arrange(desc(m)) %>%
-  separate(method, into=c("transformation", "range_cor"), sep="_rc_", fill="right", remove=F) %>%
-  mutate(range_cor = range_cor %>% replace_na("none")) %>%
-  group_by(transformation) %>% mutate(rank_rc = rank(-m)) %>% ungroup() %>%
+                             CI95.hi = ~ fnFishZ(.x, fn=quantile, probs=.975)
+                             #TODO check m against OP5 correction by Shieh (2010; https://doi.org/10.3758/BRM.42.4.906), implemented in AATtools::cormean
+                             ),
+            .cols=everything(), .names="{.col}_x_{.fn}")) %>% 
+  pivot_longer(cols=everything()) %>% separate(col=name, into=c("method", "metric"), sep="_x_") %>% 
+  pivot_wider(names_from = "metric", id_cols = "method") %>% arrange(desc(m)) %>% 
+  separate(method, into=c("transformation", "range_cor"), sep="_rc_", fill="right", remove=F) %>% 
+  mutate(range_cor = range_cor %>% replace_na("none")) %>% 
+  group_by(transformation) %>% mutate(rank_rc = rank(-m)) %>% ungroup() %>% 
   group_by(range_cor) %>% mutate(rank_trans = rank(-m)) %>% ungroup()
 
 reliabilities #overall descending
@@ -243,20 +137,21 @@ reliabilities %>% summarise(mean_rank = rank_rc %>% mean(), .by=range_cor)
 reliabilities %>% summarise(mean_rank = rank_trans %>% mean(), .by=transformation) %>% arrange(mean_rank)
 reliabilities %>% filter(range_cor=="none") %>% arrange(rank_trans)
 
+
+# Name the subset
 assign(paste0("reliabilities_", i), reliabilities)
 
 ########################################################################### EFFECT SIZE
 
-
-# test = with(data_select %>% filter(stimulus=="csd") %>% 
+# test = with(data_long %>% filter(stimulus=="csd") %>% 
 #     group_by(transformation, range_cor, id) %>% summarise(scr = mean(scr)), effsize::cohen.d(scr, NA, hedges.correction=T)) #check returned data format
 
-effects = data_select %>% filter(stimulus=="csd") %>% 
+effects = data_long %>% filter(stimulus=="csd") %>% 
   group_by(transformation, range_cor, id) %>% summarise(scr = mean(scr)) %>% #subject-level aggregates for correct between SD calculation
            #TODO 
            # - calculate the Cohen's d (effect variable) by calculating it exactly as the original formula using the t statistic
            # - reasonably rename variables 
-  dplyr::summarise(cohen_d = mean(scr, na.rm=T)/sd(scr, na.rm=T), #checked against apa::cohens_d(scr)
+  summarise(cohen_d = mean(scr, na.rm=T)/sd(scr, na.rm=T), #checked against apa::cohens_d(scr)
                    #d_apa = apa::cohens_d(scr),
                    #d_effsize = effsize::cohen.d(scr, NA)$estimate,
                    helper = apa::t_test(scr) %>% apa::t_apa(es_ci=T, print=F) %>% gsub("\\[", ";", .) %>% gsub("\\]", "", .),
@@ -272,9 +167,12 @@ effects = data_select %>% filter(stimulus=="csd") %>%
   group_by(range_cor) %>% mutate(rank_trans = rank(-effect)) %>% ungroup() %>% 
   arrange(desc(effect))
 
+effects
+
 effects %>% summarise(mean_rank = rank_trans %>% mean(), .by=transformation) %>% arrange(mean_rank)
 effects %>% summarise(mean_rank = rank_rc %>% mean(), .by=range_cor) %>% arrange(mean_rank)
 
+# Name the subset
 assign(paste0("effects_", i), effects)
 
 # Delete for safety reasons
@@ -286,21 +184,19 @@ rm(id_select, data_select, effects, reliabilities)
 
 ``` {r combine-data}
 
-data_multi_es <- rbind(effects_1, effects_2, effects_3, effects_4, effects_5, effects_6, effects_7, effects_8, effects_9, effects_10,
-                       effects_11, effects_12, effects_13, effects_14, effects_15, effects_16, effects_17, effects_18, effects_19, effects_20)
+### List all data subsets in a list and combine the subsets in one data frame
+# Reliability
+pattern_rel <- grep("reliabilities_",names(.GlobalEnv),value=TRUE)
+pattern_rel_list <- do.call("list",mget(pattern_rel))
+data_multi_rel <- bind_rows(pattern_rel_list)
 
-data_multi_rel<- rbind(reliabilities_1, reliabilities_2, reliabilities_3, reliabilities_4, reliabilities_5, reliabilities_6, reliabilities_7, reliabilities_8, reliabilities_9, reliabilities_10,
-                       reliabilities_11, reliabilities_12, reliabilities_13, reliabilities_14, reliabilities_15, reliabilities_16, reliabilities_17, reliabilities_18, reliabilities_19, reliabilities_20)
-
-```
-
-
-``` {r export data multiverse}
-# data_multiverse = effects %>% dplyr::select(-contains("rank")) %>% rename_with(function(x) paste0("effect_", x), .cols=contains("CI")) %>% 
-#   full_join(reliabilities %>% rename(rel = m) %>% dplyr::select(transformation, range_cor, rel, contains("CI")) %>% rename_with(function(x) paste0("rel_", x), .cols=contains("CI")))
-# data_multiverse %>% write_rds("Merz_multiverse_boot.rds") %>% paste0("data/", .))
+# Effect sizes
+pattern_es <- grep("effects_",names(.GlobalEnv),value=TRUE)
+pattern_es_list <- do.call("list",mget(pattern_es))
+data_multi_es <- bind_rows(pattern_es_list)
 
 ```
+
 
 
 # Visualization
@@ -344,8 +240,8 @@ data_multi_es[order(data_multi_es$effect),'approach_eff_order'] <-  1:nrow(data_
 x_lab <- 'Approaches ordered by effect size'
 y_lab <- 'Effect size (Hedge\'s g)'
 
-# order by effect size
-# colored by approach
+# Order by effect size
+# Colored by approach
 p_effect <- data_multi_es %>%
   ggplot(aes(x = approach_eff_order, y = effect, color = transformation)) +
   geom_point() +
