@@ -19,19 +19,12 @@ library(patchwork)
 ```
 
 
-### Preparation Dataset 1 
-```{r load-data-merz}
-# loading the original data 
-#X7163CM_8163CM_EDA_ac <- read_sav("data/7163CM_8163CM_EDA_ac.sav")
-  
-# in long format 
-#load("./data/long_EDA_merz.Rdata")
 
-# Rename some variables
-#names(data_long)[grep("Versuchspersonennummer", names(data_long))] <- "id"
-#names(data_long)[grep("scr", names(data_long))] <- "scr_raw"
+```{r load-data}
 
-# load new data (Marios)
+### Preparation Dataset 1: Merz
+
+# Load Merz SCR data (preprocessed by the 1 Calculation script)
 data_merz = read_rds("data/Merz_multiverse.rds")
 
 # Factorize transformation and range correction type
@@ -51,13 +44,11 @@ data_merz$max_us_raw = "1.96"
 data_merz$max_cs_raw = "1.96"
 data_merz$dataset = "Merz"
 
-```
+#####################################
 
+### Preparation Dataset 2: B07 
 
-### Preparation Dataset 2 B07
-# implementation of hedges g missing here 
-# define variables of interest 
-```{r load-data-B07}
+# Load Klingelhoefer SCR data (preprocessed by the 1 Calculation script)
 
 data_B07 = read_rds("data/B07_multiverse.rds")
 
@@ -79,16 +70,16 @@ data_B07$max_cs_raw = "0.89"
 data_B07$dataset = "B07"
 
 
-```
+#####################################
 
-
-```{r}
+# Merge the datasets
 merged_datasets = rbind(data_merz, data_B07)
+
 ```
 
-# Plot needs to be adjusted
 
-```{r plot-curves-NHST}
+
+```{r plot-settings}
 
 # set colors for plotting
 # set colors
@@ -352,45 +343,3 @@ plot_spec_reliability
 ```
 
 
-
-
-
-```{r alinas-code}
-
-########################################################################################## ALINAS CODE
-# order by effect size
-# colored by approach
-p1 <- merged_datasets %>%
-  ggplot(aes(x = approach_eff_order, y = effsize, color = dataset)) +
-  geom_point() +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
-#  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("box cox", "log-transformed", "none", "square-root", "z-transformed")) +
- # scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
-  theme_classic() +
-  theme(text = element_text(size=size_text),
-        legend.position = 'top') +
-  xlab(x_lab) +
-  ylab(y_lab) + 
-  guides(color = guide_legend(nrow = 1))
-
-
-# plot specifications of parameters
-s1 <- ggplot(merged_datasets, aes(x = approach_eff_order, y = transf_type)) +
-  geom_point(shape = '|', size = size_point) +
-   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
-  scale_y_discrete(name = 'Dataset') +
-    #scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank(), 
-        axis.ticks.x = element_blank(),
-        panel.background = element_blank(),
-        legend.position = 'none') +
-  theme(text = element_text(size=size_text)) 
-s1
-
-# Combine plots
-
-plot_spec_NHST <- p1 / s1
-plot_spec_NHST
-
-```
