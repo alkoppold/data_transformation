@@ -627,3 +627,44 @@ plot_combined
 
 
 ```
+
+
+```{r alinas-code-specification-curve-between}
+
+########################################################################################## ALINAS CODE
+# order by effect size
+# colored by approach
+p1 <- merged_datasets %>%
+  ggplot(aes(x = approach_eff_order, y = effsize, color = dataset)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+#  scale_color_manual(name = 'Transformation', values = clrs[c(1:5)], labels = c("box cox", "log-transformed", "none", "square-root", "z-transformed")) +
+ # scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
+  theme_classic() +
+  theme(text = element_text(size=size_text),
+        legend.position = 'top') +
+  xlab(x_lab) +
+  ylab(y_lab) + 
+  guides(color = guide_legend(nrow = 1))
+
+
+# plot specifications of parameters
+s1 <- ggplot(merged_datasets, aes(x = approach_eff_order, y = transf_type)) +
+  geom_point(shape = '|', size = size_point) +
+   #scale_color_manual(values = rep('black', length(levels(res_ttest_d$approach)) )) +
+  scale_y_discrete(name = 'Dataset') +
+    #scale_x_continuous(breaks = c(1:15), labels = c(1:15)) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        panel.background = element_blank(),
+        legend.position = 'none') +
+  theme(text = element_text(size=size_text)) 
+s1
+
+# Combine plots
+
+plot_spec_NHST <- p1 / s1
+plot_spec_NHST
+
+```
