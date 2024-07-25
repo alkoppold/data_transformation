@@ -1,0 +1,177 @@
+---
+title: "DT_download_fulltext_PDF_AK"
+author: "Alina Koppold"
+date: "2024-07-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(httr)
+library(dplyr)
+library(stringr)
+
+articles <- read.csv("~/Downloads/included_marta_alina/articles.csv")
+entry <- articles %>%
+  filter(str_starts(doi, "10."))
+manual_search <- articles %>%
+  filter(!str_starts(doi, "10."))
+```
+
+```{r}
+
+
+# Function to download PDFs based on DOI or URL
+download_pdf <- function(entry) {
+   # Define the output directory
+  output_dir <- "~/Downloads/included_marta_alina/downloaded/"
+  
+  # Create the output directory if it does not exist
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir, recursive = TRUE)  # Create the directory, including parents if needed
+  }
+
+  # Extract title and doi_or_url and ensure they are character values
+  title <- as.character(entry["title"])      # Ensure title is character
+  pdf_url <- as.character(entry["doi"]) # Ensure pdf_url is character
+  
+  # Safe title for filename
+  title_safe <- str_replace_all(title, "[^[:alnum:]]", "_")
+
+  # Check if the input is a DOI
+  if (startsWith(pdf_url, "10.")) {
+    pdf_url <- paste0("https://doi.org/", pdf_url)  # Convert DOI to URL
+  }
+  
+# Try the GET request
+  response <- tryCatch({
+    GET(pdf_url)
+  }, error = function(e) {
+    message("Error in GET request: ", e$message)
+    return(NULL)
+  })
+  
+  
+  # Check if the request was successful and if the content is a PDF
+  if (status_code(response) == 200) {
+    content_type <- headers(response)[["content-type"]]
+    message(paste("Content type:", content_type))  # Print content type for debugging
+    
+    if (grepl("pdf", content_type, ignore.case = TRUE)) {
+      # Set the full path for the output file
+      output_file_path <- file.path(output_dir, paste0(title_safe, ".pdf"))
+      
+      writeBin(content(response, "raw"), output_file_path)
+      message(paste("Downloaded:", output_file_path))
+    } else {
+      message("The response is not a valid PDF. Check the URL: ", pdf_url)
+    }
+  } else {
+    message(paste("Failed to download:", pdf_url, "Status code:", status_code(response)))
+  }
+}
+
+#   # Check if the request was successful
+#   if (status_code(response) == 200) {
+#     writeBin(content(response, "raw"), paste0(title_safe, ".pdf"))
+#     message(paste("Downloaded:", title_safe, ".pdf"))
+#   } else {
+#     message(paste("Failed to download:", pdf_url, "Status code:", status_code(response)))
+#   }
+# }
+  
+  
+
+# Apply the download function to each row in the data frame
+apply(entry, 1, download_pdf)
+```
+
+```{r}
+library(pdftools)
+
+download.file("https://onlinelibrary.wiley.com/doi/epdf/10.1111/psyp.14215", 
+              "article.pdf", mode = "wb")
+```
+
+```{r}
+# Load necessary libraries
+library(rvest)
+library(purrr)
+library(dplyr)
+library(stringr)
+
+# Function to fetch PDF URL from DOI landing page (if applicable)
+fetch_pdf_url <- function(doi) {
+  # Formulate the DOI URL
+  doi_url <- paste0("https://doi.org/", doi)
+  
+  # Read the landing page
+  landing_page <- read_html(doi_url)
+  
+  # Attempt to find the PDF link in the HTML
+  pdf_link <- landing_page %>%
+    html_nodes("a") %>% # Select all anchor tags
+    html_attr("href") %>% # Get the href attributes
+    str_subset("pdf", ignore.case = TRUE) %>% # Filter URLs containing "pdf"
+    first()  # Get the first matching PDF link
+  
+  # If the link is relative, construct the full URL
+  if (!is.na(pdf_link) && !startsWith(pdf_link, "http")) {
+    pdf_link <- paste0("https://", pdf_link)
+  }
+  
+  return(pdf_link)
+}
+
+# Function to download the PDF
+download_pdf <- function(entry, output_dir) {
+  title <- as.character(entry["title"])
+  pdf_url <- as.character(entry["doi"])
+  
+  # Create a safe title for the filename
+  title_safe <- str_replace_all(title, "[^[:alnum:]]", "_")
+  
+  # Fetch the PDF URL if it's a DOI
+  if (startsWith(pdf_url, "10.")) {
+    pdf_url <- fetch_pdf_url(pdf_url)
+  }
+  
+  # Check if the PDF URL was found
+  if (is.null(pdf_url) || pdf_url == "") {
+    message("No PDF found for: ", title_safe)
+    return(NULL)
+  }
+  
+  # Try to download the PDF
+  tryCatch({
+    pdf_response <- read_html(pdf_url)
+    writeBin(content(pdf_response, "raw"), file.path(output_dir, paste0(title_safe, ".pdf")))
+    message("Downloaded: ", title_safe)
+  }, error = function(e) {
+    message("Error downloading ", title_safe, ": ", e$message)
+  })
+}
+
+# Main function to handle the complete pipeline
+download_pdfs_from_data_frame <- function(data_frame, output_dir) {
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir, recursive = TRUE)
+  }
+  
+  # Use purrr's pmap to apply functions across rows
+  data_frame %>% 
+    pmap(~ download_pdf(list(title = ..1, doi = ..2), output_dir))
+}
+
+# Sample data frame of articles; replace this with your actual data frame loading process
+articles <- entry
+rm(entry)
+
+# Define the output directory where PDFs will be saved
+output_directory <- "~/Downloads/included_marta_alina/downloaded/"
+
+# Call the main pipeline function
+download_pdfs_from_data_frame(articles, output_directory)
+```
+
