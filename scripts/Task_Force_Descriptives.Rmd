@@ -15,6 +15,9 @@ library(DescTools)
 library(moments)
 library(patchwork)
 library(tidyverse)
+#devtools::install_github("hughjonesd/ggmagnify")
+#install.packages(c("ggfx", "ggforce")
+library(ggmagnify)
 
 myGgTheme = theme(
     axis.title.x = element_text(size = 12, face = "bold"),
@@ -31,7 +34,8 @@ myGgTheme = theme(
 ```
 
 ``` {r load data}
-data_long = read_rds("data/Merz_transformations.rds")
+# Enter here which data should be loaded
+data_long = read_rds("data/Reutter_hr_transformations.rds")
 ```
 
 ```{r histograms}
@@ -54,7 +58,7 @@ data_plot %>% filter(scr < 0) %>% select(stimulus) %>% unique()
 #ggsave("figures/Hist all 1.png", plot=plot.hist.all, scale=3.5, device="png", dpi=300, units="px", width=1920, height = 1080)
 
 #overkill 2
-print(plot.hist.all2 <- data_plot %>% 
+print(plot.hist.all2 <- na.omit(data_plot) %>% 
   #ggplot(aes(x = scr, fill = range_cor)) + #problem: number of bins not trivial => scale each plot to [0; 1]
   group_by(stimulus, transformation, range_cor) %>% mutate(scr_scaled = (scr - min(scr)) / (max(scr) - min(scr))) %>% 
   ggplot(aes(x = scr_scaled, fill = range_cor)) +
@@ -65,7 +69,7 @@ print(plot.hist.all2 <- data_plot %>%
 
 ## CS-Diff plots
 #TODO add other information (see chunk below)
-print(plot.hist.csd <- data_plot %>% filter(stimulus == "csd") %>% 
+print(plot.hist.csd <- na.omit(data_plot) %>% filter(stimulus == "csd") %>% 
   #ggplot(aes(x = scr, fill = transformation)) + #problem: number of bins not trivial => scale each plot to [0; 1]
   group_by(transformation, range_cor) %>% mutate(scr_scaled = (scr - min(scr)) / (max(scr) - min(scr))) %>% 
   ggplot(aes(x = scr_scaled, fill = transformation)) +
@@ -85,10 +89,15 @@ print(plot.hist.csd <- data_plot %>% filter(stimulus == "csd") %>%
 ```
 
 ```{r histograms old}
-data_old = data_long %>% filter(transformation=="raw", range_cor=="none") %>% rename(scr_raw = scr) %>% mutate(stimulus = if_else(stimulus=="csp", "cspe", stimulus)) #backwards compatibility
+data_old = na.omit(data_long) %>% filter(transformation=="raw", range_cor=="none") %>% rename(scr_raw = scr) %>% mutate(stimulus = if_else(stimulus=="csp", "cspe", stimulus)) #backwards compatibility
 
 # Create stimulus variable for loop
-stim <- c("csd","cspe","csm","ucs")
+if (is.element(data_old$stimulus, "us") == TRUE) {
+  stim <- c("csd","cspe","csm","ucs")
+} else if (!is.element(data_old$stimulus, "us") == FALSE) {
+  stim <- c("csd","cspe","csm")
+}
+
 
 for (i in unique(stim)) {
   
@@ -136,9 +145,9 @@ dens_max <- max(dens$y)
 
 ############ PLOT
 
-hist_scr_raw <- ggplot(data = data_hist, aes(x = scr_raw)) + 
+hist <- ggplot(data = data_hist, aes(x = scr_raw)) + 
   geom_histogram(aes(y =..density..), col = "white", fill = stim_col, binwidth = max(data_hist$scr_raw)/25) +
-  labs(x=paste0("raw SCR (", stim_x_axis,")"), y="still to fill") +
+  labs(x=paste0("Outcome (", stim_x_axis,")"), y="still to fill") +
   
   # Add the density
   geom_density(col = "white", linewidth = 1.6) +
@@ -175,13 +184,13 @@ hist_scr_raw <- ggplot(data = data_hist, aes(x = scr_raw)) +
     axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'))
 
 # Name the plot
-assign(paste0("hist_scr_raw_",i), hist_scr_raw)
+assign(paste0("hist_",i), hist)
 
 }
 
 
 ### Combine plots
-hist_scr_raw_csd + hist_scr_raw_cspe + hist_scr_raw_csm + hist_scr_raw_ucs + plot_layout(ncol = 1)
+hist_csd + hist_cspe + hist_csm + hist_ucs + plot_layout(ncol = 1)
 
 ```
 
@@ -207,7 +216,7 @@ n_data = length(unique(data_long$id))
 
 #### LINEPLOT
 # First part of the plot is acquisition, plotted as points
-lineplot_scr_raw <- ggplot(data_line, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus)) +
+lineplot <- ggplot(data_line, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus)) +
    geom_point(aes(group=stimulus), size=2) +
   
   # Add lines between points
@@ -223,7 +232,7 @@ lineplot_scr_raw <- ggplot(data_line, aes(x=trialnr, y=scr.mean, colour=stimulus
   scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
   # Title of axes
   xlab("Acquisition trials") +
-  ylab("SCR (µS, raw)") +
+  ylab("Outcome") +
   # Title of the whole plot can be added here
   ggtitle("") +
   # Add number of participants as text in plot
@@ -245,59 +254,57 @@ lineplot_scr_raw <- ggplot(data_line, aes(x=trialnr, y=scr.mean, colour=stimulus
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 
-lineplot_scr_raw
+lineplot
+
+
+# ## Possible zoom effect for data that are partly far separated: 
+# lineplot_zoom <- ggplot(data_line, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus)) +
+#    geom_point(aes(group=stimulus), size=2) +
+#   xlim(c(-5,15))+
+#   ylim(c(-100, 1500))+
+#   # Add lines between points
+#   geom_line(aes(group=stimulus), size=1.2) +
+#   
+#   # Change colors and names of stimuli
+#   scale_colour_manual(values=c("orange","darkred","navy","black"), name = "", breaks=c("csd","cspe","csm","us"),
+#                       labels=c("CS discrimination","CS+", "CS-","US")) +
+#   scale_fill_manual(values=c("orange","darkred","navy","black"), name = "", breaks=c("csd","cspe","csm","us"),
+#                       labels=c("CS discrimination","CS+", "CS-","US")) +
+#   #scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
+#   #scale_y_continuous(limits = c(750,900))+
+#   # Title of axes
+#   xlab("Acquisition trials") +
+#   ylab("Outcome") +
+#   # Title of the whole plot can be added here
+#   ggtitle("") +
+#   # Add number of participants as text in plot
+#   annotate("text", x = 13, y = -20, label = paste("n =", n_data), size = 6) +
+#   # Settings for fonts, ticks, legend and background of the plot
+#   theme(plot.title = element_text(size=20, face="bold", hjust=0.5),
+#         axis.text.x = element_text(size=16, face="bold", color="black"),
+#         axis.text.y = element_text(size=16, face="bold", color="black"), 
+#         axis.title.x = element_text(size=20, face="bold"),
+#         axis.title.y = element_text(size=20, face="bold", margin=margin(0,10,0,0)),
+#         legend.title = element_text(size=16, face="bold"),
+#         legend.text = element_text(size=16),
+#         legend.position = "top",
+#         legend.key = element_blank(),
+#         axis.line.x = element_line(color="black", size = 1),
+#         axis.line.y = element_line(color="black", size = 1),
+#         axis.ticks.x=element_blank(),
+#         panel.border = element_blank(),
+#         panel.background = element_blank(),
+#         panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank())
+# 
+# from  <- c(xmin = 1, xmax = 11, ymin = 810, ymax = 870)
+# to  <- c(xmin = -2, xmax = 15, ymin = 1000, ymax = 1500)
+# lineplot_zoom +geom_magnify(from = from, to = to,corners = 0.1, 
+#                                     proj = "single",
+#                                     shadow = F, colour= "grey")+
+#   geom_ribbon(data = data_line, aes(ymin=lower, ymax=upper, fill=stimulus, color=NULL), alpha=0.2)
 
 ```
 
 
-```{r mainEffectlog}
-# tranformation 1 
-data_transformed = data_long %>%
-  filter(transformation=="log") %>% rename(scr_raw = scr) %>% 
-  summarise(scr.mean = mean(scr_raw, na.rm = T), 
-            scr.sem = sd(scr_raw, na.rm = T)/sqrt(length(scr_raw)), #not correct if missing values
-            .by=c(trialnr, stimulus))
 
-# Add confidence intervals to the dataframe (95%)
-data_transformed$lower <- data_transformed$scr.mean - 1.96*data_transformed$scr.sem
-data_transformed$upper <- data_transformed$scr.mean + 1.96*data_transformed$scr.sem
-n_data = length(unique(data_long$id))
-
-# First part of the plot is acquisition, plotted as points
-gp <- ggplot(data_transformed, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus)) +  
-  geom_point(aes(group=stimulus), size=2) +
-  
-  # Add lines between points
-  geom_line(aes(group=stimulus), size=1.2) +
-  # Add CI
-  geom_ribbon(aes(ymin=lower, ymax=upper, fill=stimulus, color=NULL), alpha=0.2) +
-  
-  # Change colors and names of stimuli
-  scale_colour_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey")) +
-  #, name = "CS-Type:", breaks=c("CSp","CSm","US"), labels=c("CS+", "CS-","US")
-  scale_fill_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey"))+
-  scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
-  # Title of y-axis
-  ylab("SCR (log(1 + µS))") +
-  # Title of the whole plot can be added here
-  ggtitle("") +
-  # Add number of participants as text in plot
-  annotate("text", x = 8, y = .8, label = paste("n =", n_data), size = 6) +
-  # Settings for fonts, ticks, legend and background of the plot
-  theme(plot.title = element_text(size=20, face="bold", hjust=0.5),
-        axis.text.x = element_text(size=16, face="bold", color="black"),
-        axis.text.y = element_text(size=16, face="bold", color="black"), 
-        axis.title.y = element_text(size=20, face="bold", margin=margin(0,10,0,0)),
-        legend.title = element_text(size=16, face="bold"),
-        legend.text = element_text(size=16),
-        legend.key = element_blank(),
-        axis.line.x = element_line(color="black", size = 1),
-        axis.line.y = element_line(color="black", size = 1),
-        axis.ticks.x=element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank())
-
-gp
-```
