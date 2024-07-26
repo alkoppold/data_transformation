@@ -5,6 +5,65 @@ date: "2024-03-13"
 output: html_document
 ---
 
+
+```{r descriptives-script-log-plot}
+
+# This part stems from the descriptives skript
+# Plot does not differ from the lineplot, but just includes log-transformed instead of raw data
+# transformation 1 
+data_transformed = data_long %>%
+  filter(transformation=="log") %>% rename(scr_raw = scr) %>% 
+  summarise(scr.mean = mean(scr_raw, na.rm = T), 
+            scr.sem = sd(scr_raw, na.rm = T)/sqrt(length(scr_raw)), #not correct if missing values
+            .by=c(trialnr, stimulus))
+
+# Add confidence intervals to the dataframe (95%)
+data_transformed$lower <- data_transformed$scr.mean - 1.96*data_transformed$scr.sem
+data_transformed$upper <- data_transformed$scr.mean + 1.96*data_transformed$scr.sem
+n_data = length(unique(data_long$id))
+
+# First part of the plot is acquisition, plotted as points
+gp <- ggplot(data_transformed, aes(x=trialnr, y=scr.mean, colour=stimulus, group=stimulus)) +  
+  geom_point(aes(group=stimulus), size=2) +
+  
+  # Add lines between points
+  geom_line(aes(group=stimulus), size=1.2) +
+  # Add CI
+  geom_ribbon(aes(ymin=lower, ymax=upper, fill=stimulus, color=NULL), alpha=0.2) +
+  
+  # Change colors and names of stimuli
+  scale_colour_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey")) +
+  #, name = "CS-Type:", breaks=c("CSp","CSm","US"), labels=c("CS+", "CS-","US")
+  scale_fill_manual(values=c("blue","red", "darkred","black", "darkgrey", "grey"))+
+  scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
+  # Title of y-axis
+  ylab("Outcome") +
+  # Title of the whole plot can be added here
+  ggtitle("") +
+  # Add number of participants as text in plot
+  annotate("text", x = 8, y = .8, label = paste("n =", n_data), size = 6) +
+  # Settings for fonts, ticks, legend and background of the plot
+  theme(plot.title = element_text(size=20, face="bold", hjust=0.5),
+        axis.text.x = element_text(size=16, face="bold", color="black"),
+        axis.text.y = element_text(size=16, face="bold", color="black"), 
+        axis.title.y = element_text(size=20, face="bold", margin=margin(0,10,0,0)),
+        legend.title = element_text(size=16, face="bold"),
+        legend.text = element_text(size=16),
+        legend.key = element_blank(),
+        axis.line.x = element_line(color="black", size = 1),
+        axis.line.y = element_line(color="black", size = 1),
+        axis.ticks.x=element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+gp
+
+```
+
+
+
 ```{r data-transformations}
 
 # # Log-transform the raw data
