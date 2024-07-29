@@ -35,7 +35,7 @@ myGgTheme = theme(
 
 ``` {r load data}
 # Enter here which data should be loaded
-data_long = read_rds("data/Reutter_hr_transformations.rds")
+data_long = read_rds("data/Klingelh_FPS_transformations.rds")
 ```
 
 ```{r histograms}
@@ -92,10 +92,10 @@ print(plot.hist.csd <- na.omit(data_plot) %>% filter(stimulus == "csd") %>%
 data_old = na.omit(data_long) %>% filter(transformation=="raw", range_cor=="none") %>% rename(scr_raw = scr) %>% mutate(stimulus = if_else(stimulus=="csp", "cspe", stimulus)) #backwards compatibility
 
 # Create stimulus variable for loop
-if (is.element(data_old$stimulus, "us") == TRUE) {
-  stim <- c("csd","cspe","csm","ucs")
-} else if (!is.element(data_old$stimulus, "us") == FALSE) {
-  stim <- c("csd","cspe","csm")
+if (any(grepl("us", data_old$stimulus))) {
+  stim <- c("csd", "cspe", "csm", "ucs")
+} else {
+  stim <- c("csd", "cspe", "csm")
 }
 
 
@@ -157,9 +157,9 @@ hist <- ggplot(data = data_hist, aes(x = scr_raw)) +
   stat_function(fun = dnorm, args = list(mean = mean(data_hist$scr_raw), sd = sd(data_hist$scr_raw)),
                 col = "#06D6A0", linewidth = 1) +
 
-  # Add descriptive values
+  # Add descriptive values: currently mode not shown -> how to deal with several modi?
   geom_vline(aes(xintercept = mean(scr_raw)), col = "#EF476F", linewidth = 0.8) +
-  geom_vline(aes(xintercept = Mode(scr_raw)), col = "#FFD166", linewidth = 0.8) +
+  #geom_vline(aes(xintercept = Mode(scr_raw)), col = "#FFD166", linewidth = 0.8) +
   geom_vline(aes(xintercept = median(scr_raw)), col = "#909CC2", linewidth = 0.8) +
   
   # Add descriptive values as text
@@ -190,7 +190,12 @@ assign(paste0("hist_",i), hist)
 
 
 ### Combine plots
-hist_csd + hist_cspe + hist_csm + hist_ucs + plot_layout(ncol = 1)
+if (any(grepl("us", data_old$stimulus))) {
+  hist_csd + hist_cspe + hist_csm + hist_ucs + plot_layout(ncol = 1)
+} else {
+  hist_csd + hist_cspe + hist_csm + plot_layout(ncol = 1)
+}
+
 
 ```
 
@@ -229,14 +234,13 @@ lineplot <- ggplot(data_line, aes(x=trialnr, y=scr.mean, colour=stimulus, group=
                       labels=c("CS discrimination","CS+", "CS-","US")) +
   scale_fill_manual(values=c("darkmagenta","darkred","navy","black"), name = "", breaks=c("csd","cspe","csm","ucs"),
                       labels=c("CS discrimination","CS+", "CS-","US")) +
-  scale_x_continuous(breaks = scales::pretty_breaks()) + #integer breaks
   # Title of axes
   xlab("Acquisition trials") +
   ylab("Outcome") +
   # Title of the whole plot can be added here
   ggtitle("") +
   # Add number of participants as text in plot
-  annotate("text", x = 8, y = .8, label = paste("n =", n_data), size = 6) +
+  annotate("text", x = max(data_line$trialnr), y = min(data_line$scr.mean), label = paste("n =", n_data), size = 6) +
   # Settings for fonts, ticks, legend and background of the plot
   theme(plot.title = element_text(size=20, face="bold", hjust=0.5),
         axis.text.x = element_text(size=16, face="bold", color="black"),
