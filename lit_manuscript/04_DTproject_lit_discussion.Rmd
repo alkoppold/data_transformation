@@ -1,0 +1,44 @@
+
+```{r discussion}
+
+# This file contains the discussion
+
+```
+
+# Discussion
+
+Text of the discussion...
+
+
+## Data and Code Availability Statement
+
+
+
+
+## Acknowledgements
+
+
+
+
+## Funding
+
+
+
+
+## Conflict of Interest
+
+The authors declare no competing financial interests.
+
+
+
+
+\newpage
+
+# References
+
+\begingroup
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}
+
+<div id="refs" custom-style="Bibliography"></div>
+\endgroup

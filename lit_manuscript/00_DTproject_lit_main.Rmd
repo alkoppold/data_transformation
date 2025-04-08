@@ -1,0 +1,119 @@
+---
+title             : "Reduced discrimination between signals of danger and safety but not overgeneralization is linked to exposure to childhood adversity in healthy adults"
+shorttitle        : "Childhood adversity and fear conditioning"
+
+author: 
+  - name          : ""
+    affiliation   : "1"
+    corresponding : yes
+    address       : ""
+    email         : ""
+    role:        
+      - 
+      
+  - name          : ""
+    affiliation   : "2"
+    role:
+      - 
+         
+
+affiliation:
+  - id            : "1"
+    institution   : ""
+  - id            : "2"
+    institution   : ""
+
+
+
+authornote: |
+  
+
+  
+
+abstract: |
+  Here will be the text...
+
+
+  
+keywords          : ""
+
+bibliography      : ["references_DTproject_lit.bib","r-references.bib"]
+
+appendix          :
+  - "05_DTproject_lit_supplement.Rmd"
+
+
+floatsintext      : yes
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+linenumbers       : yes
+mask              : no
+draft             : no
+
+header-includes:
+  - \usepackage{setspace}
+  - \captionsetup[figure]{font={stretch=1,scriptsize}}
+
+documentclass     : "apa6"
+classoption       : "man"
+output            : papaja::apa6_word
+---
+
+```{r setup, include = FALSE}
+
+# This main document renders the child documents and
+# it contains 
+# - the settings for the manuscript
+# - a list with all child documents
+
+# Remove everything
+rm(list=ls())
+
+# Seed for random number generation
+set.seed(42)
+
+# Load packages
+library(papaja)               # rendering this manuscript in apa style
+library(apa)                  # reporting results in apa style
+library(here)                 # setting relative paths
+library(knitr)                # knitting these markdown documents
+library(dplyr)                # for various functions
+library(tidyr)                # for various functions
+library(ggplot2)              # creating beautiful plots
+
+# Set chunk options
+knitr::opts_chunk$set(
+  cache.extra = knitr::rand_seed,
+  echo = FALSE,
+  include = FALSE,
+  message = FALSE,
+  warning = FALSE)
+
+
+
+### Load data: SCR, rating and questionnaire data
+load(here(""))
+
+
+```
+
+
+```{r child = c("01_DTproject_lit_introduction.Rmd","02_DTproject_lit_methods.Rmd","03_DTproject_lit_results.Rmd","04_DTproject_lit_discussion.Rmd"), echo = FALSE} 
+
+```
+
+
+
+
+
+\newpage
+
+# (APPENDIX) Appendix {-}
+
+
+```{r child = "05_DTproject_lit_supplement.Rmd"}
+```
+
+
+
