@@ -1,4 +1,4 @@
-```{r results2}
+```{r results}
 
 # This file contains the results: 
 # ...
@@ -7,3 +7,45 @@
 ```
 
 
+# Prereg paragraph 
+
+More precisely, this work has two overarching aims: 
+
+First, to systematically assess reporting practices in human fear conditioning research regarding the use of data transformation procedures and examination of statistical assumptions, such as the normal distribution of residuals, and the handling of outliers during fear acquisition training throughout a systematic review of the literature. This aim is directly linked to the application of data transformation procedures, critical in ensuring these assumptions are met and outliers are effectively managed.
+
+Second, to systematically extract data transformation procedures used in the field of human fear conditioning from the literature. These will serve as a basis for a subsequent study (separate Preregistration), in which we will comprehensively examine in a multiverse analysis how the identified data transformation procedures affect the distribution of the data and ultimately reliability and effect sizes.
+
+
+# Analysis ideas
+
+## To prepare in advance:
+
+- add columns to the dataset: would have testing of assumptions been necessary?
+
+
+## Aim 1: Analysis
+
+Calculate reporting frequencies of
+- the use of different psychophysioligical outcomes?
+- the different data transformations (how many studies use raw data?)
+- precise statement if it was applied on a trial-level, averaged first asf.
+- a rationale behind the data transformation
+- assumption testing
+- outlier and criterion
+- open science practices?
+- specific statistical models?
+
+Maybe identify patterns across studies
+- Do studies that report one data transformation aspect also report the others? -> e.g., if trial-level, then also rationale
+-> possible plot: spider
+
+
+## Aim 2: Prepare a list including all identified transformations per outcome measure
+
+
+## Possible plots
+### For frequencies:
+- Doughnut
+- Pie
+- Waffle
+- Lollipop
