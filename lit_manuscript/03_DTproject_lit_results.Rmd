@@ -39,6 +39,38 @@ Maybe identify patterns across studies
 - Do studies that report one data transformation aspect also report the others? -> e.g., if trial-level, then also rationale
 -> possible plot: spider
 
+## Möglicher Aufbau
+### a. Descriptives (Replication? in Supplementary)
+n_with_exclusions, n_female_total, age_mean_total, age_sd_total, mental health disorder exclusion, Was an individual level analysis conducted
+
+### b. Assumption Checking (am Beispiel hier mit Normality)
+eine Frage -> dann Sanky mit Antwort und Anzahl
+e.g., Was the normal distribution checked?, If yes, how?, before/after, etc.
+- Was the normal distribution checked?
+- Was the homoscedasticity checked?
+- Was the sphericity checked?
+- Was the independence of residuals checked?
+- Was the linearity checked?
+- Was the multicollinearity checked?
+
+### c. Transformation Practices
+specification of data transformation method, rationale, was the transformation applied on trial or average level
+
+### d. Outlier Practices
+outlier removal reported?, outlier criterion, outlier refer to
+z.B. Barplots of how often outlier removal is reported
+Compare frequencies of different criteria (e.g., +/-2SD vs. +/-3SD)
+
+### e. Outcome Measures
+Binary presence/absence analysis
+Habe dafür schon einen Plot (ähnlich wie bei content analyse)
+
+### f. Statistical Models
+Statistical model, Main statistical test, further specification
+- Count and visualize test types (t-test, ANOVA, mixed models)
+- Compare test choice across study types or transformation practices
+- Association with whether assumptions were tested
+
 
 ## Aim 2: Prepare a list including all identified transformations per outcome measure
 
@@ -49,3 +81,4 @@ Maybe identify patterns across studies
 - Pie
 - Waffle
 - Lollipop
+- heatmaps
