@@ -3,6 +3,8 @@ title: "DT_download_fulltext_PDF_AK"
 author: "Alina Koppold"
 date: "2024-07-25"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -12,11 +14,13 @@ library(httr)
 library(dplyr)
 library(stringr)
 
-articles <- read.csv("~/Downloads/included_marta_alina/articles.csv")
+articles <- read.csv("/Users/koppold/Desktop/dt_preregistration/Literature preregistration/RAYYAN/Screening_Stage2_fulltext/tandem1_fulltexts_alex_maren/fulltexts_alex_maren.csv")
 entry <- articles %>%
-  filter(str_starts(doi, "10."))
+  filter(str_starts(DOI, "10.")) %>% select(Title, DOI)
 manual_search <- articles %>%
-  filter(!str_starts(doi, "10."))
+  filter(!str_starts(DOI, "10.")) %>% select(Title, DOI)
+
+
 ```
 
 ```{r}
