@@ -26,8 +26,6 @@ Second, to systematically extract data transformation procedures used in the fie
 ## Aim 1: Analysis
 
 Calculate reporting frequencies of
-- the use of different psychophysioligical outcomes?
-- the different data transformations (how many studies use raw data?)
 - precise statement if it was applied on a trial-level, averaged first asf.
 - a rationale behind the data transformation
 - assumption testing
@@ -44,8 +42,10 @@ Maybe identify patterns across studies
 n_with_exclusions, n_female_total, age_mean_total, age_sd_total, mental health disorder exclusion, Was an individual level analysis conducted
 
 ### b. Assumption Checking (am Beispiel hier mit Normality)
-eine Frage -> dann Sanky mit Antwort und Anzahl
-e.g., Was the normal distribution checked?, If yes, how?, before/after, etc.
+- Welches Statistische Verfahren vorgeschalten? 
+- Mario konsultieren
+eine Frage -> dann Sanky mit Antwort und Anzahl, Tina/Mana bars, doughnuts, lolli, waffle/heatmap e.g., Was the normal distribution checked?, If yes, how?, before/after, etc.
+FRAGEN
 - Was the normal distribution checked?
 - Was the homoscedasticity checked?
 - Was the sphericity checked?
@@ -55,6 +55,7 @@ e.g., Was the normal distribution checked?, If yes, how?, before/after, etc.
 
 ### c. Transformation Practices
 specification of data transformation method, rationale, was the transformation applied on trial or average level
+the different data transformations (how many studies use raw data?)
 
 ### d. Outlier Practices
 outlier removal reported?, outlier criterion, outlier refer to
@@ -63,7 +64,9 @@ Compare frequencies of different criteria (e.g., +/-2SD vs. +/-3SD)
 
 ### e. Outcome Measures
 Binary presence/absence analysis
-Habe dafür schon einen Plot (ähnlich wie bei content analyse)
+pattern identifizieren
+the use of different psychophysioligical outcomes?scr, emg 
+dot-plot-simulation
 
 ### f. Statistical Models
 Statistical model, Main statistical test, further specification
@@ -73,7 +76,6 @@ Statistical model, Main statistical test, further specification
 
 
 ## Aim 2: Prepare a list including all identified transformations per outcome measure
-
 
 ## Possible plots
 ### For frequencies:
