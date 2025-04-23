@@ -81,6 +81,7 @@ library(knitr)                # knitting these markdown documents
 library(dplyr)                # for various functions
 library(tidyr)                # for various functions
 library(ggplot2)              # creating beautiful plots
+library(patchwork)            # for combining plots easily
 
 # Set chunk options
 knitr::opts_chunk$set(

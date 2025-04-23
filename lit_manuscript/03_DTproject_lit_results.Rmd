@@ -7,6 +7,22 @@
 ```
 
 
+```{r results-load-data}
+
+# Load data
+data_extract <- read.csv2(here("data/extraction/tandem5_transformation_extraction - DT_results_extraction.csv"), sep = ",", header = T, skip = 1)
+
+# Remove NA (only for now!)
+data_extract <- data_extract[!is.na(data_extract$n_with_exclusions), ]
+
+# Customize some variables
+# Age as numeric
+data_extract$age_mean_total <- as.numeric(data_extract$age_mean_total)
+data_extract$age_sd_total <- as.numeric(data_extract$age_sd_total)
+
+```
+
+
 # Prereg paragraph 
 
 More precisely, this work has two overarching aims: 
@@ -40,6 +56,90 @@ Maybe identify patterns across studies
 ## Möglicher Aufbau
 ### a. Descriptives (Replication? in Supplementary)
 n_with_exclusions, n_female_total, age_mean_total, age_sd_total, mental health disorder exclusion, Was an individual level analysis conducted
+
+```{r results-descriptives}
+
+# Define a theme for pretty plots
+lit_theme = theme(
+  text = element_text(size = 10),
+  axis.title.y = element_text(size = 16, face = "bold"),
+  axis.text.y = element_text(size = 12, face = "bold"),
+  axis.text.x = element_text(size = 14, face = "bold"),
+  axis.ticks.x = element_blank(),
+  legend.position = "none",
+  panel.border = element_blank(),
+  panel.grid.minor = element_blank(),
+  panel.grid.major = element_blank(),
+  panel.background = element_blank(),
+  axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+  axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'))
+
+
+# Number of all participants
+
+violin_n <- ggplot(aes(x = 1, y = n_with_exclusions), data = data_extract) +
+  geom_violin(width = 0.5, scale = "width", fill = "#F7AEF8", alpha = 0.5) +  # Color the whole violin
+  geom_boxplot(width = 0.1, color = "grey40", alpha = 0.2) +  # Transparent boxplot
+  geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#F7AEF8") +  # Individual points
+  xlab("") +
+  ylab("Number of participants") +
+  lit_theme +
+  theme(axis.text.x = element_blank(),
+        axis.line.x = element_blank())
+
+
+
+# Number of females
+
+violin_female <- ggplot(aes(x = 1, y = n_female_total), data = data_extract) +
+  geom_violin(width = 0.5, scale = "width", fill = "#B388EB", alpha = 0.5) +  
+  geom_boxplot(width = 0.1, color = "grey40", alpha = 0.2) +  
+  geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#B388EB") +  
+  xlab("") +
+  ylab("Number of female participants") +
+  lit_theme +
+  theme(axis.text.x = element_blank(),
+        axis.line.x = element_blank())
+
+
+# Mean age distribution
+
+violin_age_mean <- ggplot(aes(x = 1, y = age_mean_total), data = data_extract) +
+  geom_violin(width = 0.5, scale = "width", fill = "#8093F1", alpha = 0.5) +  
+  geom_boxplot(width = 0.1, color = "grey40", alpha = 0.2) +  
+  geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#8093F1") +  
+  xlab("") +
+  ylab("Mean age of participants") +
+  lit_theme +
+  theme(axis.text.x = element_blank(),
+        axis.line.x = element_blank())
+
+
+# SD Age distribution
+
+violin_age_sd <- ggplot(aes(x = 1, y = age_sd_total), data = data_extract) +
+  geom_violin(width = 0.5, scale = "width", fill = "#72DDF7", alpha = 0.5) +  
+  geom_boxplot(width = 0.1, color = "grey40", alpha = 0.2) +  
+  geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#72DDF7") +  
+  xlab("") +
+  ylab("SD age of participants") +
+  lit_theme +
+  theme(axis.text.x = element_blank(),
+        axis.line.x = element_blank())
+
+
+### Combine the plots using patchwork
+combined_violin_descript_plot <- violin_n + violin_female + violin_age_mean + violin_age_sd +
+  plot_layout(ncol = 4)
+
+# Display the combined plot
+combined_violin_descript_plot
+
+
+```
+
+
+
 
 ### b. Assumption Checking (am Beispiel hier mit Normality)
 - Welches Statistische Verfahren vorgeschalten? 
