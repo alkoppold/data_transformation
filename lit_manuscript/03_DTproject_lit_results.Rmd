@@ -8,9 +8,15 @@
 
 
 ```{r results-load-data}
+# packages
+library(here)
+library(tidyverse)
+library(patchwork)
+library(ggsankey)
+
 
 # Load data
-data_extract <- read.csv2(here("data/extraction/tandem5_transformation_extraction - DT_results_extraction.csv"), sep = ",", header = T, skip = 1)
+data_extract <- read.csv2(here("data/extraction/tandem5_transformation_extraction - DT_results_extraction_new.csv"), sep = ",", header = T, skip = 1)
 
 # Remove NA (only for now!)
 data_extract <- data_extract[!is.na(data_extract$n_with_exclusions), ]
@@ -139,8 +145,6 @@ combined_violin_descript_plot
 ```
 
 
-
-
 ### b. Assumption Checking (am Beispiel hier mit Normality)
 - Welches Statistische Verfahren vorgeschalten? 
 - Mario konsultieren
@@ -152,15 +156,57 @@ FRAGEN
 - Was the independence of residuals checked?
 - Was the linearity checked?
 - Was the multicollinearity checked?
+```{r results-assumptions}
+
+```
+
 
 ### c. Transformation Practices
 specification of data transformation method, rationale, was the transformation applied on trial or average level
 the different data transformations (how many studies use raw data?)
+```{r results-transformations}
+
+```
+
 
 ### d. Outlier Practices
 outlier removal reported?, outlier criterion, outlier refer to
 z.B. Barplots of how often outlier removal is reported
 Compare frequencies of different criteria (e.g., +/-2SD vs. +/-3SD)
+
+```{r results-outlier}
+
+data_outlier <- data_extract %>%
+  select(33:35) %>%
+   rename(
+    outlier_reported = `outlier.removal.reported..yes..no..this.refers.to.quantitative.measures.such.as....3SD.and.not.qualitative.ones..artifacts..zero.responses.`,
+    outlier_scope = `outlier.refer.to..subjects..trials..both..NA..not.reported`,
+    outlier_criterion = `outlier.criterion..e.g.......2SD..this.refers.to.quantitative.measures.such.as....2SD.and.not.qualitative.ones..artifacts..zero.responses.`) %>%
+    filter(!if_all(everything(), ~ is.na(.) | . == ""))%>%
+mutate(
+    outlier_scope = ifelse(row_number() == 33, "not reported", outlier_scope)
+  ) %>%
+  make_long(outlier_reported, outlier_scope, outlier_criterion)%>%
+  filter(!if_all(c(node), is.na))
+
+# Sankey Plot Outliers
+ggplot(data_outlier, aes(x = x, 
+               next_x = next_x, 
+               node = node, 
+               next_node = next_node,
+               fill = factor(node),
+               label = node)) +
+  geom_sankey(flow.alpha = 0.5, node.color = 1) +
+  geom_sankey_label(size = 4, color = 1, fill = "white") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  lit_theme + 
+  theme(axis.text.y = element_blank(),
+                    axis.ticks.y = element_blank(),
+                    axis.title.x = element_blank())
+
+
+```
+
 
 ### e. Outcome Measures
 Binary presence/absence analysis
@@ -168,11 +214,81 @@ pattern identifizieren
 the use of different psychophysioligical outcomes?scr, emg 
 dot-plot-simulation
 
+```{r results-outcome-measures}
+data_outcome_measure <- data_extract %>%
+  select(36:43) %>%
+  rename(
+   "HR" = HR..BPM.,
+   "EMG orbicularis oculi" = EMG.orbicularis.oculi,
+   "EMG startle" = EMG.startle,
+   "EYE tracking" = EYE.tracking,
+   "pupil size" = PUPIL.SIZE
+  ) %>%
+  filter(!if_all(everything(), ~ is.na(.) | . == "")) %>%
+  mutate(id = row_number()) %>%  # Add ID if no group exists
+  pivot_longer(
+    cols = -id,
+    names_to = "Measure",
+    values_to = "Transformation"
+  ) %>%
+  drop_na(Transformation) %>%
+  count(Measure, Transformation) %>%
+  group_by(Measure) %>%
+  mutate(
+    percent = n / sum(n),
+    label = scales::percent(percent)
+  )
+
+ggplot(data_outcome_measure, aes(x = factor(Measure), y = Transformation, fill = Transformation)) +
+  geom_bar(stat = "identity") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  geom_text(aes(label = label), 
+            position = position_stack(vjust = 0.5), 
+            color = "white", size = 4, fontface = "bold") +
+  lit_theme +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "top")
+
+```
+
+
 ### f. Statistical Models
 Statistical model, Main statistical test, further specification
 - Count and visualize test types (t-test, ANOVA, mixed models)
 - Compare test choice across study types or transformation practices
 - Association with whether assumptions were tested
+
+```{r results-statistical-models}
+data_stat_models <- data_extract %>%
+  select(48:51) %>%
+  rename(
+    design = `Stastistical.model..within..between.or.mixed.design...e.g...paired.t.test...within..independent.t.test...between.`,
+    levels = `If.within.or.mixed..how.many.within.factor.levels..of.largest.within.factor....e.g...two.different.CS.stimuli...two.within.factors.`,
+    test   = `Main.statistical.test..t.test..AN.C.OVA..correlation..regression..mixed.model..other..ask.Perplexity.ai.with.copy.pasting.info.from.the.method.section.`,
+    details = `Main.statistical.test..further.specification..e.g...non.parametric.test...if.ANCOVA..centered.covariate...if.mixed.model..paste.formula.here..of.other..name.of.test..e.g..chi.squared..MANOVA.`
+  ) %>%
+    filter(!if_all(everything(), ~ is.na(.) | . == ""))%>%
+  make_long(design, levels, test, details)%>%
+  filter(!if_all(c(node), is.na))
+
+ggplot(data_stat_models, aes(x = x, 
+               next_x = next_x, 
+               node = node, 
+               next_node = next_node,
+               fill = factor(node),
+               label = node)) +
+  geom_sankey(flow.alpha = 0.5, node.color = 1) +
+  geom_sankey_label(size = 4, color = 1, fill = "white") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  lit_theme + 
+  theme(axis.text.y = element_blank(),
+                    axis.ticks.y = element_blank(),
+                    axis.title.x = element_blank())
+```
+
 
 
 ## Aim 2: Prepare a list including all identified transformations per outcome measure
