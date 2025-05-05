@@ -142,6 +142,80 @@ combined_violin_descript_plot <- violin_n + violin_female + violin_age_mean + vi
 combined_violin_descript_plot
 
 
+
+```
+
+
+```{r results-mental-health}
+
+## Table the column with mental health info
+table_health_info <- as.data.frame(table(data_extract[grep("mental.health.disorder", names(data_extract))]))
+colnames(table_health_info) <- c("category", "count")
+
+
+# Compute percentages
+table_health_info$fraction <- table_health_info$count / sum(table_health_info$count)
+
+# Compute the cumulative percentages (top of each rectangle)
+table_health_info$ymax <- cumsum(table_health_info$fraction)
+
+# Compute the bottom of each rectangle
+table_health_info$ymin <- c(0, head(table_health_info$ymax, n=-1))
+
+# Compute label position
+table_health_info$labelPosition <- (table_health_info$ymax + table_health_info$ymin) / 2
+
+# Compute a good label
+table_health_info$label <- paste0(table_health_info$category, ": ", table_health_info$count)
+
+# Create the plot
+ggplot(table_health_info, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill=category)) +
+  geom_rect() +
+  geom_label(x = 3.5, aes(y = labelPosition, label = label), size = 6) +
+  scale_fill_brewer(palette = "Set2") +
+  coord_polar(theta = "y") +
+  xlim(c(2, 4)) +
+  ggtitle("Mental health disorder exclusion?") +
+  theme_void() +
+  theme(legend.position = "none")
+
+
+```
+
+
+```{r results-individual-level-analysis}
+
+## Table the column with individual level analysis info
+table_ind_analysis <- as.data.frame(table(data_extract[grep("individual.level.analysis", names(data_extract))]))
+colnames(table_ind_analysis) <- c("category", "count")
+
+
+# Compute percentages
+table_ind_analysis$fraction <- table_ind_analysis$count / sum(table_ind_analysis$count)
+
+# Compute the cumulative percentages (top of each rectangle)
+table_ind_analysis$ymax <- cumsum(table_ind_analysis$fraction)
+
+# Compute the bottom of each rectangle
+table_ind_analysis$ymin <- c(0, head(table_ind_analysis$ymax, n=-1))
+
+# Compute label position
+table_ind_analysis$labelPosition <- (table_ind_analysis$ymax + table_ind_analysis$ymin) / 2
+
+# Compute a good label
+table_ind_analysis$label <- paste0(table_ind_analysis$category, ": ", table_ind_analysis$count)
+
+# Create the plot
+ggplot(table_ind_analysis, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=category)) +
+  geom_rect() +
+  geom_label(x = 3.5, aes(y = labelPosition, label = label), size = 6) +
+  scale_fill_brewer(palette = "Set3") +
+  coord_polar(theta = "y") +
+  xlim(c(2, 4)) +
+  ggtitle("Individual analysis included?") +
+  theme_void() +
+  theme(legend.position = "none")
+
 ```
 
 
@@ -156,7 +230,30 @@ FRAGEN
 - Was the independence of residuals checked?
 - Was the linearity checked?
 - Was the multicollinearity checked?
+
 ```{r results-assumptions}
+
+### Normal distribution
+# Extract an rename the data
+normal_distr_data <- data_extract[ ,c(20:22)]
+names(normal_distr_data) <- c("normal_if","normal_how","normal_when")
+
+# Convert to long format
+normal_distr_data <- normal_distr_data %>%
+  make_long(normal_if,normal_how,normal_when)
+
+# Plot the Sankey diagram
+ggplot(normal_distr_data, aes(x = x, 
+                    next_x = next_x, 
+                    node = node, 
+                    next_node = next_node, 
+                    fill = factor(node))) +
+  geom_sankey(flow.alpha = 0.7, node.color = 1) +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  theme_sankey(base_size = 16)
+
+
+
 
 ```
 
@@ -165,6 +262,25 @@ FRAGEN
 specification of data transformation method, rationale, was the transformation applied on trial or average level
 the different data transformations (how many studies use raw data?)
 ```{r results-transformations}
+
+### SCR
+data_trans_scr <- data_extract[ ,c(40, 45, 47)]
+names(data_trans_scr) <- c("scr_transf","rationale_di","appl_transf")
+
+# Convert to long format
+data_trans_scr <- data_trans_scr %>%
+  make_long(scr_transf,rationale_di,appl_transf)
+
+# Plot the Sankey diagram
+ggplot(data_trans_scr, aes(x = x, 
+                    next_x = next_x, 
+                    node = node, 
+                    next_node = next_node, 
+                    fill = factor(node))) +
+  geom_sankey(flow.alpha = 0.7, node.color = 1) +
+  scale_fill_viridis_d(option = "B", alpha = 0.95) +
+  theme_sankey(base_size = 16)
+
 
 ```
 
