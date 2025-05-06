@@ -355,18 +355,22 @@ data_outcome_measure <- data_extract %>%
     label = scales::percent(percent)
   )
 
-ggplot(data_outcome_measure, aes(x = factor(Measure), y = Transformation, fill = Transformation)) +
+ggplot(data_outcome_measure, aes(x = factor(Measure), y = n, fill = Transformation)) +
   geom_bar(stat = "identity") +
   scale_fill_viridis_d(option = "A", alpha = 0.95) +
   geom_text(aes(label = label), 
             position = position_stack(vjust = 0.5), 
             color = "white", size = 4, fontface = "bold") +
   lit_theme +
-  theme(axis.text.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        axis.title.x = element_blank(),
+  theme(#axis.text.y = element_blank(),
+        #axis.ticks.y = element_blank(),
         axis.title.y = element_blank(),
-        legend.position = "top")
+        #axis.title.y = element_blank(),
+        legend.position = "top")+
+  coord_flip()+
+  labs(y = "n studies")
+
+### add combinations of data transformations
 
 ```
 
@@ -382,12 +386,12 @@ data_stat_models <- data_extract %>%
   select(48:51) %>%
   rename(
     design = `Stastistical.model..within..between.or.mixed.design...e.g...paired.t.test...within..independent.t.test...between.`,
-    levels = `If.within.or.mixed..how.many.within.factor.levels..of.largest.within.factor....e.g...two.different.CS.stimuli...two.within.factors.`,
-    test   = `Main.statistical.test..t.test..AN.C.OVA..correlation..regression..mixed.model..other..ask.Perplexity.ai.with.copy.pasting.info.from.the.method.section.`,
+    `levels of largest within factor` = `If.within.or.mixed..how.many.within.factor.levels..of.largest.within.factor....e.g...two.different.CS.stimuli...two.within.factors.`,
+    `statistical test`   = `Main.statistical.test..t.test..AN.C.OVA..correlation..regression..mixed.model..other..ask.Perplexity.ai.with.copy.pasting.info.from.the.method.section.`,
     details = `Main.statistical.test..further.specification..e.g...non.parametric.test...if.ANCOVA..centered.covariate...if.mixed.model..paste.formula.here..of.other..name.of.test..e.g..chi.squared..MANOVA.`
   ) %>%
     filter(!if_all(everything(), ~ is.na(.) | . == ""))%>%
-  make_long(design, levels, test, details)%>%
+  make_long(design, `levels of largest within factor`, `statistical test`, details)%>%
   filter(!if_all(c(node), is.na))
 
 ggplot(data_stat_models, aes(x = x, 
