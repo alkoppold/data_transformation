@@ -1,0 +1,26 @@
+
+
+###### OUTTAKES ########
+
+
+```{r results-assumptions}
+### Assumption: Normal distribution
+# Extract an rename the data
+normal_distr_data <- data_extract[ ,c(20:22)]
+names(normal_distr_data) <- c("normal_if","normal_how","normal_when")
+
+# Convert to long format
+normal_distr_data <- normal_distr_data %>%
+  make_long(normal_if,normal_how,normal_when)
+
+# Plot the Sankey diagram
+ggplot(normal_distr_data, aes(x = x, 
+                    next_x = next_x, 
+                    node = node, 
+                    next_node = next_node, 
+                    fill = factor(node))) +
+  geom_sankey(flow.alpha = 0.7, node.color = 1) +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  theme_sankey(base_size = 16)
+
+```
