@@ -68,6 +68,7 @@ n_with_exclusions, n_female_total, age_mean_total, age_sd_total, mental health d
 # Define a theme for pretty plots
 lit_theme = theme(
   text = element_text(size = 10),
+  axis.title.x = element_text(size = 16, face = "bold"),
   axis.title.y = element_text(size = 16, face = "bold"),
   axis.text.y = element_text(size = 12, face = "bold"),
   axis.text.x = element_text(size = 14, face = "bold"),
@@ -89,6 +90,8 @@ violin_n <- ggplot(aes(x = 1, y = n_with_exclusions), data = data_extract) +
   geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#F7AEF8") +  # Individual points
   xlab("") +
   ylab("Number of participants") +
+  scale_y_continuous(breaks = seq(0, 150, by = 25),
+                     labels =  seq(0, 150, by = 25), limits = c(0, 150)) +
   lit_theme +
   theme(axis.text.x = element_blank(),
         axis.line.x = element_blank())
@@ -103,6 +106,8 @@ violin_female <- ggplot(aes(x = 1, y = n_female_total), data = data_extract) +
   geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#B388EB") +  
   xlab("") +
   ylab("Number of female participants") +
+  scale_y_continuous(breaks = seq(0, 100, by = 25),
+                     labels = seq(0, 100, by = 25), limits = c(0, 100)) +
   lit_theme +
   theme(axis.text.x = element_blank(),
         axis.line.x = element_blank())
@@ -116,6 +121,8 @@ violin_age_mean <- ggplot(aes(x = 1, y = age_mean_total), data = data_extract) +
   geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#8093F1") +  
   xlab("") +
   ylab("Mean age of participants") +
+  scale_y_continuous(breaks = seq(0, 50, by = 10),
+                     labels = seq(0, 50, by = 10), limits = c(0, 50)) +
   lit_theme +
   theme(axis.text.x = element_blank(),
         axis.line.x = element_blank())
@@ -129,6 +136,8 @@ violin_age_sd <- ggplot(aes(x = 1, y = age_sd_total), data = data_extract) +
   geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#72DDF7") +  
   xlab("") +
   ylab("SD age of participants") +
+  scale_y_continuous(breaks = seq(0, 12, by = 3),
+                     labels = seq(0, 12, by = 3), limits = c(0, 12)) +
   lit_theme +
   theme(axis.text.x = element_blank(),
         axis.line.x = element_blank())
@@ -186,7 +195,9 @@ ggplot(table_health_info, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill
 ```{r results-individual-level-analysis}
 
 ## Table the column with individual level analysis info
-table_ind_analysis <- as.data.frame(table(data_extract[grep("individual.level.analysis", names(data_extract))]))
+table_ind_analysis <- data_extract[grep("individual.level.analysis", names(data_extract))]
+table_ind_analysis <- table_ind_analysis[ ,1]
+table_ind_analysis <- as.data.frame(table(table_ind_analysis))
 colnames(table_ind_analysis) <- c("category", "count")
 
 
@@ -220,7 +231,7 @@ ggplot(table_ind_analysis, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=catego
 
 
 ### b. Assumption Checking (am Beispiel hier mit Normality)
-- Welches Statistische Verfahren vorgeschalten? 
+- Welches Statistische Verfahren vorgeschaltet? 
 - Mario konsultieren
 eine Frage -> dann Sanky mit Antwort und Anzahl, Tina/Mana bars, doughnuts, lolli, waffle/heatmap e.g., Was the normal distribution checked?, If yes, how?, before/after, etc.
 FRAGEN
@@ -233,25 +244,42 @@ FRAGEN
 
 ```{r results-assumptions}
 
-### Normal distribution
-# Extract an rename the data
-normal_distr_data <- data_extract[ ,c(20:22)]
-names(normal_distr_data) <- c("normal_if","normal_how","normal_when")
+# Select the data
+data_assump <- data_extract[ , grep("Was.the", names(data_extract))]
+names(data_assump) <- c("Normality","Homoscedasticity","Sphericity","Independence","Linearity","Mulitcollinearity")
 
-# Convert to long format
-normal_distr_data <- normal_distr_data %>%
-  make_long(normal_if,normal_how,normal_when)
+# Reshape it from wide to long
+data_assump <- data_assump %>%
+  pivot_longer(cols = everything(), names_to = "Assumption", values_to = "Checked") %>%
+  count(Assumption, Checked) %>%
+  group_by(Assumption) %>%
+  mutate(
+    percent = n / sum(n),
+    label = scales::percent(percent)
+  )
 
-# Plot the Sankey diagram
-ggplot(normal_distr_data, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    fill = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, node.color = 1) +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  theme_sankey(base_size = 16)
+# Factorize the assumptions and checked variable and reorder the levels (for a more intuitive order)
+data_assump$Assumption <- as.factor(data_assump$Assumption)
+data_assump$Assumption <- factor(data_assump$Assumption,
+                                    levels = c("Normality","Homoscedasticity","Sphericity",
+                                               "Independence","Linearity","Mulitcollinearity"))
+data_assump$Checked <- as.factor(data_assump$Checked)
+data_assump$Checked <- factor(data_assump$Checked,
+                                    levels = c("not reported","not specified","yes",
+                                               "dependent variable"))
 
+ggplot(data_assump, aes(x = factor(Assumption), y = n, fill = Checked)) +
+  geom_bar(stat = "identity") +
+  scale_fill_viridis_d(option = "D", alpha = 0.95) +
+  geom_text(aes(label = label), 
+            position = position_stack(vjust = 0.5), 
+            color = "white", size = 4, fontface = "bold") +
+  labs(y = "n studies") +
+  lit_theme +
+  theme(axis.title.y = element_blank(),
+        legend.position = "top")+
+  coord_flip() 
+  
 
 
 
@@ -276,10 +304,16 @@ ggplot(data_trans_scr, aes(x = x,
                     next_x = next_x, 
                     node = node, 
                     next_node = next_node, 
-                    fill = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, node.color = 1) +
-  scale_fill_viridis_d(option = "B", alpha = 0.95) +
-  theme_sankey(base_size = 16)
+                    label = factor(node))) +
+  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
+  geom_sankey_label(size = 4, color = 1, fill = "white") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  scale_x_discrete(breaks = c("scr_transf","rationale_di","appl_transf"),
+                   labels = c("Transformation", "Rationale", "Application level")) +
+  lit_theme + 
+  theme(axis.text.y = element_blank(),
+                    axis.ticks.y = element_blank(),
+                    axis.title.x = element_blank())
 
 
 ```
