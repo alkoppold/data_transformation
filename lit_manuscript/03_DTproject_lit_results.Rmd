@@ -57,12 +57,12 @@ write.csv(all_data, file = file.path(dir_path, "combined_tandem_meta.csv"), row.
 data_extract = all_data
 
 # Remove NA (only for now!)
-data_extract <- data_extract[!is.na(data_extract$n_with_exclusions), ]
+# data_extract <- data_extract[!is.na(data_extract$n_with_exclusions), ]
 
 # Customize some variables
 # Age as numeric
-data_extract$age_mean_total <- as.numeric(data_extract$age_mean_total)
-data_extract$age_sd_total <- as.numeric(data_extract$age_sd_total)
+# data_extract$age_mean_total <- as.numeric(data_extract$age_mean_total)
+# data_extract$age_sd_total <- as.numeric(data_extract$age_sd_total)
 
 ```
 
