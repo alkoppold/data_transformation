@@ -12,10 +12,43 @@ editor_options:
 ```
 
 
-```{r}
+```{r results-load-data}
 library(gsheet)
 data_extract = gsheet2tbl('docs.google.com/spreadsheets/d/1In5IKFNKbVj4WJCawDu2xfr_0CJ3off3Nr5chBaoYYU/edit?gid=1869532958#gid=1869532958/')
 data_extract
+
+## Exclude some studies due to several reasons (listed where?)
+doi_exclude_studies <- c(
+  "10.1111/psyp.12456",
+  "10.1016/j.neuroimage.2015.06.086",
+  "10.1093/scan/nsaa074",
+  "10.1016/j.brat.2020.103777",
+  "10.1017/S0033291712000359",
+  "10.1038/mp.2011.66",
+  "10.5665/sleep/32.1.19",
+  "10.1080/10615806.2012.672976",
+  "10.1093/scan/nsw181",
+  "10.1093/scan/nsv122",
+  "10.1016/j.brat.2018.09.003",
+  "10.1111/psyp.13650",
+  "10.1016/j.biopsych.2010.08.015",
+  "10.1027/2151-2604/a000523",
+  "10.1016/j.nlm.2014.03.008",
+  "10.1101/lm.053902.123",
+  "10.1080/02699931.2018.1500445",
+  "10.1038/s41598-019-49751-4",
+  "10.1093/scan/nsx148",
+  "10.1016/j.neuroimage.2018.03.030",
+  "10.1016/j.clinph.2019.04.010",
+  "10.1038/s41598-021-02336-6",
+  "10.1037/xlm0000558",
+  "10.1037/xge0000496",
+  "10.1093/sleep/zsad209"
+)
+
+data_extract <- data_extract[!is.element(data_extract$doi, doi_exclude_studies), ]
+
+
 ```
 
 # Prereg paragraph 
