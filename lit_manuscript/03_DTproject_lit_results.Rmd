@@ -22,7 +22,6 @@ doi_exclude_studies <- c(
   "10.1111/psyp.12456",
   "10.1016/j.neuroimage.2015.06.086",
   "10.1093/scan/nsaa074",
-  "10.1016/j.brat.2020.103777",
   "10.1017/S0033291712000359",
   "10.1038/mp.2011.66",
   "10.5665/sleep/32.1.19",
@@ -40,7 +39,6 @@ doi_exclude_studies <- c(
   "10.1093/scan/nsx148",
   "10.1016/j.neuroimage.2018.03.030",
   "10.1016/j.clinph.2019.04.010",
-  "10.1038/s41598-021-02336-6",
   "10.1037/xlm0000558",
   "10.1037/xge0000496",
   "10.1093/sleep/zsad209"
@@ -68,23 +66,36 @@ library(data.table)
 library(scico)  # For modern scientific color palettes
 
 df <- data_extract %>% select(36:43)
-
 n_total <- nrow(df)
 
-measure_percent <- df %>%
-  summarise(across(everything(), ~mean(!is.na(.)))) %>%
-  pivot_longer(cols = everything(), names_to = "measure", values_to = "prop") %>%
+# Step 1: Pivot to long format (no drop_na yet!)
+df_long <- df %>%
+  pivot_longer(cols = everything(), names_to = "measure", values_to = "transformation")
+
+# Step 2: Calculate proportion of non-NA values BEFORE dropping NAs
+measure_percent <- df_long %>%
+  group_by(measure) %>%
+  summarise(prop = mean(!is.na(transformation))) %>%
   mutate(measure_label = paste0(measure, " (", round(100 * prop, 1), "%)"))
 
+# Step 3: Create label map
 label_map <- setNames(measure_percent$measure_label, measure_percent$measure)
 
-df_long <- df %>%
-  pivot_longer(cols = everything(), names_to = "measure", values_to = "transformation") %>%
+### change on label ""rc, sqrt (analysis 1); z (analysis 2)""
+df_long <- df_long %>%
+  # Separate on ";" into rows
+  separate_rows(transformation, sep = ";") %>%
+  # Remove the analysis part in parentheses
+  mutate(transformation = str_trim(str_remove(transformation, "\\s*\\(.*?\\)")))
+
+# Step 4: Now drop NAs and apply label map
+df_long <- df_long %>%
+  drop_na() %>%
   mutate(measure = label_map[measure])
 
 counts <- df_long %>%
-  count(measure, transformation, drop = FALSE) %>%
-  mutate(transformation = ifelse(is.na(transformation), "Missing", transformation))
+  count(measure, transformation, drop = F) #%>%
+  #mutate(transformation = ifelse(is.na(transformation), "Missing", transformation))
 
 df_wide <- counts %>%
   pivot_wider(names_from = measure, values_from = n, values_fill = 0) %>%
@@ -97,18 +108,25 @@ id_named_vec <- setNames(id_labels$transformation, id_labels$ID)
 d <- df_wide %>%
   pivot_longer(cols = -c(ID, transformation), names_to = "Measure", values_to = "Count") %>%
   filter(Count > 0) %>%
-  mutate(Type = ifelse(Count > 1, "More than one", "One only"))
+  mutate(Type = ifelse(Count > 1, "more than one study", "one study only"))
 
 d <- setDT(d)
-d[, ID := factor(ID, levels = d[, .N, by = ID][order(N)]$ID)]
-d[, Measure := factor(Measure, levels = d[, .N, by = Measure][order(N)]$Measure)]
+# Step: Create a unique transformation-to-ID mapping
+id_order <- d[ , .SD[1], by = transformation][order(transformation)]$ID
+
+# Apply it as the factor level order
+d[, ID := factor(ID, levels = id_order)]
+#d[, ID := factor(ID, levels = d[, .N, by = ID][order(N)]$ID)]
+#d[, Measure := factor(Measure, levels = d[, .N, by = Measure][order(N)]$Measure)]
+d[, Measure := factor(Measure, levels = sort(unique(Measure)))]
 d[, Measure2 := as.numeric(Measure)]
 
 # Modern, perceptually uniform color palette from scico
 #pal1 <- scico(n = length(levels(d$Measure)), palette = "bilbao")
-pal1 <- scico::scico(n = length(levels(d$Measure)), palette = "batlow")
+#pal1 <- scico::scico(n = length(levels(d$Measure)), palette = "batlow")
+#pal1 <- scico::scico(n = length(levels(d$Measure)), palette = "berlin")
+pal1 <- scico(n = length(levels(d$Measure)), palette = "roma")
 
-pal1 <- scico::scico(n = length(levels(d$Measure)), palette = "berlin")
 
 
 ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) +
@@ -118,7 +136,7 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
   geom_vline(xintercept = 1:length(unique(d$ID)), colour = "grey92", size = 0.3) +
   geom_rect(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0.6, fill = "white", color = NA) +
   coord_polar() +
-  scale_shape_manual(values = c(21, 19)) +
+  scale_shape_manual(values = c(19, 21)) +
   scale_y_continuous(
     limits = c(0, length(unique(d$Measure)) + 1),
     breaks = 1:length(unique(d$Measure)),
@@ -144,7 +162,61 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
     x = NULL,
     y = NULL,
     shape = "Transformation count",
-    color = paste0("Measure (% of ", n_total, " studies)")
+    color = paste0("Measure used in (% of ", n_total, " studies)")
+  )
+
+# Step 1: Calculate total counts per Measure
+d[, total_measure_count := sum(Count), by = Measure]
+
+# Step 2: Calculate percentage for each transformation within the measure
+d[, pct := 100 * Count / total_measure_count]
+
+# Step 3: Create a label with percentage rounded, e.g. "45%"
+d[, pct_label := paste0(round(pct, digits = 1), "%")]
+
+pal1 <- scico(n = length(levels(d$Measure)), palette = "lipari")
+pal1 = rev(pal1)
+
+
+# Step 4: Add geom_text to the plot, adjust position with nudge_x or nudge_y
+ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) +
+  geom_line(alpha = 0.5, size = 0.8, color = "grey50") +
+  geom_point(size = 5, stroke = 1.2, fill = "white") +
+  geom_text(aes(label = pct_label), 
+            size = 3, 
+            color = "black", 
+            nudge_x = 0.3, 
+            nudge_y = 0, 
+            show.legend = FALSE)  + 
+  geom_hline(yintercept = 1:length(unique(d$Measure)), colour = "grey92", size = 0.3) +
+  geom_vline(xintercept = 1:length(unique(d$ID)), colour = "grey92", size = 0.3) +
+  geom_rect(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0.6, fill = "white", color = NA) +
+  coord_polar() +
+  scale_shape_manual(values = c(19, 21)) +
+  scale_y_continuous(
+    limits = c(0, length(unique(d$Measure)) + 1),
+    breaks = 1:length(unique(d$Measure)),
+    labels = levels(d$Measure)
+  ) +
+  scale_color_manual(values = pal1) +
+  scale_x_discrete(labels = id_named_vec) +
+  theme_minimal(base_size = 14, base_family = "Helvetica") +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "right",
+    legend.title = element_text(face = "bold", size = 13),
+    legend.text = element_text(size = 12),
+    plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+    plot.subtitle = element_text(size = 13, hjust = 0.5, color = "grey40"),
+    panel.border = element_blank()
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    shape = "Transformation count",
+    color = paste0("Measure used in (% of ", n_total, " studies)")
   )
 
 ```
