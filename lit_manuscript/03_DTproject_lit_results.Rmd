@@ -14,7 +14,7 @@ editor_options:
 
 ```{r results-load-data}
 library(gsheet)
-data_extract = gsheet2tbl('docs.google.com/spreadsheets/d/1In5IKFNKbVj4WJCawDu2xfr_0CJ3off3Nr5chBaoYYU/edit?gid=1869532958#gid=1869532958/')
+data_extract = gsheet2tbl('https://docs.google.com/spreadsheets/d/1In5IKFNKbVj4WJCawDu2xfr_0CJ3off3Nr5chBaoYYU/edit?gid=1511433069#gid=1511433069/')
 data_extract
 
 ## Exclude some studies due to several reasons (listed where?)
@@ -124,7 +124,7 @@ d[, Measure2 := as.numeric(Measure)]
 # Modern, perceptually uniform color palette from scico
 #pal1 <- scico(n = length(levels(d$Measure)), palette = "bilbao")
 #pal1 <- scico::scico(n = length(levels(d$Measure)), palette = "batlow")
-#pal1 <- scico::scico(n = length(levels(d$Measure)), palette = "berlin")
+# pal1 <- scico::scico(n = length(levels(d$Measure)), palette = "berlin")
 pal1 <- scico(n = length(levels(d$Measure)), palette = "roma")
 
 
@@ -181,13 +181,7 @@ pal1 = rev(pal1)
 # Step 4: Add geom_text to the plot, adjust position with nudge_x or nudge_y
 ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) +
   geom_line(alpha = 0.5, size = 0.8, color = "grey50") +
-  geom_point(size = 5, stroke = 1.2, fill = "white") +
-  geom_text(aes(label = pct_label), 
-            size = 3, 
-            color = "black", 
-            nudge_x = 0.3, 
-            nudge_y = 0, 
-            show.legend = FALSE)  + 
+  geom_point(aes(size = pct), stroke = 1.2, fill = "white") +  # SIZE mapped to pct
   geom_hline(yintercept = 1:length(unique(d$Measure)), colour = "grey92", size = 0.3) +
   geom_vline(xintercept = 1:length(unique(d$ID)), colour = "grey92", size = 0.3) +
   geom_rect(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0.6, fill = "white", color = NA) +
@@ -199,6 +193,7 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
     labels = levels(d$Measure)
   ) +
   scale_color_manual(values = pal1) +
+  scale_size(range = c(2, 10), name = "Percentage within measure") +  # Dot size scale
   scale_x_discrete(labels = id_named_vec) +
   theme_minimal(base_size = 14, base_family = "Helvetica") +
   theme(
@@ -219,7 +214,174 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
     color = paste0("Measure used in (% of ", n_total, " studies)")
   )
 
+
 ```
+
+```{r assumptions}
+
+library(tidyverse)
+library(forcats)
+library(data.table)
+
+# Example: assume df_check is your data.frame with columns named exactly as you described:
+# For demonstration, let's create a fake sample with similar structure
+
+df_check = data_extract %>% select(20:32)
+
+names(df_check) <- c(
+  "normal_checked",        # "Was the normal distribution checked? answers: dependent variable, independent variable, residuals, mixed, not reported"
+  "normal_how",            # "If yes, how? (e.g., specific test or visually), if no: NA"
+  "normal_before_after",   # "If yes, was the normal distribution tested before or after transformation procedure? answers: before, after, both, not reported. if no: NA"
+  "homoscedasticity_checked",  # "Was the homoscedasticity checked? answers: yes, not reported"
+  "homoscedasticity_how",       # "If yes, how?  (e.g., specific test or visually), if no: NA...24"
+  "sphericity_checked",          # "Was the sphericity checked? answers: yes, not reported"
+  "sphericity_how",               # "If yes, how?  (e.g., specific test or visually), if no: NA...26"
+  "independence_checked",         # "Was the independence of residuals checked? answers: yes, not reported"
+  "independence_how",             # "If yes, how?  (e.g., specific test or visually), if no: NA...28"
+  "linearity_checked",            # "Was the linearity checked? answers: yes, not reported"
+  "linearity_how",                # "If yes, how?  (e.g., specific test or visually), if no: NA...30"
+  "multicollinearity_checked",    # "Was the multicollinearity checked? answers: yes, not reported"
+  "multicollinearity_how"         # "If yes, how?   (e.g., specific test or visually), if no: NA"
+)
+
+
+# Map the questions to their corresponding "how" columns and a short tag
+library(tidyverse)
+
+# Assuming df_check is your data with renamed columns, and categories defined as:
+categories <- tibble(
+  main_q = c(
+    "normal_checked",
+    "homoscedasticity_checked",
+    "sphericity_checked",
+    "independence_checked",
+    "linearity_checked",
+    "multicollinearity_checked"
+  ),
+  how_q = c(
+    "normal_how",
+    "homoscedasticity_how",
+    "sphericity_how",
+    "independence_how",
+    "linearity_how",
+    "multicollinearity_how"
+  ),
+  tag = c("Normality", "Homoscedasticity", "Sphericity", "Independence", "Linearity", "Multicollinearity")
+)
+
+# Use map2_dfr to create long data for plotting
+plot_data <- purrr::map2_dfr(categories$main_q, categories$how_q, function(main_col, how_col) {
+  tag_name <- categories$tag[categories$main_q == main_col]
+  
+  main_counts <- df_check %>%
+    count(response = .data[[main_col]]) %>%
+    mutate(type = "Main", question = tag_name)
+  
+  how_counts <- df_check %>%
+    filter(!is.na(.data[[main_col]])) %>%
+    count(response = .data[[how_col]]) %>%
+    mutate(type = "If How", question = tag_name)
+  
+  bind_rows(main_counts, how_counts)
+}) %>%
+  filter(!is.na(response), response != "") %>%
+  mutate(
+    response = fct_reorder(response, n),
+    type = factor(type, levels = c("Main", "If How")),
+    question = factor(question, levels = categories$tag)
+  )
+
+# Plot
+ggplot(plot_data, aes(x = fct_rev(response), y = n, fill = type)) +
+  geom_col(position = position_dodge(width = 0.7), width = 0.7) +
+  facet_wrap(~question, scales = "free_y", ncol = 2) +
+  coord_flip() +
+  scale_fill_manual(values = c("Main" = "#4477AA", "If How" = "#EE6677")) +
+  theme_minimal(base_size = 14) +
+  theme(
+    strip.text = element_text(face = "bold", size = 14),
+    axis.text.y = element_text(size = 11),
+    axis.title = element_blank(),
+    legend.position = "top",
+    legend.title = element_blank()
+  ) +
+  labs(
+    title = "Reporting of Assumption Checks and Methods",
+    subtitle = "Main answers vs. how the check was conducted",
+    caption = "Across different statistical assumptions"
+  )
+
+
+```
+
+```{r sphericity}
+
+
+library(tidyverse)
+library(scales)
+library(glue)
+library(viridis) # modern color palette
+
+# Filter for "Repeated Measures ANOVA" articles
+df_rmanova <- data_extract %>%
+  filter(`Main statistical test: further specification (e.g., non-parametric test), if ANCOVA: centered covariate?, if mixed model: paste formula here, of other: name of test (e.g. chi-squared, MANOVA)` == "rmANOVA") %>%
+  select(sphericity_checked = 27, sphericity_how = 26) %>%
+  drop_na(sphericity_checked)
+
+# Total number of articles
+n_articles_rmANOVA <- nrow(df_rmanova)
+
+# Prepare long-format data for plotting
+plot_data <- bind_rows(
+  df_rmanova %>%
+    count(response = sphericity_checked) %>%
+    mutate(type = "Was Sphericity Checked?"),
+  
+  df_rmanova %>%
+    filter(!is.na(sphericity_how) & sphericity_how != "") %>%
+    count(response = sphericity_how) %>%
+    mutate(type = "How Was It Checked?")
+) %>%
+  filter(!is.na(response), response != "") %>%
+  mutate(
+    percent = n / n_articles_rmANOVA,
+    response = fct_reorder(response, n),
+    type = factor(type, levels = c("Was Sphericity Checked?", "How Was It Checked?"))
+  )
+
+# Plot with modern style
+ggplot(plot_data, aes(x = fct_rev(response), y = percent, fill = type)) +
+  geom_col(position = position_dodge(width = 0.7), width = 0.6, alpha = 0.9) +
+  geom_text(aes(label = paste0(n, " (", percent(percent, accuracy = 1), ")")),
+            position = position_dodge(width = 0.7), hjust = -0.05, size = 4, color = "gray20") +
+  coord_flip() +
+  scale_y_continuous(labels = percent_format(accuracy = 1), expand = expansion(mult = c(0, 0.2))) +
+  scale_fill_viridis_d(option = "C", begin = 0.2, end = 0.8) +
+  theme_classic(base_size = 15) +
+  theme(
+    axis.title = element_blank(),
+    axis.text.y = element_text(size = 13, color = "gray10"),
+    axis.text.x = element_text(size = 12, color = "gray30"),
+    strip.text = element_text(size = 14, face = "bold"),
+    legend.title = element_blank(),
+    legend.position = "top",
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(color = "gray90"),
+    plot.title = element_text(size = 17, face = "bold", hjust = 0),
+    plot.subtitle = element_text(size = 14, color = "gray40", margin = margin(b = 10))
+  ) +
+  labs(
+    title = "Sphericity Assumption in Repeated Measures ANOVA",
+    subtitle = glue("{n_articles_rmANOVA}/{n_total} articles using RM-ANOVA")
+   # caption = "Includes whether sphericity was assessed and, if so, how it was checked"
+  )
+
+
+
+
+
+```
+
 
 
 ## To prepare in advance:
