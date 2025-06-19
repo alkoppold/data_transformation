@@ -217,166 +217,293 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
 
 ```
 
+
+```{r re-transf}
+# reference for transformation type?
+# Load required libraries
+library(tidyverse)
+library(scico)
+library(forcats)
+library(patchwork)
+
+# Load the relevant data
+df_ref <- data_extract %>% select(rationale_given = 45, rationale_type = 46)
+
+# -------------------------
+# PIE 1: Was a rationale reported?
+# -------------------------
+df_pie1 <- df_ref %>%
+  count(response = rationale_given) %>%
+  filter(!is.na(response) & response != "") %>%
+  mutate(
+    percent = n / sum(n),
+    label = paste0(response, "\n", n, " (", percent(percent, accuracy = 1), ")"),
+    ymax = cumsum(percent),
+    ymin = lag(ymax, default = 0),
+    label_pos = (ymin + ymax) / 2
+  )
+
+plot1 <- ggplot(df_pie1, aes(ymax = ymax, ymin = ymin, xmax = 1, xmin = 0, fill = response)) +
+  geom_rect(color = "white") +
+  geom_text(aes(x = 1.2, y = label_pos, label = label), size = 4.5, color = "black", fontface = "bold") +
+  coord_polar(theta = "y") +
+  xlim(c(-0.5, 1.5)) +
+  scale_fill_scico_d(palette = "roma", direction = -1) +
+  theme_void(base_family = "Helvetica") +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0)
+  ) +
+  labs(title = "Was a Rationale for Transformation Reported?")
+
+# -------------------------
+# PIE 2: What kind of rationale (only for 'yes')
+# -------------------------
+df_pie2 <- df_ref %>%
+  filter(tolower(rationale_given) == "yes", !is.na(rationale_type), rationale_type != "") %>%
+  count(response = rationale_type) %>%
+  mutate(
+    percent = n / sum(n),
+    label = paste0(response, "\n", n, " (", percent(percent, accuracy = 1), ")"),
+    ymax = cumsum(percent),
+    ymin = lag(ymax, default = 0),
+    label_pos = (ymin + ymax) / 2
+  )
+
+plot2 <- ggplot(df_pie2, aes(ymax = ymax, ymin = ymin, xmax = 1, xmin = 0, fill = response)) +
+  geom_rect(color = "white") +
+  geom_text(aes(x = 1.2, y = label_pos, label = label), size = 4.5, color = "black", fontface = "bold") +
+  coord_polar(theta = "y") +
+  xlim(c(-0.5, 1.5)) +
+  scale_fill_scico_d(palette = "roma", direction = -1) +
+  theme_void(base_family = "Helvetica") +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0)
+  ) +
+  labs(title = "What Kind of Rationale Was Given?")
+
+# -------------------------
+# Combine both plots
+# -------------------------
+plot1 / plot2 + plot_layout(heights = c(1, 1.2))
+
+
+# Prepare data
+df_bar1 <- df_ref %>%
+  count(response = rationale_given) %>%
+  filter(!is.na(response) & response != "") %>%
+  mutate(
+    percent = n / sum(n),
+    label = paste0(" (", percent(round(percent, digits = 3)), ")"),
+    response = fct_reorder(response, n)
+  )
+
+# Create modern bar plot
+ggplot(df_bar1, aes(x = fct_rev(response), y = percent, fill = response)) +
+  geom_col(width = 0.6, alpha = 0.9) +
+  geom_text(aes(label = label), hjust = -0.1, size = 4.5, color = "gray20", fontface = "bold") +
+  coord_flip() +
+  scale_y_continuous(labels = percent_format(accuracy = 1), expand = expansion(mult = c(0, 0.2))) +
+  scale_fill_scico_d(palette = "roma", direction = -1, guide = "none") +
+  theme_classic(base_size = 15) +
+  theme(
+    axis.title = element_blank(),
+    axis.text = element_text(color = "gray10"),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0)
+  ) +
+  labs(title = "Was a Rationale for Transformation Reported?")
+
+
+```
+
+
+
 ```{r assumptions}
 
+# Load libraries
 library(tidyverse)
 library(forcats)
 library(data.table)
+library(scico)
+library(patchwork)
 
-# Example: assume df_check is your data.frame with columns named exactly as you described:
-# For demonstration, let's create a fake sample with similar structure
-
-df_check = data_extract %>% select(20:32)
+# Extract and rename relevant columns
+df_check = data_extract %>% select(20:32, 52)
 
 names(df_check) <- c(
-  "normal_checked",        # "Was the normal distribution checked? answers: dependent variable, independent variable, residuals, mixed, not reported"
-  "normal_how",            # "If yes, how? (e.g., specific test or visually), if no: NA"
-  "normal_before_after",   # "If yes, was the normal distribution tested before or after transformation procedure? answers: before, after, both, not reported. if no: NA"
-  "homoscedasticity_checked",  # "Was the homoscedasticity checked? answers: yes, not reported"
-  "homoscedasticity_how",       # "If yes, how?  (e.g., specific test or visually), if no: NA...24"
-  "sphericity_checked",          # "Was the sphericity checked? answers: yes, not reported"
-  "sphericity_how",               # "If yes, how?  (e.g., specific test or visually), if no: NA...26"
-  "independence_checked",         # "Was the independence of residuals checked? answers: yes, not reported"
-  "independence_how",             # "If yes, how?  (e.g., specific test or visually), if no: NA...28"
-  "linearity_checked",            # "Was the linearity checked? answers: yes, not reported"
-  "linearity_how",                # "If yes, how?  (e.g., specific test or visually), if no: NA...30"
-  "multicollinearity_checked",    # "Was the multicollinearity checked? answers: yes, not reported"
-  "multicollinearity_how"         # "If yes, how?   (e.g., specific test or visually), if no: NA"
+  "normal_distribution",
+  "normal_how",
+  "normal_before_after",
+  "homoscedasticity",
+  "homoscedasticity_how",
+  "sphericity",
+  "sphericity_how",
+  "independence of residuals",
+  "independence_how",
+  "linearity",
+  "linearity_how",
+  "multicollinearity",
+  "multicollinearity_how",
+  "statistical_test"
 )
 
+# -----------------------------
+# Prepare data for pie charts
+# -----------------------------
+df_cake <- df_check %>% select(1, 4, 6, 10, 12, 14)
 
-# Map the questions to their corresponding "how" columns and a short tag
-library(tidyverse)
-
-# Assuming df_check is your data with renamed columns, and categories defined as:
-categories <- tibble(
-  main_q = c(
-    "normal_checked",
-    "homoscedasticity_checked",
-    "sphericity_checked",
-    "independence_checked",
-    "linearity_checked",
-    "multicollinearity_checked"
-  ),
-  how_q = c(
-    "normal_how",
-    "homoscedasticity_how",
-    "sphericity_how",
-    "independence_how",
-    "linearity_how",
-    "multicollinearity_how"
-  ),
-  tag = c("Normality", "Homoscedasticity", "Sphericity", "Independence", "Linearity", "Multicollinearity")
-)
-
-# Use map2_dfr to create long data for plotting
-plot_data <- purrr::map2_dfr(categories$main_q, categories$how_q, function(main_col, how_col) {
-  tag_name <- categories$tag[categories$main_q == main_col]
-  
-  main_counts <- df_check %>%
-    count(response = .data[[main_col]]) %>%
-    mutate(type = "Main", question = tag_name)
-  
-  how_counts <- df_check %>%
-    filter(!is.na(.data[[main_col]])) %>%
-    count(response = .data[[how_col]]) %>%
-    mutate(type = "If How", question = tag_name)
-  
-  bind_rows(main_counts, how_counts)
-}) %>%
-  filter(!is.na(response), response != "") %>%
+df_long <- df_cake %>%
+  pivot_longer(cols = everything(), names_to = "assumption", values_to = "status") %>%
+  group_by(assumption, status) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  group_by(assumption) %>%
   mutate(
-    response = fct_reorder(response, n),
-    type = factor(type, levels = c("Main", "If How")),
-    question = factor(question, levels = categories$tag)
+    percent = count / sum(count),
+    label = paste0(round(percent * 100, digits = 1), "%"),
+    ymax = cumsum(percent),
+    ymin = lag(ymax, default = 0),
+    label_pos = (ymin + ymax) / 2
   )
 
-# Plot
-ggplot(plot_data, aes(x = fct_rev(response), y = n, fill = type)) +
-  geom_col(position = position_dodge(width = 0.7), width = 0.7) +
-  facet_wrap(~question, scales = "free_y", ncol = 2) +
+# Function to create pie chart with outer label positions
+create_pie <- function(var_name) {
+  df_sub <- df_long %>% filter(assumption == var_name)
+  
+  ggplot(df_sub, aes(ymax = ymax, ymin = ymin, xmax = 1, xmin = 0, fill = status)) +
+    geom_rect(color = "white") +
+    geom_text(
+      aes(x = 1.2, y = label_pos, label = label),
+      size = 4, fontface = "bold", color = "black"
+    ) +
+    coord_polar(theta = "y") +
+    xlim(c(-0.5, 1.5)) +
+    scale_fill_scico_d(palette = "roma", direction = -1) +
+    theme_void(base_family = "Helvetica") +
+    theme(
+      legend.position = "right",
+      legend.title = element_text(face = "bold", size = 10),
+      plot.title = element_text(face = "bold", hjust = 0.5, size = 13)
+    ) +
+    labs(
+      fill = "Status",
+      title = var_name
+    )
+}
+
+# -----------------------------
+# Create normal_distribution bar plot with percentages
+# -----------------------------
+plot_normal <- df_check %>%
+  filter(!is.na(normal_distribution)) %>%
+  count(normal_distribution) %>%
+  mutate(percent = n / sum(n)) %>%
+  ggplot(aes(x = fct_reorder(normal_distribution, n), y = n, fill = normal_distribution)) +
+  geom_col(width = 0.7) +
+  geom_text(aes(label = paste0(" (", round(percent * 100, digits = 1), "%)")), 
+            hjust = -0.1, size = 3, fontface = "bold") +
+  scale_fill_scico_d(palette = "roma", direction = -1) +
   coord_flip() +
-  scale_fill_manual(values = c("Main" = "#4477AA", "If How" = "#EE6677")) +
-  theme_minimal(base_size = 14) +
+  theme_minimal(base_family = "Helvetica") +
   theme(
-    strip.text = element_text(face = "bold", size = 14),
-    axis.text.y = element_text(size = 11),
+    legend.position = "none",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
     axis.title = element_blank(),
-    legend.position = "top",
-    legend.title = element_blank()
+    axis.text = element_text(size = 12)
   ) +
-  labs(
-    title = "Reporting of Assumption Checks and Methods",
-    subtitle = "Main answers vs. how the check was conducted",
-    caption = "Across different statistical assumptions"
-  )
+  labs(title = "Was Normal Distribution tested?")
+plot_normal
+# -----------------------------
+# Combine bar plot and pie charts
+# -----------------------------
+pies <- unique(df_long$assumption) %>% map(create_pie)
+final_plot <- wrap_plots(plot_normal, wrap_plots(pies, ncol = 3), ncol = 1, heights = c(1.2, 2))
+
+# Display
+final_plot
+
+pies[[1]] + pies[[2]] + pies[[3]] 
 
 
 ```
 
 ```{r sphericity}
 
-
+# Load required libraries
 library(tidyverse)
 library(scales)
 library(glue)
-library(viridis) # modern color palette
+library(scico)
+library(forcats)
 
-# Filter for "Repeated Measures ANOVA" articles
+# Filter and select relevant variables
 df_rmanova <- data_extract %>%
   filter(`Main statistical test: further specification (e.g., non-parametric test), if ANCOVA: centered covariate?, if mixed model: paste formula here, of other: name of test (e.g. chi-squared, MANOVA)` == "rmANOVA") %>%
-  select(sphericity_checked = 27, sphericity_how = 26) %>%
+  select(sphericity_checked = 25, sphericity_how = 26) %>%
   drop_na(sphericity_checked)
 
-# Total number of articles
+# Total articles with rmANOVA
 n_articles_rmANOVA <- nrow(df_rmanova)
 
-# Prepare long-format data for plotting
-plot_data <- bind_rows(
-  df_rmanova %>%
-    count(response = sphericity_checked) %>%
-    mutate(type = "Was Sphericity Checked?"),
-  
-  df_rmanova %>%
-    filter(!is.na(sphericity_how) & sphericity_how != "") %>%
-    count(response = sphericity_how) %>%
-    mutate(type = "How Was It Checked?")
-) %>%
-  filter(!is.na(response), response != "") %>%
+# -------------------------------
+# CAKE (PIE) PLOT: sphericity_checked
+# -------------------------------
+df_pie <- df_rmanova %>%
+  count(response = sphericity_checked) %>%
   mutate(
-    percent = n / n_articles_rmANOVA,
-    response = fct_reorder(response, n),
-    type = factor(type, levels = c("Was Sphericity Checked?", "How Was It Checked?"))
+    percent = n / sum(n),
+    label = paste0(response, "\n", n, " (", percent(percent, accuracy = 1), ")"),
+    ymax = cumsum(percent),
+    ymin = lag(ymax, default = 0),
+    label_pos = (ymin + ymax) / 2
   )
 
-# Plot with modern style
-ggplot(plot_data, aes(x = fct_rev(response), y = percent, fill = type)) +
-  geom_col(position = position_dodge(width = 0.7), width = 0.6, alpha = 0.9) +
-  geom_text(aes(label = paste0(n, " (", percent(percent, accuracy = 1), ")")),
-            position = position_dodge(width = 0.7), hjust = -0.05, size = 4, color = "gray20") +
+plot_cake <- ggplot(df_pie, aes(ymax = ymax, ymin = ymin, xmax = 1, xmin = 0, fill = response)) +
+  geom_rect(color = "white") +
+  geom_text(aes(x = 1.2, y = label_pos, label = label), size = 4.5, fontface = "bold", color = "black") +
+  coord_polar(theta = "y") +
+  xlim(c(-0.5, 1.5)) +
+  scale_fill_scico_d(palette = "roma", direction = -1) +
+  theme_void(base_family = "Helvetica") +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 17, face = "bold", hjust = 0)
+  ) +
+  labs(title = "Was Sphericity Checked?")
+
+# -------------------------------
+# BAR PLOT: sphericity_how
+# -------------------------------
+df_bar <- df_rmanova %>%
+  filter(!is.na(sphericity_how) & sphericity_how != "") %>%
+  count(response = sphericity_how) %>%
+  mutate(
+    percent = n / n_articles_rmANOVA,
+    response = fct_reorder(response, n)
+  )
+
+plot_bar <- ggplot(df_bar, aes(x = fct_rev(response), y = percent, fill = response)) +
+  geom_col(width = 0.6, alpha = 0.9) +
+  geom_text(aes(label = paste0(" (", percent(percent, accuracy = 1), ")")),
+            hjust = -0.05, size = 4, color = "gray20") +
   coord_flip() +
   scale_y_continuous(labels = percent_format(accuracy = 1), expand = expansion(mult = c(0, 0.2))) +
-  scale_fill_viridis_d(option = "C", begin = 0.2, end = 0.8) +
+  scale_fill_scico_d(palette = "roma", direction = -1, guide = "none") +
   theme_classic(base_size = 15) +
   theme(
     axis.title = element_blank(),
     axis.text.y = element_text(size = 13, color = "gray10"),
     axis.text.x = element_text(size = 12, color = "gray30"),
-    strip.text = element_text(size = 14, face = "bold"),
-    legend.title = element_blank(),
-    legend.position = "top",
-    panel.grid.major.y = element_blank(),
-    panel.grid.major.x = element_line(color = "gray90"),
     plot.title = element_text(size = 17, face = "bold", hjust = 0),
     plot.subtitle = element_text(size = 14, color = "gray40", margin = margin(b = 10))
   ) +
   labs(
-    title = "Sphericity Assumption in Repeated Measures ANOVA",
-    subtitle = glue("{n_articles_rmANOVA}/{n_total} articles using RM-ANOVA")
-   # caption = "Includes whether sphericity was assessed and, if so, how it was checked"
+    title = "How Was Sphericity Checked?"
   )
 
-
+# Display both plots
+library(patchwork)
+plot_cake / plot_bar + plot_layout(heights = c(1, 1.2))
 
 
 
