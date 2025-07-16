@@ -762,13 +762,28 @@ specification of data transformation method, rationale, was the transformation a
 the different data transformations (how many studies use raw data?)
 ```{r results-transformations}
 
+library(ggsankey)
+
 ### SCR
-data_trans_scr <- data_extract[ ,c(40, 45, 47)]
-names(data_trans_scr) <- c("scr_transf","rationale_di","appl_transf")
+data_trans_scr <- na.omit(data_extract[ , c(40, 48, 45)])
+names(data_trans_scr) <- c("scr_transf", "transf_level", "rationale_di")
+
+# Extract SCR-relevant info from multi-measure cells and uniformly code
+data_trans_scr <- data_trans_scr %>%
+  mutate(transf_level = case_when(
+    grepl("SCR: not reported", transf_level) ~ "not reported",
+    grepl("SCR: trial-level", transf_level) ~ "trial-level",
+    grepl("across trials", transf_level) ~ "trial-level",
+    grepl("assume on trial-level", transf_level) ~ "trial-level",
+    TRUE ~ transf_level  # keep original
+  ))
 
 # Convert to long format
 data_trans_scr <- data_trans_scr %>%
-  make_long(scr_transf,rationale_di,appl_transf)
+  make_long(scr_transf, transf_level, rationale_di)
+
+# data_trans_scr$node <- factor(data_trans_scr$node, levels = sort(unique(data_trans_scr$node)))
+
 
 # Plot the Sankey diagram
 ggplot(data_trans_scr, aes(x = x, 
@@ -779,13 +794,231 @@ ggplot(data_trans_scr, aes(x = x,
   geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
   geom_sankey_label(size = 4, color = 1, fill = "white") +
   scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("scr_transf","rationale_di","appl_transf"),
-                   labels = c("Transformation", "Rationale", "Application level")) +
+  scale_x_discrete(breaks = c("scr_transf", "transf_level", "rationale_di"),
+                   labels = c("Transformation", "Level", "Rationale")) +
+  ggtitle("SCR: Data Transformation Methods, Application Level and Reporting Rationale") +
   lit_theme + 
   theme(axis.text.y = element_blank(),
                     axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank())
+                    axis.title.x = element_blank(), 
+        plot.title = element_text(size=18, face="bold"))
 
+ggsave("datatransf_rationale_scr_sankey.png", width = 14, height = 8, dpi = 300)
+
+
+### SCL
+data_trans_scl <- na.omit(data_extract[ ,c(41, 48, 45)])
+names(data_trans_scl) <- c("scl_transf", "transf_level", "rationale_di")
+
+# Convert to long format
+data_trans_scl <- data_trans_scl %>%
+  make_long(scl_transf, transf_level, rationale_di)
+
+# Plot the Sankey diagram
+ggplot(data_trans_scl, aes(x = x, 
+                    next_x = next_x, 
+                    node = node, 
+                    next_node = next_node, 
+                    label = factor(node))) +
+  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
+  geom_sankey_label(size = 4, color = 1, fill = "white") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  scale_x_discrete(breaks = c("scl_transf", "transf_level", "rationale_di"),
+                   labels = c("Transformation", "Level", "Rationale")) +
+  ggtitle("SCL: Data Transformation Methods, Application Level and Reporting Rationale") +
+  lit_theme + 
+  theme(axis.text.y = element_blank(),
+                    axis.ticks.y = element_blank(),
+                    axis.title.x = element_blank(),
+        plot.title = element_text(size=18, face="bold"))
+
+ggsave("datatransf_rationale_scl_sankey.png", width = 14, height = 8, dpi = 300)
+
+
+### EMG Startle
+data_trans_emg_startle <- na.omit(data_extract[ ,c(39, 48, 45)])
+names(data_trans_emg_startle) <- c("emg_startle_transf", "transf_level", "rationale_di")
+
+# Extract SCR-relevant info from multi-measure cells and uniformly code
+data_trans_emg_startle <- data_trans_emg_startle %>%
+  mutate(transf_level = case_when(
+    grepl("Startle: not reported", transf_level) ~ "not reported",
+    grepl("Startle: trial-level", transf_level) ~ "trial-level",
+    grepl("FPS: trial-level", transf_level) ~ "trial-level",
+    grepl("EMG: average-level", transf_level) ~ "average-level",
+    grepl("across trials", transf_level) ~ "trial-level",
+    grepl("SCR: trial-level", transf_level) ~ "not reported",
+    TRUE ~ transf_level  # keep original
+  ))
+
+# Convert to long format
+data_trans_emg_startle <- data_trans_emg_startle %>%
+  make_long(emg_startle_transf, transf_level, rationale_di)
+
+# Plot the Sankey diagram
+ggplot(data_trans_emg_startle, aes(x = x, 
+                    next_x = next_x, 
+                    node = node, 
+                    next_node = next_node, 
+                    label = factor(node))) +
+  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
+  geom_sankey_label(size = 4, color = 1, fill = "white") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  scale_x_discrete(breaks = c("emg_startle_transf", "transf_level", "rationale_di"),
+                   labels = c("Transformation", "Level", "Rationale")) +
+  ggtitle("EMG Startle: Data Transformation Methods, Application Level and Reporting Rationale") +
+  lit_theme + 
+  theme(axis.text.y = element_blank(),
+                    axis.ticks.y = element_blank(),
+                    axis.title.x = element_blank(),
+        plot.title = element_text(size=18, face="bold"))
+
+ggsave("datatransf_rationale_emgstartle_sankey.png", width = 14, height = 8, dpi = 300)
+
+
+### EMG orbicularis oculi
+data_trans_emg_orbic <- na.omit(data_extract[ ,c(38, 48, 45)])
+names(data_trans_emg_orbic) <- c("emg_orbic_transf", "transf_level", "rationale_di")
+
+# Convert to long format
+data_trans_emg_orbic <- data_trans_emg_orbic %>%
+  make_long(emg_orbic_transf, transf_level, rationale_di)
+
+# Plot the Sankey diagram
+ggplot(data_trans_emg_orbic, aes(x = x, 
+                    next_x = next_x, 
+                    node = node, 
+                    next_node = next_node, 
+                    label = factor(node))) +
+  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
+  geom_sankey_label(size = 4, color = 1, fill = "white") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  scale_x_discrete(breaks = c("emg_orbic_transf", "transf_level", "rationale_di"),
+                   labels = c("Transformation", "Level", "Rationale")) +
+  ggtitle("EMG Orbicularis Oculi: Data Transformation Methods, Application Level and Reporting Rationale") +
+  lit_theme + 
+  theme(axis.text.y = element_blank(),
+                    axis.ticks.y = element_blank(),
+                    axis.title.x = element_blank(),
+        plot.title = element_text(size=18, face="bold"))
+
+ggsave("datatransf_rationale_emgorbic_sankey.png", width = 14, height = 8, dpi = 300)
+
+
+### HR
+data_trans_hr <- na.omit(data_extract[ ,c(36, 48, 45)])
+names(data_trans_hr) <- c("hr_transf", "transf_level", "rationale_di")
+
+# Convert to long format
+data_trans_hr <- data_trans_hr %>%
+  make_long(hr_transf, transf_level, rationale_di)
+
+# Plot the Sankey diagram
+ggplot(data_trans_hr, aes(x = x, 
+                    next_x = next_x, 
+                    node = node, 
+                    next_node = next_node, 
+                    label = factor(node))) +
+  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
+  geom_sankey_label(size = 4, color = 1, fill = "white") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  scale_x_discrete(breaks = c("hr_transf", "transf_level", "rationale_di"),
+                   labels = c("Transformation", "Level", "Rationale")) +
+  ggtitle("HR (bpm): Data Transformation Methods, Application Level and Reporting Rationale") +
+  lit_theme + 
+  theme(axis.text.y = element_blank(),
+                    axis.ticks.y = element_blank(),
+                    axis.title.x = element_blank(),
+        plot.title = element_text(size=18, face="bold"))
+
+ggsave("datatransf_rationale_hr_sankey.png", width = 14, height = 8, dpi = 300)
+
+
+### HRV
+data_trans_hrv <- na.omit(data_extract[ ,c(37, 48, 45)])
+names(data_trans_hrv) <- c("hrv_transf", "transf_level", "rationale_di")
+
+# Convert to long format
+data_trans_hrv <- data_trans_hrv %>%
+  make_long(hrv_transf, transf_level, rationale_di)
+
+# Plot the Sankey diagram
+ggplot(data_trans_hrv, aes(x = x, 
+                    next_x = next_x, 
+                    node = node, 
+                    next_node = next_node, 
+                    label = factor(node))) +
+  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
+  geom_sankey_label(size = 4, color = 1, fill = "white") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  scale_x_discrete(breaks = c("hrv_transf", "transf_level", "rationale_di"),
+                   labels = c("Transformation", "Level", "Rationale")) +
+  ggtitle("HRV: Data Transformation Methods, Application Level and Reporting Rationale") +
+  lit_theme + 
+  theme(axis.text.y = element_blank(),
+                    axis.ticks.y = element_blank(),
+                    axis.title.x = element_blank(),
+        plot.title = element_text(size=18, face="bold"))
+
+ggsave("datatransf_rationale_hrv_sankey.png", width = 14, height = 8, dpi = 300)
+
+
+### Eye tracking
+data_trans_eyetrack <- na.omit(data_extract[ ,c(42, 48, 45)])
+names(data_trans_eyetrack) <- c("eyetrack_transf", "transf_level", "rationale_di")
+
+# Convert to long format
+data_trans_eyetrack <- data_trans_eyetrack %>%
+  make_long(eyetrack_transf, transf_level, rationale_di)
+
+# Plot the Sankey diagram
+ggplot(data_trans_eyetrack, aes(x = x, 
+                    next_x = next_x, 
+                    node = node, 
+                    next_node = next_node, 
+                    label = factor(node))) +
+  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
+  geom_sankey_label(size = 4, color = 1, fill = "white") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  scale_x_discrete(breaks = c("eyetrack_transf", "transf_level", "rationale_di"),
+                   labels = c("Transformation", "Level", "Rationale")) +
+  ggtitle("Eye tracking: Data Transformation Methods, Application Level and Reporting Rationale") +
+  lit_theme + 
+  theme(axis.text.y = element_blank(),
+                    axis.ticks.y = element_blank(),
+                    axis.title.x = element_blank(),
+        plot.title = element_text(size=18, face="bold"))
+
+ggsave("datatransf_rationale_eyetrack_sankey.png", width = 14, height = 8, dpi = 300)
+
+
+### Pupil size
+data_trans_pupil <- na.omit(data_extract[ ,c(43, 48, 45)])
+names(data_trans_pupil) <- c("pupil_transf", "transf_level", "rationale_di")
+
+# Convert to long format
+data_trans_pupil <- data_trans_pupil %>%
+  make_long(pupil_transf, transf_level, rationale_di)
+
+# Plot the Sankey diagram
+ggplot(data_trans_pupil, aes(x = x, 
+                    next_x = next_x, 
+                    node = node, 
+                    next_node = next_node, 
+                    label = factor(node))) +
+  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
+  geom_sankey_label(size = 4, color = 1, fill = "white") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  scale_x_discrete(breaks = c("pupil_transf", "transf_level", "rationale_di"),
+                   labels = c("Transformation", "Level", "Rationale")) +
+  ggtitle("Pupil size: Data Transformation Methods, Application Level and Reporting Rationale") +
+  lit_theme + 
+  theme(axis.text.y = element_blank(),
+                    axis.ticks.y = element_blank(),
+                    axis.title.x = element_blank(),
+        plot.title = element_text(size=18, face="bold"))
+
+ggsave("datatransf_rationale_pupil_sankey.png", width = 14, height = 8, dpi = 300)
 
 ```
 
@@ -798,16 +1031,13 @@ Compare frequencies of different criteria (e.g., +/-2SD vs. +/-3SD)
 ```{r results-outlier}
 
 data_outlier <- data_extract %>%
-  select(33:35) %>%
-   rename(
-    outlier_reported = `outlier.removal.reported..yes..no..this.refers.to.quantitative.measures.such.as....3SD.and.not.qualitative.ones..artifacts..zero.responses.`,
-    outlier_scope = `outlier.refer.to..subjects..trials..both..NA..not.reported`,
-    outlier_criterion = `outlier.criterion..e.g.......2SD..this.refers.to.quantitative.measures.such.as....2SD.and.not.qualitative.ones..artifacts..zero.responses.`) %>%
+  select(34:36) %>%
+   rename_with(~ c("outlier_reported", "outlier_scope", "outlier_criterion"), everything()) %>%
     filter(!if_all(everything(), ~ is.na(.) | . == ""))%>%
 mutate(
     outlier_scope = ifelse(row_number() == 33, "not reported", outlier_scope)
   ) %>%
-  make_long(outlier_reported, outlier_scope, outlier_criterion)%>%
+  make_long(outlier_reported, outlier_scope, outlier_criterion) %>%
   filter(!if_all(c(node), is.na))
 
 # Sankey Plot Outliers
