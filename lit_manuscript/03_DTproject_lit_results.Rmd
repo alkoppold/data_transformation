@@ -319,7 +319,7 @@ ggplot(df_bar1, aes(x = fct_rev(response), y = percent, fill = response)) +
 
 
 
-```{r assumptions}
+```{r assumptions-prepare-data}
 
 # Load libraries
 library(tidyverse)
@@ -348,10 +348,21 @@ names(df_check) <- c(
   "statistical_test"
 )
 
+```
+
+
+```{r assumptions-pie-charts}
+
 # -----------------------------
 # Prepare data for pie charts
 # -----------------------------
 df_cake <- df_check %>% select(1, 4, 6, 10, 12, 14)
+
+# Customize normality column: if normality is not "not reported" -> yes
+df_cake$normal_distribution[df_cake$normal_distribution != "not reported"] <- "yes"
+
+# Set names for plot titles
+names(df_cake) <- c("Normality","Homoscedasticity","Sphericity","Linearity","Mulitcollinearity","Models")
 
 df_long <- df_cake %>%
   pivot_longer(cols = everything(), names_to = "assumption", values_to = "status") %>%
@@ -378,8 +389,8 @@ create_pie <- function(var_name) {
     ) +
     coord_polar(theta = "y") +
     xlim(c(-0.5, 1.5)) +
-    scale_fill_scico_d(palette = "roma", direction = -1) +
-    theme_void(base_family = "Helvetica") +
+    scale_fill_scico_d(palette = "hawaii", direction = -1) +
+    theme_void(base_family = "Calibri") +
     theme(
       legend.position = "right",
       legend.title = element_text(face = "bold", size = 10),
@@ -391,6 +402,30 @@ create_pie <- function(var_name) {
     )
 }
 
+# Collect pies
+pies <- unique(df_long$assumption) %>% map(create_pie)
+
+
+```
+
+```{r assumptions-homosc-linearity-mulitcoll}
+
+# Create a plot for homoscedasticity, linearity and multicollinearity
+
+# Turn of the legends for pie 1 and 2
+pies[[1]] <- pies[[1]] + theme(legend.position = "none")
+pies[[2]] <- pies[[2]] + theme(legend.position = "none")
+
+# Patchwork the pies
+coll_pies <- pies[[1]] + pies[[2]] + pies[[4]] 
+
+coll_pies
+
+```
+
+
+```{r assumptions-normal-distributions}
+
 # -----------------------------
 # Create normal_distribution bar plot with percentages
 # -----------------------------
@@ -399,35 +434,51 @@ plot_normal <- df_check %>%
   count(normal_distribution) %>%
   mutate(percent = n / sum(n)) %>%
   ggplot(aes(x = fct_reorder(normal_distribution, n), y = n, fill = normal_distribution)) +
+  scale_y_continuous(breaks = seq(0, 600, by = 100), limits = c(0, 600),
+                     expand = expansion(mult = c(0, 0.1))) +
   geom_col(width = 0.7) +
   geom_text(aes(label = paste0(" (", round(percent * 100, digits = 1), "%)")), 
             hjust = -0.1, size = 3, fontface = "bold") +
-  scale_fill_scico_d(palette = "roma", direction = -1) +
+  scale_fill_scico_d(palette = "hawaii", direction = -1) +
   coord_flip() +
-  theme_minimal(base_family = "Helvetica") +
+  theme_minimal(base_family = "Calibri") +
   theme(
     legend.position = "none",
     plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-    axis.title = element_blank(),
-    axis.text = element_text(size = 12)
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(size = 13, face = "bold"),
+    axis.text = element_text(size = 12),
+    panel.grid = element_blank(),  
+    axis.line = element_line(color = "black"),  
+    axis.ticks = element_line(color = "black"),  
   ) +
-  labs(title = "Was Normal Distribution tested?")
-plot_normal
+  labs(
+    title = "",
+    y = "Number of studies"
+  )
+
 # -----------------------------
-# Combine bar plot and pie charts
+# Combine pie chart with bar plot
 # -----------------------------
-pies <- unique(df_long$assumption) %>% map(create_pie)
-final_plot <- wrap_plots(plot_normal, wrap_plots(pies, ncol = 3), ncol = 1, heights = c(1.2, 2))
+
+# Delete the title of the pie chart
+pies[[5]] <- pies[[5]] + theme(plot.title = element_blank())
+
+# Combine the pie chart with the bar chart
+normality_plot <- pies[[5]] + plot_normal +
+  plot_annotation(
+    title = "Was the normal distribution tested and how?",
+    theme = theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5))
+  )
 
 # Display
-final_plot
-
-pies[[1]] + pies[[2]] + pies[[3]] 
+normality_plot
 
 
 ```
 
-```{r sphericity}
+
+```{r assumptions-sphericity}
 
 # Load required libraries
 library(tidyverse)
@@ -504,7 +555,6 @@ plot_bar <- ggplot(df_bar, aes(x = fct_rev(response), y = percent, fill = respon
 # Display both plots
 library(patchwork)
 plot_cake / plot_bar + plot_layout(heights = c(1, 1.2))
-
 
 
 ```
