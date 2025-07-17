@@ -319,7 +319,7 @@ ggplot(df_bar1, aes(x = fct_rev(response), y = percent, fill = response)) +
 
 
 
-```{r assumptions}
+```{r assumptions-prepare-data}
 
 # Load libraries
 library(tidyverse)
@@ -348,11 +348,26 @@ names(df_check) <- c(
   "statistical_test"
 )
 
+```
+
+
+```{r assumptions-pie-charts}
+
 # -----------------------------
 # Prepare data for pie charts
 # -----------------------------
 df_cake <- df_check %>% select(1, 4, 6, 10, 12, 14)
 
+# Customize normality column: if normality is not "not reported" -> yes
+df_cake$normal_distribution[df_cake$normal_distribution != "not reported"] <- "yes"
+
+# Customize model column (statistical): split several entries in one cell
+
+
+# Set names for plot titles
+names(df_cake) <- c("Normality","Homoscedasticity","Sphericity","Linearity","Mulitcollinearity","Models")
+
+# Prepare the plot data frame
 df_long <- df_cake %>%
   pivot_longer(cols = everything(), names_to = "assumption", values_to = "status") %>%
   group_by(assumption, status) %>%
@@ -360,7 +375,7 @@ df_long <- df_cake %>%
   group_by(assumption) %>%
   mutate(
     percent = count / sum(count),
-    label = paste0(round(percent * 100, digits = 1), "%"),
+    label = paste0(round(percent * 100, digits = 1), "% (", count, ")"),
     ymax = cumsum(percent),
     ymin = lag(ymax, default = 0),
     label_pos = (ymin + ymax) / 2
@@ -378,56 +393,95 @@ create_pie <- function(var_name) {
     ) +
     coord_polar(theta = "y") +
     xlim(c(-0.5, 1.5)) +
-    scale_fill_scico_d(palette = "roma", direction = -1) +
-    theme_void(base_family = "Helvetica") +
+    scale_fill_scico_d(palette = "hawaii", direction = -1) +
+    theme_void(base_family = "Calibri") +
     theme(
       legend.position = "right",
-      legend.title = element_text(face = "bold", size = 10),
-      plot.title = element_text(face = "bold", hjust = 0.5, size = 13)
+      plot.title = element_text(face = "bold", hjust = 0.5, size = 13),
+      legend.title = element_blank()
     ) +
-    labs(
-      fill = "Status",
+    labs(fill = "status",
       title = var_name
     )
 }
 
-# -----------------------------
-# Create normal_distribution bar plot with percentages
-# -----------------------------
-plot_normal <- df_check %>%
-  filter(!is.na(normal_distribution)) %>%
-  count(normal_distribution) %>%
-  mutate(percent = n / sum(n)) %>%
-  ggplot(aes(x = fct_reorder(normal_distribution, n), y = n, fill = normal_distribution)) +
-  geom_col(width = 0.7) +
-  geom_text(aes(label = paste0(" (", round(percent * 100, digits = 1), "%)")), 
-            hjust = -0.1, size = 3, fontface = "bold") +
-  scale_fill_scico_d(palette = "roma", direction = -1) +
-  coord_flip() +
-  theme_minimal(base_family = "Helvetica") +
-  theme(
-    legend.position = "none",
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-    axis.title = element_blank(),
-    axis.text = element_text(size = 12)
-  ) +
-  labs(title = "Was Normal Distribution tested?")
-plot_normal
-# -----------------------------
-# Combine bar plot and pie charts
-# -----------------------------
+# Collect pies
 pies <- unique(df_long$assumption) %>% map(create_pie)
-final_plot <- wrap_plots(plot_normal, wrap_plots(pies, ncol = 3), ncol = 1, heights = c(1.2, 2))
-
-# Display
-final_plot
-
-pies[[1]] + pies[[2]] + pies[[3]] 
 
 
 ```
 
-```{r sphericity}
+```{r assumptions-homosc-linearity-mulitcoll}
+
+# Create a plot for homoscedasticity, linearity and multicollinearity
+
+# Turn of the legends for pie 1 and 2
+pies[[1]] <- pies[[1]] + theme(legend.position = "none")
+pies[[2]] <- pies[[2]] + theme(legend.position = "none")
+
+# Patchwork the pies
+coll_pies <- pies[[1]] + pies[[2]] + pies[[4]] 
+
+coll_pies
+
+```
+
+
+```{r assumptions-normal-distributions}
+
+# -----------------------------
+# Create normal_distribution bar plot with percentages
+# -----------------------------
+plot_normal_bar <- df_check %>%
+  filter(!is.na(normal_distribution)) %>%
+  count(normal_distribution) %>%
+  mutate(percent = n / sum(n)) %>%
+  ggplot(aes(x = fct_reorder(normal_distribution, n), y = n, fill = normal_distribution)) +
+  scale_y_continuous(breaks = seq(0, 600, by = 100), limits = c(0, 600),
+                     expand = expansion(mult = c(0, 0.1))) +
+  geom_col(width = 0.7) +
+  geom_text(aes(label = paste0(" (", round(percent * 100, digits = 1), "%)")), 
+            hjust = -0.1, size = 3, fontface = "bold") +
+  scale_fill_scico_d(palette = "hawaii", direction = -1) +
+  coord_flip() +
+  theme_minimal(base_family = "Calibri") +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(size = 13, face = "bold"),
+    axis.text = element_text(size = 12),
+    panel.grid = element_blank(),  
+    axis.line = element_line(color = "black"),  
+    axis.ticks = element_line(color = "black"),  
+  ) +
+  labs(
+    title = "",
+    y = "Number of studies"
+  )
+
+# -----------------------------
+# Combine pie chart with bar plot
+# -----------------------------
+
+# Delete the title of the pie chart
+pies[[5]] <- pies[[5]] + theme(plot.title = element_blank())
+
+# Combine the pie chart with the bar chart
+normality_plot <- pies[[5]] + plot_normal_bar +
+  plot_annotation(
+    title = "Was the normal distribution tested and how?",
+    theme = theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5))
+  )
+
+# Display
+normality_plot
+
+
+```
+
+
+```{r assumptions-sphericity}
 
 # Load required libraries
 library(tidyverse)
@@ -436,6 +490,7 @@ library(glue)
 library(scico)
 library(forcats)
 
+### Prepare the data
 # Filter and select relevant variables
 df_rmanova <- data_extract %>%
   filter(`Main statistical test: further specification (e.g., non-parametric test), if ANCOVA: centered covariate?, if mixed model: paste formula here, of other: name of test (e.g. chi-squared, MANOVA)` == "rmANOVA") %>%
@@ -446,34 +501,9 @@ df_rmanova <- data_extract %>%
 n_articles_rmANOVA <- nrow(df_rmanova)
 
 # -------------------------------
-# CAKE (PIE) PLOT: sphericity_checked
-# -------------------------------
-df_pie <- df_rmanova %>%
-  count(response = sphericity_checked) %>%
-  mutate(
-    percent = n / sum(n),
-    label = paste0(response, "\n", n, " (", percent(percent, accuracy = 1), ")"),
-    ymax = cumsum(percent),
-    ymin = lag(ymax, default = 0),
-    label_pos = (ymin + ymax) / 2
-  )
-
-plot_cake <- ggplot(df_pie, aes(ymax = ymax, ymin = ymin, xmax = 1, xmin = 0, fill = response)) +
-  geom_rect(color = "white") +
-  geom_text(aes(x = 1.2, y = label_pos, label = label), size = 4.5, fontface = "bold", color = "black") +
-  coord_polar(theta = "y") +
-  xlim(c(-0.5, 1.5)) +
-  scale_fill_scico_d(palette = "roma", direction = -1) +
-  theme_void(base_family = "Helvetica") +
-  theme(
-    legend.position = "none",
-    plot.title = element_text(size = 17, face = "bold", hjust = 0)
-  ) +
-  labs(title = "Was Sphericity Checked?")
-
-# -------------------------------
 # BAR PLOT: sphericity_how
 # -------------------------------
+
 df_bar <- df_rmanova %>%
   filter(!is.na(sphericity_how) & sphericity_how != "") %>%
   count(response = sphericity_how) %>%
@@ -482,29 +512,51 @@ df_bar <- df_rmanova %>%
     response = fct_reorder(response, n)
   )
 
-plot_bar <- ggplot(df_bar, aes(x = fct_rev(response), y = percent, fill = response)) +
-  geom_col(width = 0.6, alpha = 0.9) +
-  geom_text(aes(label = paste0(" (", percent(percent, accuracy = 1), ")")),
-            hjust = -0.05, size = 4, color = "gray20") +
+plot_sphericity_bar <- ggplot(df_bar, aes(x = response, y = n, fill = response)) +
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = paste0(" (", round(percent * 100, digits = 1), "%)")),
+    hjust = -0.1, size = 3, fontface = "bold"
+  ) +
+  scale_y_continuous(
+    breaks = seq(0, max(df_bar$n) + 50, by = 20),
+    limits = c(0, max(df_bar$n) + 50),
+    expand = expansion(mult = c(0, 0.1))
+  ) +
+  scale_fill_scico_d(palette = "hawaii", direction = -1, guide = "none") +
   coord_flip() +
-  scale_y_continuous(labels = percent_format(accuracy = 1), expand = expansion(mult = c(0, 0.2))) +
-  scale_fill_scico_d(palette = "roma", direction = -1, guide = "none") +
-  theme_classic(base_size = 15) +
+  theme_minimal(base_family = "Calibri") +
   theme(
-    axis.title = element_blank(),
-    axis.text.y = element_text(size = 13, color = "gray10"),
-    axis.text.x = element_text(size = 12, color = "gray30"),
-    plot.title = element_text(size = 17, face = "bold", hjust = 0),
-    plot.subtitle = element_text(size = 14, color = "gray40", margin = margin(b = 10))
+    legend.position = "none",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(size = 13, face = "bold"),
+    axis.text = element_text(size = 12),
+    panel.grid = element_blank(),
+    axis.line = element_line(color = "black"),
+    axis.ticks = element_line(color = "black")
   ) +
   labs(
-    title = "How Was Sphericity Checked?"
+    title = "How Was Sphericity Checked?",
+    y = "Number of studies"
   )
 
-# Display both plots
-library(patchwork)
-plot_cake / plot_bar + plot_layout(heights = c(1, 1.2))
+# -----------------------------
+# Combine pie chart with bar plot
+# -----------------------------
 
+# Delete the title of the pie chart
+pies[[6]] <- pies[[6]] + theme(plot.title = element_blank())
+
+# Combine the pie chart with the bar chart
+sphericity_plot <- pies[[6]] + plot_sphericity_bar +
+  plot_annotation(
+    title = "Was the sphericity checked and how?",
+    theme = theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5))
+  )
+
+# Display
+sphericity_plot
 
 
 ```
