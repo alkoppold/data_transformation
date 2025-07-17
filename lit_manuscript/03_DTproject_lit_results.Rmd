@@ -1030,18 +1030,41 @@ Compare frequencies of different criteria (e.g., +/-2SD vs. +/-3SD)
 
 ```{r results-outlier}
 
+library(dplyr)
+library(stringr)
+
+### Outlier removal methods
 data_outlier <- data_extract %>%
-  select(34:36) %>%
+  select(33:35) %>%
    rename_with(~ c("outlier_reported", "outlier_scope", "outlier_criterion"), everything()) %>%
-    filter(!if_all(everything(), ~ is.na(.) | . == ""))%>%
-mutate(
-    outlier_scope = ifelse(row_number() == 33, "not reported", outlier_scope)
-  ) %>%
-  make_long(outlier_reported, outlier_scope, outlier_criterion) %>%
+    filter(!if_all(everything(), ~ is.na(.) | . == ""))
+
+# previous code scrap: check why this row was changed
+# mutate(
+#     outlier_scope = ifelse(row_number() == 34, "not reported", outlier_scope))
+  
+# Group outlier categories 
+data_outlier_grouped <- data_outlier %>%
+  mutate(
+    outlier_criterion_group = case_when(
+      str_detect(outlier_criterion, regex("\\bSD\\b", ignore_case = TRUE)) ~ "SD-based threshold (e.g., ± 3 SD)",
+      str_detect(outlier_criterion, regex("\\bZ\\b")) ~ "Z-based threshold (e.g., Z > 3)",
+      str_detect(outlier_criterion, regex("IQR", ignore_case = TRUE)) ~ "IQR-based threshold (e.g., > Q3 + 1.5*IQR)",
+      str_detect(outlier_criterion, regex("Mahalanobis|Grubbs|correlation", ignore_case = TRUE)) ~ "statistical tests (e.g., Mahalanobis distance, Smirmov–Grubbs)",
+      str_detect(outlier_criterion, "visual inspection") ~ "manual visual inspection",
+      str_detect(outlier_criterion, regex("not reported", ignore_case = TRUE)) ~ "not reported",
+      is.na(outlier_criterion) ~ NA_character_,
+      TRUE ~ "other"
+    )
+  )
+
+# Convert to long format
+data_outlier_grouped_long <- data_outlier_grouped%>%
+  make_long(outlier_reported, outlier_scope, outlier_criterion_group) %>%
   filter(!if_all(c(node), is.na))
 
-# Sankey Plot Outliers
-ggplot(data_outlier, aes(x = x, 
+### Outlier removal: Sankey Plot 
+ggplot(data_outlier_grouped_long, aes(x = x, 
                next_x = next_x, 
                node = node, 
                next_node = next_node,
@@ -1050,11 +1073,46 @@ ggplot(data_outlier, aes(x = x,
   geom_sankey(flow.alpha = 0.5, node.color = 1) +
   geom_sankey_label(size = 4, color = 1, fill = "white") +
   scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  scale_x_discrete(breaks = c("outlier_reported", "outlier_scope", "outlier_criterion_group"),
+                   labels = c("Outlier removal reported?", "Scope", "Criterion")) +
+  ggtitle("Outlier Removal: Reporting Practices, Scope and Outlier Criterion") +
   lit_theme + 
   theme(axis.text.y = element_blank(),
                     axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank())
+                    axis.title.x = element_blank(), 
+        plot.title = element_text(size=18, face="bold"))
 
+ggsave("outlier_removal_sankey.png", width = 14, height = 8, dpi = 300)
+
+
+# Group the outlier criterion thresholds by type (SD-, IQR- or Z-based)
+data_outlier_grouped_plots <- data_outlier_grouped %>%
+  mutate(
+    cutoff_value = case_when(
+      outlier_criterion_group == "IQR-based threshold (e.g., > Q3 + 1.5*IQR)" ~ str_extract(outlier_criterion, "\\d+(\\.\\d+)?(?=\\*IQR)"),
+      outlier_criterion_group %in% c("SD-based threshold (e.g., ± 3 SD)", "Z-based threshold (e.g., Z > 3)") ~ str_extract(outlier_criterion, "\\d+(\\.\\d+)?"),
+      TRUE ~ NA_character_
+    ),
+    cutoff_value = as.numeric(cutoff_value)
+  ) %>%
+  filter(!is.na(cutoff_value))  # Keep only valid cutoffs
+
+
+### Barplot of individual outlier criterion thresholds
+ggplot(data_outlier_grouped_plots, aes(x = factor(cutoff_value), fill = outlier_criterion_group)) +
+  geom_bar(position = "stack") +
+  labs(
+    title = "Most Common Outlier Thresholds by Criterion Type",
+    x = "Threshold Value", y = "Count", fill = "Criterion Group") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  lit_theme + 
+  theme(axis.title.x = element_blank(), 
+        plot.title = element_text(size=18, face="bold"), 
+        legend.position = "right",
+        legend.text = element_text(size = 12),         
+        legend.title = element_text(size = 14, face = "bold"))
+  
+ggsave("outlier_removal_thresholds_barplot.png", width = 14, height = 8, dpi = 300)
 
 ```
 
