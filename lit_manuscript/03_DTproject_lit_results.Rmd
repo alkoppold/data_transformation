@@ -318,7 +318,6 @@ ggplot(df_bar1, aes(x = fct_rev(response), y = percent, fill = response)) +
 ```
 
 
-
 ```{r assumptions-prepare-data}
 
 # Load libraries
