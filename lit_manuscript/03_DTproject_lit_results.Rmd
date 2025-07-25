@@ -355,16 +355,13 @@ names(df_check) <- c(
 # -----------------------------
 # Prepare data for pie charts
 # -----------------------------
-df_cake <- df_check %>% select(1, 4, 6, 10, 12, 14)
+df_cake <- df_check %>% select(1, 4, 6, 10, 12)
 
 # Customize normality column: if normality is not "not reported" -> yes
 df_cake$normal_distribution[df_cake$normal_distribution != "not reported"] <- "yes"
 
-# Customize model column (statistical): split several entries in one cell
-
-
 # Set names for plot titles
-names(df_cake) <- c("Normality","Homoscedasticity","Sphericity","Linearity","Mulitcollinearity","Models")
+names(df_cake) <- c("Normality","Homoscedasticity","Sphericity","Linearity","Mulitcollinearity")
 
 # Prepare the plot data frame
 df_long <- df_cake %>%
@@ -392,7 +389,7 @@ create_pie <- function(var_name) {
     ) +
     coord_polar(theta = "y") +
     xlim(c(-0.5, 1.5)) +
-    scale_fill_scico_d(palette = "hawaii", direction = -1) +
+    scale_fill_scico_d(palette = "vanimo", direction = -1) +
     theme_void(base_family = "Calibri") +
     theme(
       legend.position = "right",
@@ -464,12 +461,13 @@ plot_normal_bar <- df_check %>%
 # -----------------------------
 
 # Delete the title of the pie chart
-pies[[5]] <- pies[[5]] + theme(plot.title = element_blank())
+pies[[4]] <- pies[[4]] + theme(plot.title = element_blank())
 
 # Combine the pie chart with the bar chart
-normality_plot <- pies[[5]] + plot_normal_bar +
+normality_plot <- pies[[4]] + plot_normal_bar +
   plot_annotation(
     title = "Was the normal distribution tested and how?",
+    tag_levels = "A",
     theme = theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5))
   )
 
@@ -491,7 +489,7 @@ library(forcats)
 
 ### Prepare the data
 # Filter and select relevant variables
-df_rmanova <- data_extract %>%
+df_rmanova_spher <- data_extract %>%
   filter(`Main statistical test: further specification (e.g., non-parametric test), if ANCOVA: centered covariate?, if mixed model: paste formula here, of other: name of test (e.g. chi-squared, MANOVA)` == "rmANOVA") %>%
   select(sphericity_checked = 25, sphericity_how = 26) %>%
   drop_na(sphericity_checked)
@@ -499,19 +497,26 @@ df_rmanova <- data_extract %>%
 # Total articles with rmANOVA
 n_articles_rmANOVA <- nrow(df_rmanova)
 
+# Split cell with several entries divided by "," and remove NAs
+vec_spher <- unlist(strsplit(df_rmanova_spher$sphericity_how, split = ",\\s*"))
+vec_spher <- vec_spher[!is.na(vec_spher)]
+
+# Delete spaces in front of 2 Greenhouse-Geissers
+vec_spher <- gsub(" Greenhouse–Geisser correction", "Greenhouse–Geisser correction", vec_spher)
+
+
 # -------------------------------
 # BAR PLOT: sphericity_how
 # -------------------------------
 
-df_bar <- df_rmanova %>%
-  filter(!is.na(sphericity_how) & sphericity_how != "") %>%
-  count(response = sphericity_how) %>%
+df_bar_spher <- tibble(response = vec_spher) %>%
+  count(response) %>%
   mutate(
     percent = n / n_articles_rmANOVA,
     response = fct_reorder(response, n)
   )
 
-plot_sphericity_bar <- ggplot(df_bar, aes(x = response, y = n, fill = response)) +
+plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = response)) +
   geom_col(width = 0.7) +
   geom_text(
     aes(label = paste0(" (", round(percent * 100, digits = 1), "%)")),
@@ -545,12 +550,13 @@ plot_sphericity_bar <- ggplot(df_bar, aes(x = response, y = n, fill = response))
 # -----------------------------
 
 # Delete the title of the pie chart
-pies[[6]] <- pies[[6]] + theme(plot.title = element_blank())
+pies[[5]] <- pies[[5]] + theme(plot.title = element_blank())
 
 # Combine the pie chart with the bar chart
-sphericity_plot <- pies[[6]] + plot_sphericity_bar +
+sphericity_plot <- pies[[5]] + plot_sphericity_bar +
   plot_annotation(
     title = "Was the sphericity checked and how?",
+    tag_levels = "A",
     theme = theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5))
   )
 
@@ -559,6 +565,71 @@ sphericity_plot
 
 
 ```
+
+```{r assumptions_stats-model}
+
+### Create a pie chart for the statistical model
+
+# Select data
+df_cake_stats <- df_check %>% select(14)
+
+# Split cell with several entries divided by "," and remove NAs
+vec_stats <- unlist(strsplit(as.vector(df_cake_stats[[1]]), split = ",\\s*"))
+vec_stats <- vec_stats[!is.na(vec_stats)]
+
+### Too many different entries, let's reduce them and name them "other"
+# Count occurrences
+counts_vec_stats <- table(vec_stats)
+
+# Identify entries with counts < 5
+to_other <- names(counts_vec_stats[counts_vec_stats < 5])
+
+# Replace those entries with "other"
+vec_stats <- ifelse(vec_stats %in% to_other, "other", vec_stats)
+
+# Convert to data frame and process
+df_long_stats <- tibble(Model = vec_stats) %>%
+  count(Model) %>%
+  mutate(
+    percent = n / sum(n),
+    label = paste0(round(percent * 100, 1), "% (", n, ")"),
+    ymax = cumsum(percent),
+    ymin = lag(ymax, default = 0),
+    label_pos = (ymin + ymax) / 2
+  )
+
+
+# Plot it
+ggplot(df_long_stats, aes(ymax = ymax, ymin = ymin, xmax = 1, xmin = 0, fill = Model)) +
+  geom_rect(color = "white") +
+  # Draw horizontal segments connecting the slice edge (x=1) to near label (x=1.1)
+  geom_segment(
+    aes(x = 1, xend = 1.1, y = label_pos, yend = label_pos),
+    color = "grey50"
+  ) +
+  # Use geom_text_repel for labels, no segments this time
+  geom_text_repel(
+    aes(x = 1.2, y = label_pos, label = label),
+    size = 4, fontface = "bold", color = "black",
+    segment.color = NA,   # disables ggrepel's default segment lines
+    nudge_x = 0,
+    direction = "y",
+    hjust = 0
+  ) +
+  coord_polar(theta = "y") +
+  xlim(c(-0.5, 1.5)) +  # room for labels on the right
+  scale_fill_scico_d(palette = "hawaii", direction = -1) +
+  theme_void(base_family = "Calibri") +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 13),
+    legend.title = element_blank()
+  ) +
+  labs(fill = "Model", title = "")
+
+
+```
+
 
 
 
