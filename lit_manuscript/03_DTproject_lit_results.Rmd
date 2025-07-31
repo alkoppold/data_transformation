@@ -568,6 +568,8 @@ sphericity_plot
 
 ```{r assumptions_stats-model}
 
+library(ggrepel)
+
 ### Create a pie chart for the statistical model
 
 # Select data
@@ -599,25 +601,26 @@ df_long_stats <- tibble(Model = vec_stats) %>%
   )
 
 
+
+# Prepare radial positioning of the labels
+df_long_stats <- df_long_stats %>%
+  mutate(
+    angle = 90 - 360 * (label_pos),  # for label rotation
+    hjust = ifelse(angle < -90, 1, 0),  # flip if upside-down
+    angle = ifelse(angle < -90, angle + 180, angle)  # rotate text properly
+  )
+
 # Plot it
-ggplot(df_long_stats, aes(ymax = ymax, ymin = ymin, xmax = 1, xmin = 0, fill = Model)) +
+cake_plot_stats <- ggplot(df_long_stats, aes(ymax = ymax, ymin = ymin, xmax = 1, xmin = 0, fill = Model)) +
   geom_rect(color = "white") +
-  # Draw horizontal segments connecting the slice edge (x=1) to near label (x=1.1)
-  geom_segment(
-    aes(x = 1, xend = 1.1, y = label_pos, yend = label_pos),
-    color = "grey50"
-  ) +
-  # Use geom_text_repel for labels, no segments this time
-  geom_text_repel(
-    aes(x = 1.2, y = label_pos, label = label),
-    size = 4, fontface = "bold", color = "black",
-    segment.color = NA,   # disables ggrepel's default segment lines
-    nudge_x = 0,
-    direction = "y",
-    hjust = 0
+  geom_text(
+    aes(x = 1.05, y = label_pos, label = label, angle = angle, hjust = hjust),
+    size = 3.8,
+    fontface = "bold",
+    color = "black"
   ) +
   coord_polar(theta = "y") +
-  xlim(c(-0.5, 1.5)) +  # room for labels on the right
+  xlim(c(0, 1.5)) +
   scale_fill_scico_d(palette = "hawaii", direction = -1) +
   theme_void(base_family = "Calibri") +
   theme(
@@ -626,6 +629,34 @@ ggplot(df_long_stats, aes(ymax = ymax, ymin = ymin, xmax = 1, xmin = 0, fill = M
     legend.title = element_blank()
   ) +
   labs(fill = "Model", title = "")
+
+cake_plot_stats
+
+
+
+# Or a bar plot?
+bar_plot_stats <- ggplot(df_long_stats, aes(x = reorder(Model, n), y = n, fill = Model)) +
+  geom_col() +
+  geom_text(aes(label = label), hjust = -0.1) +
+  coord_flip() +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +  
+  theme_minimal(base_family = "Calibri") +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(size = 13, face = "bold"),
+    axis.text = element_text(size = 12),
+    panel.grid = element_blank(),  
+    axis.line = element_line(color = "black"),  
+    axis.ticks = element_line(color = "black")
+  ) + labs(
+    title = "",
+    y = "Number of studies"
+  )
+
+bar_plot_stats
+
 
 
 ```
