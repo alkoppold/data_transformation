@@ -361,7 +361,7 @@ df_cake <- df_check %>% select(1, 4, 6, 10, 12)
 df_cake$normal_distribution[df_cake$normal_distribution != "not reported"] <- "yes"
 
 # Set names for plot titles
-names(df_cake) <- c("Normality","Homoscedasticity","Sphericity","Linearity","Mulitcollinearity")
+names(df_cake) <- c("Normality","Homoscedasticity","Sphericity","Linearity","Multicollinearity")
 
 # Prepare the plot data frame
 df_long <- df_cake %>%
@@ -407,7 +407,7 @@ pies <- unique(df_long$assumption) %>% map(create_pie)
 
 ```
 
-```{r assumptions-homosc-linearity-mulitcoll}
+```{r assumptions-homosc-linearity-multicoll}
 
 # Create a plot for homoscedasticity, linearity and multicollinearity
 
@@ -416,7 +416,7 @@ pies[[1]] <- pies[[1]] + theme(legend.position = "none")
 pies[[2]] <- pies[[2]] + theme(legend.position = "none")
 
 # Patchwork the pies
-coll_pies <- pies[[1]] + pies[[2]] + pies[[4]] 
+coll_pies <- pies[[1]] + pies[[2]] + pies[[3]] 
 
 coll_pies
 
@@ -870,7 +870,7 @@ FRAGEN
 
 # Select the data
 data_assump <- data_extract[ , grep("Was.the", names(data_extract))]
-names(data_assump) <- c("Normality","Homoscedasticity","Sphericity","Independence","Linearity","Mulitcollinearity")
+names(data_assump) <- c("Normality","Homoscedasticity","Sphericity","Independence","Linearity","Multicollinearity")
 
 # Reshape it from wide to long
 data_assump <- data_assump %>%
@@ -886,7 +886,7 @@ data_assump <- data_assump %>%
 data_assump$Assumption <- as.factor(data_assump$Assumption)
 data_assump$Assumption <- factor(data_assump$Assumption,
                                     levels = c("Normality","Homoscedasticity","Sphericity",
-                                               "Independence","Linearity","Mulitcollinearity"))
+                                               "Independence","Linearity","Multicollinearity"))
 data_assump$Checked <- as.factor(data_assump$Checked)
 data_assump$Checked <- factor(data_assump$Checked,
                                     levels = c("not reported","not specified","yes",
