@@ -1,6 +1,6 @@
 library(tidyverse)
 
-load("data/DoxMem2_export.RData")
+load("data/Bach_DoxMem2_export.RData")
 
 # heart rate --------------------------------------------------------------
 data_acq_cond
