@@ -17,8 +17,8 @@ data_acq_cond %>% pull(HPR) %>% summary() #HPR: heart period response (heart rat
 
 # Pupil & SCR -------------------------------------------------------------
 data_acq_trl
-#PSR: pupil size response
-#SCR: skin conductance response
+#PSR: pupil size response (mm)
+#SCR: skin conductance response (muS)
 
 data_acq_trl %>% pull(trial) %>% unique() %>% sort() %>% length()
 #data_acq_trl %>% summarize(.by = sub, minTrial = min(trial), maxTrial = max(trial)) %>% filter(maxTrial != 45)
