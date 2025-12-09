@@ -1357,6 +1357,7 @@ data_extract <- data_extract %>% mutate(
 )
 
 data_extract %>% count(`statistical test`) %>% arrange(desc(n)) %>% data.frame()
+#TODO could include MANOVA & ANCOVA into "ANOVA & extensions". But the same would make sense for correlation & regression. Ultimatively, many models are just a subclass of a linear model so maybe better leave it specific.
 
 data_extract %>% select(`statistical test`, `statistical test details`) %>% filter(`statistical test` == "multiple")
 #TODO could replace "multiple" with content in details and then put comma separation into long form (but harder to count percentages since they add > 1)
