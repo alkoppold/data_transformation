@@ -46,7 +46,13 @@ doi_exclude_studies <- c(
 
 data_extract <- data_extract[!is.element(data_extract$doi, doi_exclude_studies), ]
 
-
+#TODO perform all renames here?
+data_extract <- data_extract %>% rename(
+    design = `Stastistical model: within, between or mixed design? (e.g., paired ttest = within, independent ttest = between)`,
+    `levels of largest within factor` = `If within or mixed: how many within factor levels (of largest within factor)? (e.g., two different CS stimuli = two within factors)`,
+    `statistical test`   = `Main statistical test: ttest, AN(C)OVA, correlation, regression, mixed model, other (ask Perplexity.ai with copy pasting info from the method section)`,
+    `statistical test details` = `Main statistical test: further specification (e.g., non-parametric test), if ANCOVA: centered covariate?, if mixed model: paste formula here, of other: name of test (e.g. chi-squared, MANOVA)`
+  )
 ```
 
 # Prereg paragraph 
@@ -1327,17 +1333,40 @@ Statistical model, Main statistical test, further specification
 - Compare test choice across study types or transformation practices
 - Association with whether assumptions were tested
 
+```{r results-statistical-models-cleanup}
+data_extract %>% count(`statistical test`) %>% arrange(desc(n)) %>% data.frame()
+#TODO check "general linear model" (could be an emulation of ANOVA/regression or even a mixed model)
+#TODO check "bayesian model" (what kind?)
+#TODO check "generalized estimating equation model" & "path analysis". Are they are kind of SEM?
+#TODO check "multivariate model for repeated measures"
+
+#data_extract %>% select(`statistical test`, `statistical test details`) %>% filter(`statistical test` == "rmANOVA")
+data_extract <- data_extract %>% mutate(
+  `statistical test` = case_when(`statistical test` == "rmANOVA" ~ "ANOVA", #rmANOVA is specified in details
+                                 
+                                 `statistical test` %>% grepl("growth", .) ~ "computational modeling", #"multilevel growth" = "computational" not "hierarchical"
+                                 #`statistical test` == "growth curve models with multilevel modelling" ~ "multilevel growth curve model",
+                                 `statistical test` == "computational model" ~ "computational modeling",
+                                 
+                                 `statistical test` %>% grepl("hierarchical", .) ~ "multilevel model",
+                                 `statistical test` %>% grepl("multilevel", .) ~ "multilevel model",
+                                 
+                                 `statistical test` %>% grepl("mixed", .) ~ "mixed model",
+                                 
+                                 T ~ `statistical test`)
+)
+
+data_extract %>% count(`statistical test`) %>% arrange(desc(n)) %>% data.frame()
+
+data_extract %>% select(`statistical test`, `statistical test details`) %>% filter(`statistical test` == "multiple")
+#TODO could replace "multiple" with content in details and then put comma separation into long form (but harder to count percentages since they add > 1)
+```
+
 ```{r results-statistical-models}
 data_stat_models <- data_extract %>%
   select(48:51) %>%
-  rename(
-    design = `Stastistical.model..within..between.or.mixed.design...e.g...paired.t.test...within..independent.t.test...between.`,
-    `levels of largest within factor` = `If.within.or.mixed..how.many.within.factor.levels..of.largest.within.factor....e.g...two.different.CS.stimuli...two.within.factors.`,
-    `statistical test`   = `Main.statistical.test..t.test..AN.C.OVA..correlation..regression..mixed.model..other..ask.Perplexity.ai.with.copy.pasting.info.from.the.method.section.`,
-    details = `Main.statistical.test..further.specification..e.g...non.parametric.test...if.ANCOVA..centered.covariate...if.mixed.model..paste.formula.here..of.other..name.of.test..e.g..chi.squared..MANOVA.`
-  ) %>%
-    filter(!if_all(everything(), ~ is.na(.) | . == ""))%>%
-  make_long(design, `levels of largest within factor`, `statistical test`, details)%>%
+  filter(!if_all(everything(), ~ is.na(.) | . == ""))%>%
+  make_long(design, `levels of largest within factor`, `statistical test`, `statistical test details`)%>%
   filter(!if_all(c(node), is.na))
 
 ggplot(data_stat_models, aes(x = x, 
