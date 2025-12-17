@@ -13,46 +13,8 @@ editor_options:
 
 
 ```{r results-load-data}
-library(gsheet)
-data_extract = gsheet2tbl('https://docs.google.com/spreadsheets/d/1In5IKFNKbVj4WJCawDu2xfr_0CJ3off3Nr5chBaoYYU/edit?gid=1511433069#gid=1511433069/')
-data_extract
-
-## Exclude some studies due to several reasons (listed where?)
-doi_exclude_studies <- c(
-  "10.1111/psyp.12456",
-  "10.1016/j.neuroimage.2015.06.086",
-  "10.1093/scan/nsaa074",
-  "10.1017/S0033291712000359",
-  "10.1038/mp.2011.66",
-  "10.5665/sleep/32.1.19",
-  "10.1080/10615806.2012.672976",
-  "10.1093/scan/nsw181",
-  "10.1093/scan/nsv122",
-  "10.1016/j.brat.2018.09.003",
-  "10.1111/psyp.13650",
-  "10.1016/j.biopsych.2010.08.015",
-  "10.1027/2151-2604/a000523",
-  "10.1016/j.nlm.2014.03.008",
-  "10.1101/lm.053902.123",
-  "10.1080/02699931.2018.1500445",
-  "10.1038/s41598-019-49751-4",
-  "10.1093/scan/nsx148",
-  "10.1016/j.neuroimage.2018.03.030",
-  "10.1016/j.clinph.2019.04.010",
-  "10.1037/xlm0000558",
-  "10.1037/xge0000496",
-  "10.1093/sleep/zsad209"
-)
-
-data_extract <- data_extract[!is.element(data_extract$doi, doi_exclude_studies), ]
-
-#TODO perform all renames here?
-data_extract <- data_extract %>% rename(
-    design = `Stastistical model: within, between or mixed design? (e.g., paired ttest = within, independent ttest = between)`,
-    `levels of largest within factor` = `If within or mixed: how many within factor levels (of largest within factor)? (e.g., two different CS stimuli = two within factors)`,
-    `statistical test`   = `Main statistical test: ttest, AN(C)OVA, correlation, regression, mixed model, other (ask Perplexity.ai with copy pasting info from the method section)`,
-    `statistical test details` = `Main statistical test: further specification (e.g., non-parametric test), if ANCOVA: centered covariate?, if mixed model: paste formula here, of other: name of test (e.g. chi-squared, MANOVA)`
-  )
+library(tidyverse)
+data_extract = read_rds("data/data_extract.rds")
 ```
 
 # Prereg paragraph 
@@ -1332,36 +1294,6 @@ Statistical model, Main statistical test, further specification
 - Count and visualize test types (t-test, ANOVA, mixed models)
 - Compare test choice across study types or transformation practices
 - Association with whether assumptions were tested
-
-```{r results-statistical-models-cleanup}
-data_extract %>% count(`statistical test`) %>% arrange(desc(n)) %>% data.frame()
-#TODO check "general linear model" (could be an emulation of ANOVA/regression or even a mixed model)
-#TODO check "bayesian model" (what kind?)
-#TODO check "generalized estimating equation model" & "path analysis". Are they are kind of SEM?
-#TODO check "multivariate model for repeated measures"
-
-#data_extract %>% select(`statistical test`, `statistical test details`) %>% filter(`statistical test` == "rmANOVA")
-data_extract <- data_extract %>% mutate(
-  `statistical test` = case_when(`statistical test` == "rmANOVA" ~ "ANOVA", #rmANOVA is specified in details
-                                 
-                                 `statistical test` %>% grepl("growth", .) ~ "computational modeling", #"multilevel growth" = "computational" not "hierarchical"
-                                 #`statistical test` == "growth curve models with multilevel modelling" ~ "multilevel growth curve model",
-                                 `statistical test` == "computational model" ~ "computational modeling",
-                                 
-                                 `statistical test` %>% grepl("hierarchical", .) ~ "multilevel model",
-                                 `statistical test` %>% grepl("multilevel", .) ~ "multilevel model",
-                                 
-                                 `statistical test` %>% grepl("mixed", .) ~ "mixed model",
-                                 
-                                 T ~ `statistical test`)
-)
-
-data_extract %>% count(`statistical test`) %>% arrange(desc(n)) %>% data.frame()
-#TODO could include MANOVA & ANCOVA into "ANOVA & extensions". But the same would make sense for correlation & regression. Ultimatively, many models are just a subclass of a linear model so maybe better leave it specific.
-
-data_extract %>% select(`statistical test`, `statistical test details`) %>% filter(`statistical test` == "multiple")
-#TODO could replace "multiple" with content in details and then put comma separation into long form (but harder to count percentages since they add > 1)
-```
 
 ```{r results-statistical-models}
 data_stat_models <- data_extract %>%
