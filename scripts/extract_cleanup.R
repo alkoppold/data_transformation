@@ -78,7 +78,10 @@ data_extract = data_extract %>% filter(doi %in% doi_exclude_studies == F)
 
 
 # Longer Format -----------------------------------------------------------
-#TODO put some columns into longer format if they contain several pieces of information
+#TODO put some columns into longer format if they contain several pieces of information (identifier = DOI)
+
+
+# TODO check individual columns and clean them up -------------------------
 
 
 # Statistical Test --------------------------------------------------------
