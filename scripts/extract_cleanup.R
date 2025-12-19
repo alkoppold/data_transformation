@@ -13,10 +13,11 @@ data_extract = data_extract %>%
   #rename_with(\(x) {x %>% str_extract("^\\S+(\\s+\\S+){0,3}")}) %>% #extract first 1-4 words
   rename_with(\(x) x %>% str_extract("^\\S+\\s+\\S+"), .cols = starts_with("open")) %>%
   rename_with(\(x) x %>% str_extract("^\\S+"), .cols = starts_with("n_")) %>% 
-  rename(cross_vs_long = `longitudinal design (LD), cross-sectional design (CD), unclear`,
+  rename(prereg = `preregistration yes/no`,
+         cross_vs_long = `longitudinal design (LD), cross-sectional design (CD), unclear`,
          mental_health_exclusion = `mental health disorder exclusion (yes, no, unclear, not reported, partially)`,
-         "individual-level" = `Was an individual level analysis conducted in the study? group/ individual level analysis, both`,
-         "individual-level_VOI" = `If an individual level analysis was conducted in the study, what was the variable of interest? (e.g. sex/ gender, STAI, IUS, BDI, multiple)`,
+         individual_level = `Was an individual level analysis conducted in the study? group/ individual level analysis, both`,
+         individual_level_VOI = `If an individual level analysis was conducted in the study, what was the variable of interest? (e.g. sex/ gender, STAI, IUS, BDI, multiple)`,
          normality = `Was the normal distribution checked? answers: dependent variable, independent variable, residuals, mixed, not reported`,
          normality_when = `If yes, was the normal distribution tested before or after transformation procedure? answers: before, after, both, not reported. if no: NA`,
          homoscedasticity = `Was the homoscedasticity checked? answers: yes, not reported`,
