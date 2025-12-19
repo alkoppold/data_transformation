@@ -76,6 +76,7 @@ doi_exclude_studies <- c(
 #data_extract <- data_extract[!is.element(data_extract$doi, doi_exclude_studies), ]
 data_extract = data_extract %>% filter(doi %in% doi_exclude_studies == F)
 
+#TODO deselect some columns that have not been coded consistently
 
 # Longer Format -----------------------------------------------------------
 #TODO put some columns into longer format if they contain several pieces of information (identifier = DOI)
