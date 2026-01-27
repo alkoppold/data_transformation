@@ -1311,7 +1311,7 @@ Statistical model, Main statistical test, further specification
 ```{r results-statistical-models}
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 data_stat_models <- data_extract %>%
-  select(50:54) %>%
+  select(design:53) %>%
   filter(!if_all(everything(), ~ is.na(.) | . == ""))%>%
   make_long(design, `levels of largest within factor`, `statistical test`, `statistical test details`)%>%
   filter(!if_all(c(node), is.na))
