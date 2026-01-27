@@ -14,7 +14,7 @@ editor_options:
 
 ```{r results-load-data}
 library(tidyverse)
-data_extract = read_rds("data/data_extract.rds")
+data_extract = read_rds("data/data_extract.rds") #cf. script "extract_cleanup.R"
 ```
 
 # Prereg paragraph 
@@ -51,6 +51,7 @@ measure_percent <- df_long %>%
 label_map <- setNames(measure_percent$measure_label, measure_percent$measure)
 
 ### change on label ""rc, sqrt (analysis 1); z (analysis 2)""
+#df_long %>% filter(transformation %>% grepl(";", .)) #check columns with ";"
 df_long <- df_long %>%
   # Separate on ";" into rows
   separate_rows(transformation, sep = ";") %>%
@@ -193,10 +194,12 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
 library(tidyverse)
 library(scico)
 library(forcats)
+library(scales)
 library(patchwork)
 
 # Load the relevant data
-df_ref <- data_extract %>% select(rationale_given = 45, rationale_type = 46)
+#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
+df_ref <- data_extract %>% select(rationale_given = 46, rationale_type = 47)
 
 # -------------------------
 # PIE 1: Was a rationale reported?
@@ -297,7 +300,8 @@ library(scico)
 library(patchwork)
 
 # Extract and rename relevant columns
-df_check = data_extract %>% select(20:32, 52)
+#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
+df_check = data_extract %>% select(22:33, 52)
 
 names(df_check) <- c(
   "normal_distribution",
@@ -305,7 +309,7 @@ names(df_check) <- c(
   "normal_before_after",
   "homoscedasticity",
   "homoscedasticity_how",
-  "sphericity",
+  #"sphericity", #sphericity old
   "sphericity_how",
   "independence of residuals",
   "independence_how",
@@ -324,7 +328,8 @@ names(df_check) <- c(
 # -----------------------------
 # Prepare data for pie charts
 # -----------------------------
-df_cake <- df_check %>% select(1, 4, 6, 10, 12)
+#data.frame(colname = df_check %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
+df_cake <- df_check %>% select(1, 4, 6, 9, 11)
 
 # Customize normality column: if normality is not "not reported" -> yes
 df_cake$normal_distribution[df_cake$normal_distribution != "not reported"] <- "yes"
@@ -458,16 +463,17 @@ library(forcats)
 
 ### Prepare the data
 # Filter and select relevant variables
+#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 df_rmanova_spher <- data_extract %>%
-  filter(`Main statistical test: further specification (e.g., non-parametric test), if ANCOVA: centered covariate?, if mixed model: paste formula here, of other: name of test (e.g. chi-squared, MANOVA)` == "rmANOVA") %>%
-  select(sphericity_checked = 25, sphericity_how = 26) %>%
-  drop_na(sphericity_checked)
+  filter(statistical_test_details == "rmANOVA") %>% #TODO number of within factor levels
+  select(sphericity) %>%
+  drop_na(sphericity)
 
 # Total articles with rmANOVA
-n_articles_rmANOVA <- nrow(df_rmanova)
+n_articles_rmANOVA <- nrow(df_rmanova_spher)
 
 # Split cell with several entries divided by "," and remove NAs
-vec_spher <- unlist(strsplit(df_rmanova_spher$sphericity_how, split = ",\\s*"))
+vec_spher <- unlist(strsplit(df_rmanova_spher$sphericity, split = ",\\s*"))
 vec_spher <- vec_spher[!is.na(vec_spher)]
 
 # Delete spaces in front of 2 Greenhouse-Geissers
@@ -492,8 +498,8 @@ plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = resp
     hjust = -0.1, size = 3, fontface = "bold"
   ) +
   scale_y_continuous(
-    breaks = seq(0, max(df_bar$n) + 50, by = 20),
-    limits = c(0, max(df_bar$n) + 50),
+    breaks = seq(0, max(df_bar_spher$n) + 50, by = 20),
+    limits = c(0, max(df_bar_spher$n) + 50),
     expand = expansion(mult = c(0, 0.1))
   ) +
   scale_fill_scico_d(palette = "hawaii", direction = -1, guide = "none") +
@@ -542,7 +548,8 @@ library(ggrepel)
 ### Create a pie chart for the statistical model
 
 # Select data
-df_cake_stats <- df_check %>% select(14)
+#data.frame(colname = df_check %>% colnames()) %>% mutate(colnum = 1:n()) %>% select(colnum, everything())
+df_cake_stats <- df_check %>% select(13)
 
 # Split cell with several entries divided by "," and remove NAs
 vec_stats <- unlist(strsplit(as.vector(df_cake_stats[[1]]), split = ",\\s*"))
@@ -657,6 +664,9 @@ Maybe identify patterns across studies
 n_with_exclusions, n_female_total, age_mean_total, age_sd_total, mental health disorder exclusion, Was an individual level analysis conducted
 
 ```{r results-descriptives}
+#TODO: check everything! many column were not approved in quality control
+#e.g., n_with_exclusions are now n_before_exclusion vs. n_after_exclusions (+ multiple entries)
+#data_extract %>% select(starts_with("n_"))
 
 # Define a theme for pretty plots
 lit_theme = theme(
@@ -1156,8 +1166,9 @@ library(dplyr)
 library(stringr)
 
 ### Outlier removal methods
+#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 data_outlier <- data_extract %>%
-  select(33:35) %>%
+  select(34:36) %>%
    rename_with(~ c("outlier_reported", "outlier_scope", "outlier_criterion"), everything()) %>%
     filter(!if_all(everything(), ~ is.na(.) | . == ""))
 
@@ -1246,8 +1257,9 @@ the use of different psychophysioligical outcomes?scr, emg
 dot-plot-simulation
 
 ```{r results-outcome-measures}
+#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 data_outcome_measure <- data_extract %>%
-  select(36:43) %>%
+  select(37:44) %>%
   rename(
    #"HR" = HR (BPM)
    #"EMG orbicularis oculi" = EMG.orbicularis.oculi,
@@ -1297,8 +1309,9 @@ Statistical model, Main statistical test, further specification
 - Association with whether assumptions were tested
 
 ```{r results-statistical-models}
+#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 data_stat_models <- data_extract %>%
-  select(48:51) %>%
+  select(50:54) %>%
   filter(!if_all(everything(), ~ is.na(.) | . == ""))%>%
   make_long(design, `levels of largest within factor`, `statistical test`, `statistical test details`)%>%
   filter(!if_all(c(node), is.na))
