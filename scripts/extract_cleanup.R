@@ -81,6 +81,7 @@ data_extract = data_extract %>% filter(doi %in% doi_exclude_studies == F)
 
 # Longer Format -----------------------------------------------------------
 #TODO put some columns into longer format if they contain several pieces of information (identifier = DOI)
+#or maybe just do this later in order to not duplicate some other entries that are always unique?
 
 
 # TODO check individual columns and clean them up -------------------------
