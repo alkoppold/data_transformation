@@ -33,7 +33,8 @@ library(tidyverse)
 library(data.table)
 library(scico)  # For modern scientific color palettes
 
-df <- data_extract %>% select(36:43)
+#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% select(colnum, everything())
+df <- data_extract %>% select(37:44)
 n_total <- nrow(df)
 
 # Step 1: Pivot to long format (no drop_na yet!)
