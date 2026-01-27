@@ -33,13 +33,13 @@ library(tidyverse)
 library(data.table)
 library(scico)  # For modern scientific color palettes
 
-#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% select(colnum, everything())
-df <- data_extract %>% select(37:44)
-n_total <- nrow(df)
+#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
+df <- data_extract %>% select(doi, `HR_(BPM)`:PUPIL_SIZE)
+n_total <- df %>% pull(doi) %>% unique() %>% length()
 
 # Step 1: Pivot to long format (no drop_na yet!)
 df_long <- df %>%
-  pivot_longer(cols = everything(), names_to = "measure", values_to = "transformation")
+  pivot_longer(cols = -doi, names_to = "measure", values_to = "transformation")
 
 # Step 2: Calculate proportion of non-NA values BEFORE dropping NAs
 measure_percent <- df_long %>%
@@ -199,7 +199,7 @@ library(patchwork)
 
 # Load the relevant data
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
-df_ref <- data_extract %>% select(rationale_given = 46, rationale_type = 47)
+df_ref <- data_extract %>% select(rationale_given = dt_rationale, rationale_type = dt_rationale_details)
 
 # -------------------------
 # PIE 1: Was a rationale reported?
@@ -301,7 +301,7 @@ library(patchwork)
 
 # Extract and rename relevant columns
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
-df_check = data_extract %>% select(22:33, 52)
+df_check = data_extract %>% select(normality:multicollinearity_how, statistical_test)
 
 names(df_check) <- c(
   "normal_distribution",
@@ -309,8 +309,8 @@ names(df_check) <- c(
   "normal_before_after",
   "homoscedasticity",
   "homoscedasticity_how",
-  #"sphericity", #sphericity old
-  "sphericity_how",
+  #"sphericity", #sphericity old, which got deselected
+  "sphericity_how", 
   "independence of residuals",
   "independence_how",
   "linearity",
@@ -329,7 +329,7 @@ names(df_check) <- c(
 # Prepare data for pie charts
 # -----------------------------
 #data.frame(colname = df_check %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
-df_cake <- df_check %>% select(1, 4, 6, 9, 11)
+df_cake <- df_check %>% select(normal_distribution, homoscedasticity, sphericity_how, linearity, multicollinearity)
 
 # Customize normality column: if normality is not "not reported" -> yes
 df_cake$normal_distribution[df_cake$normal_distribution != "not reported"] <- "yes"
@@ -549,7 +549,7 @@ library(ggrepel)
 
 # Select data
 #data.frame(colname = df_check %>% colnames()) %>% mutate(colnum = 1:n()) %>% select(colnum, everything())
-df_cake_stats <- df_check %>% select(13)
+df_cake_stats <- df_check %>% select(statistical_test)
 
 # Split cell with several entries divided by "," and remove NAs
 vec_stats <- unlist(strsplit(as.vector(df_cake_stats[[1]]), split = ",\\s*"))
@@ -1168,7 +1168,7 @@ library(stringr)
 ### Outlier removal methods
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 data_outlier <- data_extract %>%
-  select(34:36) %>%
+  select(outlier:outlier_how) %>%
    rename_with(~ c("outlier_reported", "outlier_scope", "outlier_criterion"), everything()) %>%
     filter(!if_all(everything(), ~ is.na(.) | . == ""))
 
@@ -1259,7 +1259,7 @@ dot-plot-simulation
 ```{r results-outcome-measures}
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 data_outcome_measure <- data_extract %>%
-  select(37:44) %>%
+  select(`HR_(BPM)`:PUPIL_SIZE) %>%
   rename(
    #"HR" = HR (BPM)
    #"EMG orbicularis oculi" = EMG.orbicularis.oculi,
@@ -1311,7 +1311,7 @@ Statistical model, Main statistical test, further specification
 ```{r results-statistical-models}
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 data_stat_models <- data_extract %>%
-  select(design:53) %>%
+  select(design:statistical_test_details) %>%
   filter(!if_all(everything(), ~ is.na(.) | . == ""))%>%
   make_long(design, `levels of largest within factor`, `statistical test`, `statistical test details`)%>%
   filter(!if_all(c(node), is.na))
