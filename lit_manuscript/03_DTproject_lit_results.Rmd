@@ -848,11 +848,14 @@ FRAGEN
 ```{r results-assumptions}
 
 # Select the data
-data_assump <- data_extract[ , grep("Was.the", names(data_extract))]
+data_assump <- data_extract %>% select(normality, homoscedasticity, sphericity, independence, linearity, multicollinearity)
 names(data_assump) <- c("Normality","Homoscedasticity","Sphericity","Independence","Linearity","Multicollinearity")
 
 # Reshape it from wide to long
 data_assump <- data_assump %>%
+  mutate(Sphericity = case_when(Sphericity == "not reported" ~ "not reported",
+                                Sphericity %>% is.na() ~ NA, #TODO should this be mapped to "not reported"?
+                                T ~ "yes")) %>% 
   pivot_longer(cols = everything(), names_to = "Assumption", values_to = "Checked") %>%
   count(Assumption, Checked) %>%
   group_by(Assumption) %>%
