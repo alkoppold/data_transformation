@@ -152,11 +152,14 @@ data_extract <- data_extract %>% mutate(
                                  
                                  statistical_test %>% grepl("mixed", .) ~ "mixed model",
                                  
-                                 T ~ statistical_test)
+                                 T ~ statistical_test),
+  statistical_test = if_else(statistical_test == "multilevel model", "mixed model", statistical_test) #collapse multilevel & mixed model
 )
 
-data_extract %>% count(statistical_test) %>% arrange(desc(n)) %>% data.frame()
+data_extract %>% checkContent(statistical_test)
 #TODO could include MANOVA & ANCOVA into "ANOVA & extensions". But the same would make sense for correlation & regression. Ultimatively, many models are just a subclass of a linear model so maybe better leave it specific.
+
+data_extract %>% filter(statistical_test %>% is.na()) %>% pull(doi)
 
 data_extract %>% select(statistical_test, statistical_test_details) %>% filter(statistical_test == "multiple")
 #TODO could replace "multiple" with content in details and then put comma separation into long form (but harder to count percentages since they add > 1)
