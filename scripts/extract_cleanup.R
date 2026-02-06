@@ -1,11 +1,11 @@
 library(tidyverse)
 library(gsheet)
-data_extract = gsheet2tbl('https://docs.google.com/spreadsheets/d/1In5IKFNKbVj4WJCawDu2xfr_0CJ3off3Nr5chBaoYYU/edit?gid=1869532958')
 
+data_extract_original = gsheet2tbl('https://docs.google.com/spreadsheets/d/1In5IKFNKbVj4WJCawDu2xfr_0CJ3off3Nr5chBaoYYU/edit?gid=1869532958')
 
 # Renaming ----------------------------------------------------------------
-#data_extract %>% names()
-data_extract = data_extract %>% 
+#data_extract_original %>% names()
+data_extract = data_extract_original %>% 
   #manual renames to avoid error in subsequent rename_with
   rename(normality_how = `If yes, how? (e.g., specific test or visually), if no: NA`,
          homoscedasticity_how = `If yes, how?  (e.g., specific test or visually), if no: NA...27`,
@@ -41,11 +41,16 @@ data_extract = data_extract %>%
          statistical_test   = `Main statistical test: ttest, AN(C)OVA, correlation, regression, mixed model, other (ask Perplexity.ai with copy pasting info from the method section)`,
          statistical_test_details = `Main statistical test: further specification (e.g., non-parametric test), if ANCOVA: centered covariate?, if mixed model: paste formula here, of other: name of test (e.g. chi-squared, MANOVA)`
          ) %>% 
-  rename_with(\(x) x %>% gsub("\\s*\\([^)]*\\)", "", .) %>% gsub(" ", "_", .)) %>% #get rid of info in parentheses & replace space with "_"
+  rename_with(\(x) x %>% gsub("\\s*\\([^)]*\\)", "", .) %>% gsub(" ", "_", .)) #get rid of info in parentheses & replace space with "_"
+
+tibble(new = data_extract %>% names(), old = data_extract_original %>% names()) %>% print(n = nrow(.))
+
+
+# Deselect Variables ------------------------------------------------------
+data_extract = data_extract %>% 
   select(-sphericity_old) %>% 
   select(-n_with_exclusions) #check number of matches with n_before_exclusion for internal validation?
 #TODO: deselect more variables that have not been extracted consistently or not been validated?
-data_extract %>% names()
 
 # Exclusions --------------------------------------------------------------
 ## Exclude some studies due to several reasons (listed where?)
