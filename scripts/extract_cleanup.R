@@ -80,21 +80,60 @@ doi_exclude_studies <- c(
   "10.1093/sleep/zsad209"
 )
 
+data_extract %>% filter(doi %in% doi_exclude_studies) #check exclusions
+#TODO skip this step as studies are already excluded?
+
 #data_extract <- data_extract[!is.element(data_extract$doi, doi_exclude_studies), ]
 data_extract = data_extract %>% filter(doi %in% doi_exclude_studies == F)
 
-#TODO deselect some columns that have not been coded consistently
-
 # Longer Format -----------------------------------------------------------
+data_extract %>% count(doi) %>% filter(n != 1)
+
 #TODO put some columns into longer format if they contain several pieces of information (identifier = DOI)
 #or maybe just do this later in order to not duplicate some other entries that are always unique?
 
 
-# TODO check individual columns and clean them up -------------------------
+# Check & Clean Columns of Interest ---------------------------------------
+checkContent = function(df, col) df %>% count(!!rlang::ensym(col)) %>% arrange(desc(n)) %>% print(n = nrow(.))
 
 
-# Statistical Test --------------------------------------------------------
-data_extract %>% count(statistical_test) %>% arrange(desc(n)) %>% data.frame()
+# * Data Transformations --------------------------------------------------
+data_extract.dt = data_extract %>% select(HR:PUPIL_SIZE) %>% 
+  pivot_longer(everything(), names_to = "DV", values_to = "transformation") %>% 
+  filter(transformation %>% is.na() == F)
+
+data_extract.dt %>% checkContent(DV)
+#data_extract %>% filter(EMG_orbicularis_oculi %>% is.na() == F) %>% select(Extractor, doi:title, starts_with("EMG_"))
+#data_extract %>% filter(EMG_orbicularis_oculi %>% is.na() == F, EMG_orbicularis_oculi != EMG_startle) %>% select(Extractor, doi:title, starts_with("EMG_"))
+#manual check: EMG_orbicularis_oculi has never been used outside of fear potentiated startle => exclude
+
+data_extract.dt %>% checkContent(transformation)
+
+
+# * n_before_exclusion ----------------------------------------------------
+data_extract %>% 
+  mutate(n_before_exclusion = n_before_exclusion %>% 
+           #gsub("Exp\\.?\\w?:?\\w?", "ExpX:", .) %>% 
+           gsub("\\d+", "N", .) #generify number
+  ) %>% 
+  checkContent(n_before_exclusion)
+
+#TODO longer format with DOI as identifier
+
+# * n_after_exclusion -----------------------------------------------------
+data_extract %>% 
+  mutate(n_after_exclusion = n_after_exclusion %>% 
+           #gsub("Exp\\.?\\w?:?\\w?", "ExpX:", .) %>% 
+           gsub("\\d+", "N", .) #generify number
+  ) %>% 
+  checkContent(n_after_exclusion)
+
+
+# * mental_health_exclusion -----------------------------------------------
+data_extract %>% checkContent(mental_health_exclusion)
+
+# * Statistical Test ------------------------------------------------------
+data_extract %>% checkContent(statistical_test)
 #TODO check "general linear model" (could be an emulation of ANOVA/regression or even a mixed model)
 #TODO check "bayesian model" (what kind?)
 #TODO check "generalized estimating equation model" & "path analysis". Are they are kind of SEM?
