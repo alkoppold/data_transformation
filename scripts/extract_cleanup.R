@@ -4,15 +4,15 @@ data_extract = gsheet2tbl('https://docs.google.com/spreadsheets/d/1In5IKFNKbVj4W
 
 
 # Renaming ----------------------------------------------------------------
-data_extract %>% names()
+#data_extract %>% names()
 data_extract = data_extract %>% 
   #manual renames to avoid error in subsequent rename_with
-  rename("normality how" = `If yes, how? (e.g., specific test or visually), if no: NA`,
-         "homoscedasticity how" = `If yes, how?  (e.g., specific test or visually), if no: NA...27`,
-         "independence how" = `If yes, how?  (e.g., specific test or visually), if no: NA...31`) %>% 
+  rename(normality_how = `If yes, how? (e.g., specific test or visually), if no: NA`,
+         homoscedasticity_how = `If yes, how?  (e.g., specific test or visually), if no: NA...27`,
+         independence_how = `If yes, how?  (e.g., specific test or visually), if no: NA...31`) %>% 
   #rename_with(\(x) {x %>% str_extract("^\\S+(\\s+\\S+){0,3}")}) %>% #extract first 1-4 words
-  rename_with(\(x) x %>% str_extract("^\\S+\\s+\\S+"), .cols = starts_with("open")) %>%
-  rename_with(\(x) x %>% str_extract("^\\S+"), .cols = starts_with("n_")) %>% 
+  rename_with(\(x) x %>% str_extract("^\\S+\\s+\\S+"), .cols = starts_with("open")) %>% #extract first 2 words for columns starting with "open"
+  rename_with(\(x) x %>% str_extract("^\\S+"), .cols = starts_with("n_")) %>% #extract first word for columns starting with "n_"
   rename(prereg = `preregistration yes/no`,
          cross_vs_long = `longitudinal design (LD), cross-sectional design (CD), unclear`,
          mental_health_exclusion = `mental health disorder exclusion (yes, no, unclear, not reported, partially)`,
@@ -41,10 +41,11 @@ data_extract = data_extract %>%
          statistical_test   = `Main statistical test: ttest, AN(C)OVA, correlation, regression, mixed model, other (ask Perplexity.ai with copy pasting info from the method section)`,
          statistical_test_details = `Main statistical test: further specification (e.g., non-parametric test), if ANCOVA: centered covariate?, if mixed model: paste formula here, of other: name of test (e.g. chi-squared, MANOVA)`
          ) %>% 
-  rename_with(\(x) x %>% gsub(" ", "_", .)) %>% #replace space with "_"
+  rename_with(\(x) x %>% gsub("\\s*\\([^)]*\\)", "", .) %>% gsub(" ", "_", .)) %>% #get rid of info in parentheses & replace space with "_"
   select(-sphericity_old) %>% 
   select(-n_with_exclusions) #check number of matches with n_before_exclusion for internal validation?
 #TODO: deselect more variables that have not been extracted consistently or not been validated?
+data_extract %>% names()
 
 # Exclusions --------------------------------------------------------------
 ## Exclude some studies due to several reasons (listed where?)
