@@ -2,6 +2,42 @@
 
 ###### OUTTAKES ########
 
+### RESULTS
+
+## To prepare in advance:
+
+- add columns to the dataset: would have testing of assumptions been necessary?
+
+
+## Aim 1: Analysis
+
+Calculate reporting frequencies of
+- precise statement if it was applied on a trial-level, averaged first asf.
+- a rationale behind the data transformation
+- assumption testing
+- outlier and criterion
+- open science practices?
+- specific statistical models?
+
+Maybe identify patterns across studies
+- Do studies that report one data transformation aspect also report the others? -> e.g., if trial-level, then also rationale
+-> possible plot: spider
+
+## Möglicher Aufbau
+### a. Descriptives (Replication? in Supplementary)
+n_with_exclusions, n_female_total, age_mean_total, age_sd_total, mental health disorder exclusion, Was an individual level analysis conducted
+
+### b. Assumption Checking (am Beispiel hier mit Normality)
+- Welches Statistische Verfahren vorgeschaltet? 
+- Mario konsultieren
+eine Frage -> dann Sanky mit Antwort und Anzahl, Tina/Mana bars, doughnuts, lolli, waffle/heatmap e.g., Was the normal distribution checked?, If yes, how?, before/after, etc.
+FRAGEN
+- Was the normal distribution checked?
+- Was the homoscedasticity checked?
+- Was the sphericity checked?
+- Was the independence of residuals checked?
+- Was the linearity checked?
+- Was the multicollinearity checked?
 
 ```{r results-assumptions}
 ### Assumption: Normal distribution
@@ -24,3 +60,265 @@ ggplot(normal_distr_data, aes(x = x,
   theme_sankey(base_size = 16)
 
 ```
+
+
+```{r re-transf}
+# reference for transformation type?
+# Load required libraries
+library(tidyverse)
+library(scico)
+library(forcats)
+library(scales)
+library(patchwork)
+
+# Load the relevant data
+#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
+df_ref <- data_extract %>% select(rationale_given = dt_rationale, rationale_type = dt_rationale_details)
+
+# -------------------------
+# PIE 1: Was a rationale reported?
+# -------------------------
+df_pie1 <- df_ref %>%
+  count(response = rationale_given) %>%
+  filter(!is.na(response) & response != "") %>%
+  mutate(
+    percent = n / sum(n),
+    label = paste0(response, "\n", n, " (", percent(percent, accuracy = 1), ")"),
+    ymax = cumsum(percent),
+    ymin = lag(ymax, default = 0),
+    label_pos = (ymin + ymax) / 2
+  )
+
+plot1 <- ggplot(df_pie1, aes(ymax = ymax, ymin = ymin, xmax = 1, xmin = 0, fill = response)) +
+  geom_rect(color = "white") +
+  geom_text(aes(x = 1.2, y = label_pos, label = label), size = 4.5, color = "black", fontface = "bold") +
+  coord_polar(theta = "y") +
+  xlim(c(-0.5, 1.5)) +
+  scale_fill_scico_d(palette = "roma", direction = -1) +
+  theme_void(base_family = "Helvetica") +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0)
+  ) +
+  labs(title = "Was a Rationale for Transformation Reported?")
+
+# -------------------------
+# PIE 2: What kind of rationale (only for 'yes')
+# -------------------------
+df_pie2 <- df_ref %>%
+  filter(tolower(rationale_given) == "yes", !is.na(rationale_type), rationale_type != "") %>%
+  count(response = rationale_type) %>%
+  mutate(
+    percent = n / sum(n),
+    label = paste0(response, "\n", n, " (", percent(percent, accuracy = 1), ")"),
+    ymax = cumsum(percent),
+    ymin = lag(ymax, default = 0),
+    label_pos = (ymin + ymax) / 2
+  )
+
+plot2 <- ggplot(df_pie2, aes(ymax = ymax, ymin = ymin, xmax = 1, xmin = 0, fill = response)) +
+  geom_rect(color = "white") +
+  geom_text(aes(x = 1.2, y = label_pos, label = label), size = 4.5, color = "black", fontface = "bold") +
+  coord_polar(theta = "y") +
+  xlim(c(-0.5, 1.5)) +
+  scale_fill_scico_d(palette = "roma", direction = -1) +
+  theme_void(base_family = "Helvetica") +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0)
+  ) +
+  labs(title = "What Kind of Rationale Was Given?")
+
+# -------------------------
+# Combine both plots
+# -------------------------
+plot1 / plot2 + plot_layout(heights = c(1, 1.2))
+
+
+# Prepare data
+df_bar1 <- df_ref %>%
+  count(response = rationale_given) %>%
+  filter(!is.na(response) & response != "") %>%
+  mutate(
+    percent = n / sum(n),
+    label = paste0(" (", percent(round(percent, digits = 3)), ")"),
+    response = fct_reorder(response, n)
+  )
+
+# Create modern bar plot
+ggplot(df_bar1, aes(x = fct_rev(response), y = percent, fill = response)) +
+  geom_col(width = 0.6, alpha = 0.9) +
+  geom_text(aes(label = label), hjust = -0.1, size = 4.5, color = "gray20", fontface = "bold") +
+  coord_flip() +
+  scale_y_continuous(labels = percent_format(accuracy = 1), expand = expansion(mult = c(0, 0.2))) +
+  scale_fill_scico_d(palette = "roma", direction = -1, guide = "none") +
+  theme_classic(base_size = 15) +
+  theme(
+    axis.title = element_blank(),
+    axis.text = element_text(color = "gray10"),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0)
+  ) +
+  labs(title = "Was a Rationale for Transformation Reported?")
+
+
+```
+
+
+```{r results-individual-level-analysis}
+
+## Table the column with individual level analysis info
+table_ind_analysis <- data_extract[grep("individual.level.analysis", names(data_extract))]
+table_ind_analysis <- table_ind_analysis[ ,1]
+table_ind_analysis <- as.data.frame(table(table_ind_analysis))
+colnames(table_ind_analysis) <- c("category", "count")
+
+
+# Compute percentages
+table_ind_analysis$fraction <- table_ind_analysis$count / sum(table_ind_analysis$count)
+
+# Compute the cumulative percentages (top of each rectangle)
+table_ind_analysis$ymax <- cumsum(table_ind_analysis$fraction)
+
+# Compute the bottom of each rectangle
+table_ind_analysis$ymin <- c(0, head(table_ind_analysis$ymax, n=-1))
+
+# Compute label position
+table_ind_analysis$labelPosition <- (table_ind_analysis$ymax + table_ind_analysis$ymin) / 2
+
+# Compute a good label
+table_ind_analysis$label <- paste0(table_ind_analysis$category, ": ", table_ind_analysis$count)
+
+# Create the plot
+ggplot(table_ind_analysis, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=category)) +
+  geom_rect() +
+  geom_label(x = 3.5, aes(y = labelPosition, label = label), size = 6) +
+  scale_fill_brewer(palette = "Set3") +
+  coord_polar(theta = "y") +
+  xlim(c(2, 4)) +
+  ggtitle("Individual analysis included?") +
+  theme_void() +
+  theme(legend.position = "none")
+
+```
+
+
+### e. Outcome Measures
+Binary presence/absence analysis
+pattern identifizieren
+the use of different psychophysioligical outcomes?scr, emg 
+dot-plot-simulation
+
+```{r results-outcome-measures}
+#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
+data_outcome_measure <- data_extract %>%
+  select(`HR`:PUPIL_SIZE) %>%
+  rename(
+   #"HR" = HR (BPM)
+   #"EMG orbicularis oculi" = EMG.orbicularis.oculi,
+   #"EMG startle" = EMG.startle,
+  ## "EYE tracking" = EYE.tracking,
+   #"pupil size" = PUPIL.SIZE
+  ) %>%
+  filter(!if_all(everything(), ~ is.na(.) | . == "")) %>%
+  mutate(id = row_number()) %>%  # Add ID if no group exists
+  pivot_longer(
+    cols = -id,
+    names_to = "Measure",
+    values_to = "Transformation"
+  ) %>%
+  drop_na(Transformation) %>%
+  count(Measure, Transformation) %>%
+  group_by(Measure) %>%
+  mutate(
+    percent = n / sum(n),
+    label = scales::percent(percent)
+  )
+
+ggplot(data_outcome_measure, aes(x = factor(Measure), y = n, fill = Transformation)) +
+  geom_bar(stat = "identity") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  geom_text(aes(label = label), 
+            position = position_stack(vjust = 0.5), 
+            color = "white", size = 4, fontface = "bold") +
+  lit_theme +
+  theme(#axis.text.y = element_blank(),
+        #axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        #axis.title.y = element_blank(),
+        legend.position = "top")+
+  coord_flip()+
+  labs(y = "n studies")
+
+### add combinations of data transformations
+
+```
+
+
+### f. Statistical Models
+Statistical model, Main statistical test, further specification
+- Count and visualize test types (t-test, ANOVA, mixed models)
+- Compare test choice across study types or transformation practices
+- Association with whether assumptions were tested
+
+```{r results-statistical-models}
+#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
+data_stat_models <- data_extract %>%
+  select(design:statistical_test_details) %>%
+  filter(!if_all(everything(), ~ is.na(.) | . == ""))%>%
+  make_long(design, `levels of largest within factor`, `statistical test`, `statistical test details`)%>%
+  filter(!if_all(c(node), is.na))
+
+ggplot(data_stat_models, aes(x = x, 
+               next_x = next_x, 
+               node = node, 
+               next_node = next_node,
+               fill = factor(node),
+               label = node)) +
+  geom_sankey(flow.alpha = 0.5, node.color = 1) +
+  geom_sankey_label(size = 4, color = 1, fill = "white") +
+  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  lit_theme + 
+  theme(axis.text.y = element_blank(),
+                    axis.ticks.y = element_blank(),
+                    axis.title.x = element_blank())
+```
+
+
+
+```{r results-mental-health}
+
+## Table the column with mental health info
+table_health_info <- as.data.frame(table(data_extract[grep("mental.health.disorder", names(data_extract))]))
+colnames(table_health_info) <- c("category", "count")
+
+
+# Compute percentages
+table_health_info$fraction <- table_health_info$count / sum(table_health_info$count)
+
+# Compute the cumulative percentages (top of each rectangle)
+table_health_info$ymax <- cumsum(table_health_info$fraction)
+
+# Compute the bottom of each rectangle
+table_health_info$ymin <- c(0, head(table_health_info$ymax, n=-1))
+
+# Compute label position
+table_health_info$labelPosition <- (table_health_info$ymax + table_health_info$ymin) / 2
+
+# Compute a good label
+table_health_info$label <- paste0(table_health_info$category, ": ", table_health_info$count)
+
+# Create the plot
+ggplot(table_health_info, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill=category)) +
+  geom_rect() +
+  geom_label(x = 3.5, aes(y = labelPosition, label = label), size = 6) +
+  scale_fill_brewer(palette = "Set2") +
+  coord_polar(theta = "y") +
+  xlim(c(2, 4)) +
+  ggtitle("Mental health disorder exclusion?") +
+  theme_void() +
+  theme(legend.position = "none")
+
+
+```
+
+
