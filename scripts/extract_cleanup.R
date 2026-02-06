@@ -7,9 +7,9 @@ data_extract = gsheet2tbl('https://docs.google.com/spreadsheets/d/1In5IKFNKbVj4W
 data_extract %>% names()
 data_extract = data_extract %>% 
   #manual renames to avoid error in subsequent rename_with
-  rename("normality how" = `If yes, how? (e.g., specific test or visually), if no: NA`,
-         "homoscedasticity how" = `If yes, how?  (e.g., specific test or visually), if no: NA...27`,
-         "independence how" = `If yes, how?  (e.g., specific test or visually), if no: NA...31`) %>% 
+  rename(normality_how = `If yes, how? (e.g., specific test or visually), if no: NA`,
+         homoscedasticity_how = `If yes, how?  (e.g., specific test or visually), if no: NA...27`,
+         independence_how = `If yes, how?  (e.g., specific test or visually), if no: NA...31`) %>% 
   #rename_with(\(x) {x %>% str_extract("^\\S+(\\s+\\S+){0,3}")}) %>% #extract first 1-4 words
   rename_with(\(x) x %>% str_extract("^\\S+\\s+\\S+"), .cols = starts_with("open")) %>%
   rename_with(\(x) x %>% str_extract("^\\S+"), .cols = starts_with("n_")) %>% 
