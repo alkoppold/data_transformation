@@ -142,14 +142,16 @@ data_extract.dt %>% #start with data_extract to avoid duplicates from data trans
 # Even Longer Format: Sample Sizes ----------------------------------------
 data_extract.N = data_extract.dt %>% #start with data_extract.dt to retain DV row (if n_* has one entry but there are several DVs, N counts for all DVs and should be duplicated for explicitness)
   mutate(across(starts_with("n_"), \(x) x %>% gsub(",", ";", .) %>% na_if("not reported"))) %>% 
-  mutate() %>% #temporary fix
+  mutate(n_after_exclusion = case_when(n_after_exclusion %>% str_detect("not reported") ~ NA, #temporary fix for "partially not reported" & "not reported in E*"
+                                       n_after_exclusion %>% str_detect("cued fear") ~ NA, #temporary fix
+                                       T ~ n_after_exclusion)) %>% 
   separate_longer_delim(starts_with("n_"), ";") %>% 
   #filter(n_before_exclusion %>% grepl("^\\d+$", .) == F) %>% 
   #filter(if_any(starts_with("n_"), \(x) x %>% grepl("^\\d+$", .) == F)) %>% #only entries that are not completely made up of digits
   mutate(DV2 = n_after_exclusion %>% str_extract("\\b[a-zA-Z]+\\b")) %>% relocate(starts_with("DV")) #extract measurement (dependent variable, DV) from n_after_exclusion (if n_before_exclusion has several measurements, so does n_after_exclusion)
 
 dv.descriptors = data_extract.dt %>% pull(DV) %>% unique() %>% sort()
-data_extract.N %>% pull(DV2) %>% unique() %>% sort() %>% setdiff(dv.descriptors) #invalid descriptors
+#data_extract.N %>% pull(DV2) %>% unique() %>% sort() %>% setdiff(dv.descriptors) #check invalid descriptors
 
 data_extract.N = data_extract.N %>% 
   filter(DV == DV2 | DV2 %>% is.na() | DV2 %in% dv.descriptors == F) %>% 
@@ -158,11 +160,12 @@ data_extract.N = data_extract.N %>%
          retention = n_after_exclusion / n_before_exclusion, exclusion = 1 - retention) %>% 
   relocate(starts_with("DV"), exclusion, retention, starts_with("n_"))
 
-#data_extract.N %>% filter(doi %in% {data_extract.N %>% count(doi) %>% filter(n > 1) %>% pull(doi)}) %>% View()
+data_extract.dt %>% anti_join(data_extract.N %>% select(DV, doi)) #detect entries with missing (sub-)sample size
+#data_extract.N %>% filter(doi %in% {data_extract.N %>% count(doi) %>% filter(n > 1) %>% pull(doi)}) %>% View("multiple Entries")
+data_extract.N %>% filter(DV2 %>% is.na() == F) %>% View("changed entries")
+data_extract.N %>% arrange(retention) #TODO check lowest entries for plausibility
 
-data_extract.N %>% filter(DV != DV2) #TODO get rid of all these mismatches (NA is ok!)
-data_extract.N = data_extract.N %>% select(-DV2)
-#TODO when everything works here, we should be able to overwrite data_extract.dt and rm(data_extract.N)
+data_extract.dt = data_extract.N %>% select(-DV2)
 
 # * mental_health_exclusion -----------------------------------------------
 data_extract %>% checkContent(mental_health_exclusion)
