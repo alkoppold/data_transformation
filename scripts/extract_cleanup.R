@@ -177,9 +177,8 @@ data_extract %>% checkContent(mental_health_exclusion)
 # * Statistical Test ------------------------------------------------------
 data_extract %>% checkContent(statistical_test)
 #TODO check "general linear model" (could be an emulation of ANOVA/regression or even a mixed model)
+#TODO collapse regression & correlation? (but ANOVA & ttest are also separate)
 #TODO check "bayesian model" (what kind?)
-#TODO check "generalized estimating equation model" & "path analysis". Are they are kind of SEM?
-#TODO check "multivariate model for repeated measures"
 
 #data_extract %>% filter(statistical_test %>% is.na()) %>% pull(doi)
 data_extract %>% filter(statistical_test == "multiple") %>% select(doi, statistical_test_details)
@@ -204,7 +203,8 @@ data_extract.tests = data_extract %>%
                                  
                                  statistical_test %>% str_detect("regression") ~ "regression",
                                  
-                                 statistical_test %>% str_detect("equation") ~ "Structural Equation Modeling", 
+                                 statistical_test %>% str_detect("equation") ~ "Structural Equation Modeling",
+                                 statistical_test %>% str_detect("path") ~ "Structural Equation Modeling", 
                                  
                                  statistical_test %>% grepl("growth", .) ~ "computational modeling", #"multilevel growth" = "computational" not "hierarchical"
                                  #statistical_test == "growth curve models with multilevel modelling" ~ "multilevel growth curve model",
