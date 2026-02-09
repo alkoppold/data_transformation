@@ -5,7 +5,7 @@ data_extract.original = gsheet2tbl('https://docs.google.com/spreadsheets/d/1In5I
 
 # Renaming ----------------------------------------------------------------
 #data_extract_original %>% names()
-data_extract.wide.original = data_extract.original %>% 
+data_extract.original = data_extract.original %>% 
   #manual renames to avoid error in subsequent rename_with
   rename(normality_how = `If yes, how? (e.g., specific test or visually), if no: NA`,
          homoscedasticity_how = `If yes, how?  (e.g., specific test or visually), if no: NA...27`,
@@ -43,11 +43,11 @@ data_extract.wide.original = data_extract.original %>%
          ) %>% 
   rename_with(\(x) x %>% gsub("\\s*\\([^)]*\\)", "", .) %>% gsub(" ", "_", .)) #get rid of info in parentheses & replace space with "_"
 
-tibble(new = data_extract.wide.original %>% names(), old = data_extract.original %>% names()) %>% print(n = nrow(.))
+tibble(new = data_extract.original %>% names(), old = data_extract.original %>% names()) %>% print(n = nrow(.))
 
 
 # Deselect Variables ------------------------------------------------------
-data_extract.wide = data_extract.wide.original %>% 
+data_extract = data_extract.original %>% 
   select(-keywords) %>% 
   select(-sphericity_old) %>% 
   select(-n_with_exclusions) %>% #check number of matches with n_before_exclusion for internal validation?
@@ -82,22 +82,26 @@ doi_exclude_studies <- c(
   "10.1093/sleep/zsad209"
 )
 
-data_extract.wide %>% filter(doi %in% doi_exclude_studies) #check exclusions
+data_extract %>% filter(doi %in% doi_exclude_studies) #check exclusions
 #TODO skip this step as studies are already excluded?
 
-data_extract.wide = data_extract.wide %>% filter(doi %in% doi_exclude_studies == F)
+data_extract = data_extract %>% filter(doi %in% doi_exclude_studies == F)
+N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
 
 
-# Longer Format -----------------------------------------------------------
-data_extract.wide %>% count(doi) %>% filter(n != 1)
-#data_extract.wide %>% filter(doi %>% is.na()) %>% select(title) #manually replaced NAs
+# Longer Format: Data Transformations -------------------------------------
+data_extract %>% count(doi) %>% filter(n != 1)
+#data_extract %>% filter(doi %>% is.na()) %>% select(title) #manually replaced NAs
 
 #TODO put some columns into longer format if they contain several pieces of information (identifier = DOI)
 #or maybe just do this later in order to not duplicate some other entries that are always unique?
-data_extract.long.temp = data_extract.wide %>% 
+data_extract.dt = data_extract %>% 
   pivot_longer(HR:PUPIL_SIZE, names_to = "DV", values_to = "transformation") %>% 
   filter(transformation %>% is.na() == F) %>% 
-  mutate(DV = DV %>% gsub("EMG_", "", .)) %>% 
+  mutate(DV = DV %>% gsub("EMG_", "", .)) %>% #just "startle" instead of "EMG_startle"
+  mutate(DV = DV %>% gsub("PUPIL_SIZE", "pupil", .)) %>% 
+  mutate(DV = DV %>% gsub("EYE_tracking", "eye", .)) %>% 
+  filter(DV != "orbicularis_oculi") %>% #temporary fix
   relocate(DV)
 
 # Check & Clean Columns of Interest ---------------------------------------
@@ -105,17 +109,17 @@ checkContent = function(df, col) df %>% count(!!rlang::ensym(col)) %>% arrange(d
 
 
 # * Data Transformations --------------------------------------------------
-data_extract.long.temp %>% checkContent(DV)
+data_extract.dt %>% checkContent(DV) %>% mutate(p = n / N_studies)
 #data_extract %>% filter(EMG_orbicularis_oculi %>% is.na() == F) %>% select(Extractor, doi:title, starts_with("EMG_"))
 #data_extract %>% filter(EMG_orbicularis_oculi %>% is.na() == F, EMG_orbicularis_oculi != EMG_startle) %>% select(Extractor, doi:title, starts_with("EMG_"))
 #manual check: EMG_orbicularis_oculi has never been used outside of fear potentiated startle => exclude
 
-data_extract.long.temp %>% checkContent(transformation)
+data_extract.dt %>% checkContent(transformation)
 #TODO even longer format with separate_longer_delim ?
 
 
 # * n_before_exclusion ----------------------------------------------------
-data_extract.long.temp %>% 
+data_extract %>% #start with data_extract to avoid duplicates from data transformations
   mutate(n_before_exclusion = n_before_exclusion %>% 
            #gsub("Exp\\.?\\w?:?\\w?", "ExpX:", .) %>%  #different experiments shall just be added up => recoded manually
            gsub("\\d+", "N", .) #generify number for check
@@ -123,7 +127,7 @@ data_extract.long.temp %>%
   checkContent(n_before_exclusion)
 
 # * n_after_exclusion -----------------------------------------------------
-data_extract.long.temp %>% 
+data_extract.dt %>% #start with data_extract to avoid duplicates from data transformations
   mutate(n_after_exclusion = n_after_exclusion %>% 
            #gsub("Exp\\.?\\w?:?\\w?", "ExpX:", .) %>% 
            gsub("\\d+", "N", .) #generify number for check
@@ -134,38 +138,44 @@ data_extract.long.temp %>%
 #TODO check "not reported in E"
 
 
-# Even Longer Format ------------------------------------------------------
-data_extract.long = data_extract.long.temp %>% 
-  filter(DV != "orbicularis_oculi") %>% #temporary fix
+
+# Even Longer Format: Sample Sizes ----------------------------------------
+data_extract.N = data_extract.dt %>% #start with data_extract.dt to retain DV row (if n_* has one entry but there are several DVs, N counts for all DVs and should be duplicated for explicitness)
   mutate(across(starts_with("n_"), \(x) x %>% gsub(",", ";", .) %>% na_if("not reported"))) %>% 
+  mutate() %>% #temporary fix
   separate_longer_delim(starts_with("n_"), ";") %>% 
   #filter(n_before_exclusion %>% grepl("^\\d+$", .) == F) %>% 
   #filter(if_any(starts_with("n_"), \(x) x %>% grepl("^\\d+$", .) == F)) %>% #only entries that are not completely made up of digits
-  mutate(DV2 = n_after_exclusion %>% str_extract("\\b[a-zA-Z]+\\b")) %>% relocate(starts_with("DV")) %>% #extract measurement (dependent variable, DV) from n_after_exclusion (if n_before_exclusion has several measurements, so does n_after_exclusion)
-  filter(DV2 %>% is.na() | DV == DV2) %>% 
-  
+  mutate(DV2 = n_after_exclusion %>% str_extract("\\b[a-zA-Z]+\\b")) %>% relocate(starts_with("DV")) #extract measurement (dependent variable, DV) from n_after_exclusion (if n_before_exclusion has several measurements, so does n_after_exclusion)
+
+dv.descriptors = data_extract.dt %>% pull(DV) %>% unique() %>% sort()
+data_extract.N %>% pull(DV2) %>% unique() %>% sort() %>% setdiff(dv.descriptors) #invalid descriptors
+
+data_extract.N = data_extract.N %>% 
+  filter(DV == DV2 | DV2 %>% is.na() | DV2 %in% dv.descriptors == F) %>% 
   mutate(across(starts_with("n_"), \(x) x %>% gsub("\\D", "", .)), #delete everything that is not a digit
          across(starts_with("n_"), as.integer),
          retention = n_after_exclusion / n_before_exclusion, exclusion = 1 - retention) %>% 
   relocate(starts_with("DV"), exclusion, retention, starts_with("n_"))
 
-data_extract.long %>% filter(doi %in% {data_extract.long %>% count(doi) %>% filter(n > 1) %>% pull(doi)})
+#data_extract.N %>% filter(doi %in% {data_extract.N %>% count(doi) %>% filter(n > 1) %>% pull(doi)}) %>% View()
 
-#data_extract.long %>% filter(DV != DV2)
-data_extract.long = data_extract.long %>% select(-DV2)
+data_extract.N %>% filter(DV != DV2) #TODO get rid of all these mismatches (NA is ok!)
+data_extract.N = data_extract.N %>% select(-DV2)
+#TODO when everything works here, we should be able to overwrite data_extract.dt and rm(data_extract.N)
 
 # * mental_health_exclusion -----------------------------------------------
-data_extract.wide %>% checkContent(mental_health_exclusion)
+data_extract %>% checkContent(mental_health_exclusion)
 
 # * Statistical Test ------------------------------------------------------
-data_extract.wide %>% checkContent(statistical_test)
+data_extract %>% checkContent(statistical_test)
 #TODO check "general linear model" (could be an emulation of ANOVA/regression or even a mixed model)
 #TODO check "bayesian model" (what kind?)
 #TODO check "generalized estimating equation model" & "path analysis". Are they are kind of SEM?
 #TODO check "multivariate model for repeated measures"
 
-#data_extract.wide %>% select(statistical_test, `statistical test details`) %>% filter(statistical_test == "rmANOVA")
-data_extract.wide <- data_extract.wide %>% mutate(
+#data_extract %>% select(statistical_test, `statistical test details`) %>% filter(statistical_test == "rmANOVA")
+data_extract <- data_extract %>% mutate(
   statistical_test = case_when(statistical_test == "rmANOVA" ~ "ANOVA", #rmANOVA is specified in details
                                  
                                  statistical_test %>% grepl("growth", .) ~ "computational modeling", #"multilevel growth" = "computational" not "hierarchical"
@@ -181,14 +191,14 @@ data_extract.wide <- data_extract.wide %>% mutate(
   statistical_test = if_else(statistical_test == "multilevel model", "mixed model", statistical_test) #collapse multilevel & mixed model
 )
 
-data_extract.wide %>% checkContent(statistical_test)
+data_extract %>% checkContent(statistical_test)
 #TODO could include MANOVA & ANCOVA into "ANOVA & extensions". But the same would make sense for correlation & regression. Ultimatively, many models are just a subclass of a linear model so maybe better leave it specific.
 
-data_extract.wide %>% filter(statistical_test %>% is.na()) %>% pull(doi)
+data_extract %>% filter(statistical_test %>% is.na()) %>% pull(doi)
 
-data_extract.wide %>% select(statistical_test, statistical_test_details) %>% filter(statistical_test == "multiple")
+data_extract %>% select(statistical_test, statistical_test_details) %>% filter(statistical_test == "multiple")
 #TODO could replace "multiple" with content in details and then put comma separation into long form (but harder to count percentages since they add > 1)
 
 # Write to RDS ------------------------------------------------------------
-data_extract.wide %>% write_rds("data/data_extract.wide.rds")
-data_extract.long %>% write_rds("data/data_extract.long.rds")
+data_extract %>% write_rds("data/data_extract.rds")
+data_extract.dt %>% write_rds("data/data_extract.dt.rds")
