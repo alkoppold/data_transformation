@@ -48,8 +48,10 @@ tibble(new = data_extract %>% names(), old = data_extract_original %>% names()) 
 
 # Deselect Variables ------------------------------------------------------
 data_extract = data_extract %>% 
+  select(-keywords) %>% 
   select(-sphericity_old) %>% 
-  select(-n_with_exclusions) #check number of matches with n_before_exclusion for internal validation?
+  select(-n_with_exclusions) %>% #check number of matches with n_before_exclusion for internal validation?
+  select(-n_female_total, -starts_with("age_"))
 #TODO: deselect more variables that have not been extracted consistently or not been validated?
 
 # Exclusions --------------------------------------------------------------
