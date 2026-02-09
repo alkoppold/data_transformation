@@ -162,7 +162,7 @@ data_extract.N = data_extract.N %>%
 
 data_extract.dt %>% anti_join(data_extract.N %>% select(DV, doi)) #detect entries with missing (sub-)sample size
 #data_extract.N %>% filter(doi %in% {data_extract.N %>% count(doi) %>% filter(n > 1) %>% pull(doi)}) %>% View("multiple Entries")
-data_extract.N %>% filter(DV2 %>% is.na() == F) %>% View("changed entries")
+#data_extract.N %>% filter(DV2 %>% is.na() == F) %>% View("changed entries")
 data_extract.N %>% arrange(retention) #TODO check lowest entries for plausibility
 
 data_extract.dt = data_extract.N %>% select(-DV2)
@@ -177,9 +177,30 @@ data_extract %>% checkContent(statistical_test)
 #TODO check "generalized estimating equation model" & "path analysis". Are they are kind of SEM?
 #TODO check "multivariate model for repeated measures"
 
-#data_extract %>% select(statistical_test, `statistical test details`) %>% filter(statistical_test == "rmANOVA")
-data_extract <- data_extract %>% mutate(
-  statistical_test = case_when(statistical_test == "rmANOVA" ~ "ANOVA", #rmANOVA is specified in details
+#data_extract %>% filter(statistical_test %>% is.na()) %>% pull(doi)
+data_extract %>% filter(statistical_test == "multiple") %>% select(doi, statistical_test_details)
+
+data_extract.tests = data_extract %>% 
+  relocate(statistical_test) %>% 
+  #filter(statistical_test == "multiple") %>% #for testing
+  mutate(statistical_test = if_else(statistical_test == "multiple", statistical_test_details, statistical_test)) %>% 
+  separate_longer_delim(statistical_test, ", ") %>% 
+  
+  mutate(
+    statistical_test = case_when(statistical_test == "rmANOVA" ~ "ANOVA", #should only be specified in details
+                                 statistical_test == "ANCOVA" ~ "ANOVA", #should only be specified in details
+                                 statistical_test %>% str_detect("multivariate") ~ "ANOVA", #should only be specified in details
+                                 statistical_test %>% str_detect("planned contrasts") ~ "ANOVA", #we subsume planned contrasts into the omnibus model used for the contrasts
+                                 
+                                 statistical_test %>% str_detect("ttest") ~ "ttest",
+                                 statistical_test %>% str_detect("Welch") ~ "ttest", #(for unequal variances)
+                                 
+                                 statistical_test %>% str_detect("Whitney") ~ "ordinal ttest", #for independent samples
+                                 statistical_test %>% str_detect("Wilcoxon") ~ "ordinal ttest", #for paired samples
+                                 
+                                 statistical_test %>% str_detect("regression") ~ "regression",
+                                 
+                                 statistical_test %>% str_detect("equation") ~ "Structural Equation Modeling", 
                                  
                                  statistical_test %>% grepl("growth", .) ~ "computational modeling", #"multilevel growth" = "computational" not "hierarchical"
                                  #statistical_test == "growth curve models with multilevel modelling" ~ "multilevel growth curve model",
@@ -191,17 +212,16 @@ data_extract <- data_extract %>% mutate(
                                  statistical_test %>% grepl("mixed", .) ~ "mixed model",
                                  
                                  T ~ statistical_test),
-  statistical_test = if_else(statistical_test == "multilevel model", "mixed model", statistical_test) #collapse multilevel & mixed model
+    statistical_test = if_else(statistical_test == "multilevel model", "mixed model", statistical_test) #collapse multilevel & mixed model
 )
 
-data_extract %>% checkContent(statistical_test)
-#TODO could include MANOVA & ANCOVA into "ANOVA & extensions". But the same would make sense for correlation & regression. Ultimatively, many models are just a subclass of a linear model so maybe better leave it specific.
+#data_extract.tests %>% filter(doi %in% {data_extract %>% filter(statistical_test == "multiple") %>% pull(doi)}) %>% checkContent(statistical_test)
+#data_extract.tests %>% select(statistical_test, statistical_test_details) %>% filter(statistical_test == "rmANOVA")
 
-data_extract %>% filter(statistical_test %>% is.na()) %>% pull(doi)
+data_extract.tests %>% checkContent(statistical_test) %>% mutate(p = n / N_studies)
 
-data_extract %>% select(statistical_test, statistical_test_details) %>% filter(statistical_test == "multiple")
-#TODO could replace "multiple" with content in details and then put comma separation into long form (but harder to count percentages since they add > 1)
 
 # Write to RDS ------------------------------------------------------------
 data_extract %>% write_rds("data/data_extract.rds")
 data_extract.dt %>% write_rds("data/data_extract.dt.rds")
+data_extract.tests %>% write_rds("data/data_extract.tests.rds")
