@@ -118,7 +118,9 @@ data_extract.dt %>% checkContent(transformation)
 #TODO even longer format with separate_longer_delim ?
 
 
-# * n_before_exclusion ----------------------------------------------------
+
+# * Sample Sizes ----------------------------------------------------------
+# * * n_before_exclusion --------------------------------------------------
 data_extract %>% #start with data_extract to avoid duplicates from data transformations
   mutate(n_before_exclusion = n_before_exclusion %>% 
            #gsub("Exp\\.?\\w?:?\\w?", "ExpX:", .) %>%  #different experiments shall just be added up => recoded manually
@@ -126,7 +128,7 @@ data_extract %>% #start with data_extract to avoid duplicates from data transfor
   ) %>% 
   checkContent(n_before_exclusion)
 
-# * n_after_exclusion -----------------------------------------------------
+# * * n_after_exclusion ---------------------------------------------------
 data_extract.dt %>% #start with data_extract to avoid duplicates from data transformations
   mutate(n_after_exclusion = n_after_exclusion %>% 
            #gsub("Exp\\.?\\w?:?\\w?", "ExpX:", .) %>% 
@@ -138,8 +140,7 @@ data_extract.dt %>% #start with data_extract to avoid duplicates from data trans
 #TODO check "not reported in E"
 
 
-
-# Even Longer Format: Sample Sizes ----------------------------------------
+# * * Longer Format: Sample Sizes -----------------------------------------
 data_extract.N = data_extract.dt %>% #start with data_extract.dt to retain DV row (if n_* has one entry but there are several DVs, N counts for all DVs and should be duplicated for explicitness)
   mutate(across(starts_with("n_"), \(x) x %>% gsub(",", ";", .) %>% na_if("not reported"))) %>% 
   mutate(n_after_exclusion = case_when(n_after_exclusion %>% str_detect("not reported") ~ NA, #temporary fix for "partially not reported" & "not reported in E*"
@@ -165,7 +166,10 @@ data_extract.dt %>% anti_join(data_extract.N %>% select(DV, doi)) #detect entrie
 #data_extract.N %>% filter(DV2 %>% is.na() == F) %>% View("changed entries")
 data_extract.N %>% arrange(retention) #TODO check lowest entries for plausibility
 
-data_extract.dt = data_extract.N %>% select(-DV2)
+
+# * * Write Tidy Sample Sizes into Data Transformations -------------------
+if (nrow(data_extract.dt) != nrow(data_extract.N)) { warning("Rows in data_extract.dt and data_extract.N don't match. Check difference with anti_join.")
+} else data_extract.dt = data_extract.N %>% select(-DV2)
 
 # * mental_health_exclusion -----------------------------------------------
 data_extract %>% checkContent(mental_health_exclusion)
