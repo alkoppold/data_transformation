@@ -83,7 +83,6 @@ doi_exclude_studies <- c(
 )
 
 data_extract %>% filter(doi %in% doi_exclude_studies) #check exclusions
-#TODO skip this step as studies are already excluded?
 
 data_extract = data_extract %>% filter(doi %in% doi_exclude_studies == F)
 N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
@@ -93,8 +92,6 @@ N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
 data_extract %>% count(doi) %>% filter(n != 1)
 #data_extract %>% filter(doi %>% is.na()) %>% select(title) #manually replaced NAs
 
-#TODO put some columns into longer format if they contain several pieces of information (identifier = DOI)
-#or maybe just do this later in order to not duplicate some other entries that are always unique?
 data_extract.dt = data_extract %>% 
   pivot_longer(HR:PUPIL_SIZE, names_to = "DV", values_to = "transformation") %>% 
   filter(transformation %>% is.na() == F) %>% 
@@ -115,7 +112,7 @@ data_extract.dt %>% checkContent(DV) %>% mutate(p = n / N_studies)
 #manual check: EMG_orbicularis_oculi has never been used outside of fear potentiated startle => exclude
 
 data_extract.dt %>% checkContent(transformation)
-#TODO even longer format with separate_longer_delim ?
+#TODO even longer format with separate_longer_delim ? but sequence is important!
 
 
 
