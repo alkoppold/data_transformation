@@ -133,15 +133,14 @@ data_extract.dt %>% #start with data_extract to avoid duplicates from data trans
   ) %>% 
   checkContent(n_after_exclusion)
 #TODO check "partially not reported" (only valid if "partial" refers to experiments; for partial reporting of DVs: report individually)
-#TODO check "cued fear" vs. "context fear"
-#TODO check "not reported in E"
+#TODO check "cued fear" vs. "context fear": manual recode to cue conditioning (delete context conditioning)?
 
 
 # * * Longer Format: Sample Sizes -----------------------------------------
 data_extract.N = data_extract.dt %>% #start with data_extract.dt to retain DV row (if n_* has one entry but there are several DVs, N counts for all DVs and should be duplicated for explicitness)
   mutate(across(starts_with("n_"), \(x) x %>% gsub(",", ";", .) %>% na_if("not reported"))) %>% 
-  mutate(n_after_exclusion = case_when(n_after_exclusion %>% str_detect("not reported") ~ NA, #temporary fix for "partially not reported" & "not reported in E*"
-                                       n_after_exclusion %>% str_detect("cued fear") ~ NA, #temporary fix
+  mutate(n_after_exclusion = case_when(n_after_exclusion %>% str_detect("not reported") ~ NA, #temporary fix for "partially not reported"
+                                       n_after_exclusion %>% str_detect("cued fear") ~ NA, #temporary fix 
                                        T ~ n_after_exclusion)) %>% 
   separate_longer_delim(starts_with("n_"), ";") %>% 
   #filter(n_before_exclusion %>% grepl("^\\d+$", .) == F) %>% 
