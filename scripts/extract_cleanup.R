@@ -4,7 +4,7 @@ library(gsheet)
 data_extract.original = gsheet2tbl('https://docs.google.com/spreadsheets/d/1In5IKFNKbVj4WJCawDu2xfr_0CJ3off3Nr5chBaoYYU/edit?gid=1869532958')
 
 # Renaming ----------------------------------------------------------------
-#data_extract_original %>% names()
+#data_extract.original %>% names()
 data_extract.original = data_extract.original %>% 
   #manual renames to avoid error in subsequent rename_with
   rename(normality_how = `If yes, how? (e.g., specific test or visually), if no: NA`,
@@ -21,7 +21,7 @@ data_extract.original = data_extract.original %>%
          normality = `Was the normal distribution checked? answers: dependent variable, independent variable, residuals, mixed, not reported`,
          normality_when = `If yes, was the normal distribution tested before or after transformation procedure? answers: before, after, both, not reported. if no: NA`,
          homoscedasticity = `Was the homoscedasticity checked? answers: yes, not reported`,
-         sphericity_old = `Was the sphericity checked? answers: yes, not reported`,
+         sphericity_old = `Was the sphericity checked? answers: yes, not reported`, #has been replaced by subsequent column (inclusion of sphericity corrections, not only tests)
          sphericity = `How was sphericity handeled (test, correction)`,
          independence = `Was the independence of residuals checked? answers: yes, not reported`,
          linearity = `Was the linearity checked? answers: yes, not reported`,
@@ -46,67 +46,48 @@ data_extract.original = data_extract.original %>%
 tibble(new = data_extract.original %>% names(), old = data_extract.original %>% names()) %>% print(n = nrow(.))
 
 
-# Deselect Variables ------------------------------------------------------
+# Select Variables --------------------------------------------------------
 data_extract = data_extract.original %>% 
-  select(-keywords) %>% 
-  select(-sphericity_old) %>% 
-  select(-n_with_exclusions) %>% #check number of matches with n_before_exclusion for internal validation?
-  select(-n_female_total, -starts_with("age_"))
-#TODO: deselect more variables that have not been extracted consistently or not been validated?
+  select(Extractor:prereg, 
+         n_before_exclusion:mental_health_exclusion, 
+         normality:homoscedasticity_how,
+         sphericity:dt_rationale_ref,
+         design_within_levels_max:comment)
 
-# Exclusions --------------------------------------------------------------
-## Exclude some studies due to several reasons (listed where?)
-doi_exclude_studies <- c(
-  "10.1111/psyp.12456",
-  "10.1016/j.neuroimage.2015.06.086",
-  "10.1093/scan/nsaa074",
-  "10.1017/S0033291712000359",
-  "10.1038/mp.2011.66",
-  "10.5665/sleep/32.1.19",
-  "10.1080/10615806.2012.672976",
-  "10.1093/scan/nsw181",
-  "10.1093/scan/nsv122",
-  "10.1016/j.brat.2018.09.003",
-  "10.1111/psyp.13650",
-  "10.1016/j.biopsych.2010.08.015",
-  "10.1027/2151-2604/a000523",
-  "10.1016/j.nlm.2014.03.008",
-  "10.1101/lm.053902.123",
-  "10.1080/02699931.2018.1500445",
-  "10.1038/s41598-019-49751-4",
-  "10.1093/scan/nsx148",
-  "10.1016/j.neuroimage.2018.03.030",
-  "10.1016/j.clinph.2019.04.010",
-  "10.1037/xlm0000558",
-  "10.1037/xge0000496",
-  "10.1093/sleep/zsad209"
-)
 
-data_extract %>% filter(doi %in% doi_exclude_studies) #check exclusions
-
-data_extract = data_extract %>% filter(doi %in% doi_exclude_studies == F)
-N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
+# Manual Edits ------------------------------------------------------------
+data_extract = data_extract %>% mutate(EMG_orbicularis_oculi=NA) #manual check: orbicularis EMG has never been used outside of startle responses
 
 
 # Longer Format: Data Transformations -------------------------------------
-data_extract %>% count(doi) %>% filter(n != 1)
+N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
+
 #data_extract %>% filter(doi %>% is.na()) %>% select(title) #manually replaced NAs
+data_extract %>% count(doi) %>% filter(n != 1)
+#TODO remove duplicated ROIs! Googlesheet strictly in wide format
 
 data_extract.dt = data_extract %>% 
   pivot_longer(HR:PUPIL_SIZE, names_to = "DV", values_to = "transformation") %>% 
-  filter(transformation %>% is.na() == F) %>% 
   mutate(DV = DV %>% gsub("EMG_", "", .)) %>% #just "startle" instead of "EMG_startle"
   mutate(DV = DV %>% gsub("PUPIL_SIZE", "pupil", .)) %>% 
   mutate(DV = DV %>% gsub("EYE_tracking", "eye", .)) %>% 
-  filter(DV != "orbicularis_oculi") %>% #temporary fix
+  mutate(DV = DV %>% as_factor()) %>% 
+  filter(transformation %>% is.na() == F) %>% 
   relocate(DV)
 
-# Check & Clean Columns of Interest ---------------------------------------
-checkContent = function(df, col) df %>% count(!!rlang::ensym(col)) %>% arrange(desc(n)) %>% print(n = nrow(.))
 
+# Check & Clean Columns of Interest ---------------------------------------
+checkContent = function(df, col, print=T) {
+  result = df %>% count(!!rlang::ensym(col), .drop=F) %>% arrange(desc(n))
+  if (print) {
+    result %>% print(n = nrow(.))
+    return(invisible(result))
+  }
+  return(result)
+}
 
 # * Data Transformations --------------------------------------------------
-data_extract.dt %>% checkContent(DV) %>% mutate(p = n / N_studies)
+data_extract.dt %>% checkContent(DV, print=F) %>% mutate(p = n / N_studies)
 #data_extract %>% filter(EMG_orbicularis_oculi %>% is.na() == F) %>% select(Extractor, doi:title, starts_with("EMG_"))
 #data_extract %>% filter(EMG_orbicularis_oculi %>% is.na() == F, EMG_orbicularis_oculi != EMG_startle) %>% select(Extractor, doi:title, starts_with("EMG_"))
 #manual check: EMG_orbicularis_oculi has never been used outside of fear potentiated startle => exclude
@@ -218,7 +199,7 @@ data_extract.tests = data_extract %>%
 #data_extract.tests %>% filter(doi %in% {data_extract %>% filter(statistical_test == "multiple") %>% pull(doi)}) %>% checkContent(statistical_test)
 #data_extract.tests %>% select(statistical_test, statistical_test_details) %>% filter(statistical_test == "rmANOVA")
 
-data_extract.tests %>% checkContent(statistical_test) %>% mutate(p = n / N_studies)
+data_extract.tests %>% checkContent(statistical_test, print=F) %>% mutate(p = n / N_studies)
 
 
 # Write to RDS ------------------------------------------------------------
