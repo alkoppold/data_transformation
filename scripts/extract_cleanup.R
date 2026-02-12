@@ -4,7 +4,7 @@ library(gsheet)
 data_extract.original = gsheet2tbl('https://docs.google.com/spreadsheets/d/1In5IKFNKbVj4WJCawDu2xfr_0CJ3off3Nr5chBaoYYU/edit?gid=1869532958')
 
 # Renaming ----------------------------------------------------------------
-#data_extract_original %>% names()
+#data_extract.original %>% names()
 data_extract.original = data_extract.original %>% 
   #manual renames to avoid error in subsequent rename_with
   rename(normality_how = `If yes, how? (e.g., specific test or visually), if no: NA`,
