@@ -46,43 +46,13 @@ data_extract.original = data_extract.original %>%
 tibble(new = data_extract.original %>% names(), old = data_extract.original %>% names()) %>% print(n = nrow(.))
 
 
-# Deselect Variables ------------------------------------------------------
+# Select Variables --------------------------------------------------------
 data_extract = data_extract.original %>% 
-  select(-keywords) %>% 
-  select(-sphericity_old) %>% 
-  select(-n_with_exclusions) %>% #check number of matches with n_before_exclusion for internal validation?
-  select(-n_female_total, -starts_with("age_"))
-#TODO: deselect more variables that have not been extracted consistently or not been validated?
-
-# Exclusions --------------------------------------------------------------
-## Exclude some studies due to several reasons (listed where?)
-doi_exclude_studies <- c(
-  "10.1111/psyp.12456",
-  "10.1016/j.neuroimage.2015.06.086",
-  "10.1093/scan/nsaa074",
-  "10.1017/S0033291712000359",
-  "10.1038/mp.2011.66",
-  "10.5665/sleep/32.1.19",
-  "10.1080/10615806.2012.672976",
-  "10.1093/scan/nsw181",
-  "10.1093/scan/nsv122",
-  "10.1016/j.brat.2018.09.003",
-  "10.1111/psyp.13650",
-  "10.1016/j.biopsych.2010.08.015",
-  "10.1027/2151-2604/a000523",
-  "10.1016/j.nlm.2014.03.008",
-  "10.1101/lm.053902.123",
-  "10.1080/02699931.2018.1500445",
-  "10.1038/s41598-019-49751-4",
-  "10.1093/scan/nsx148",
-  "10.1016/j.neuroimage.2018.03.030",
-  "10.1016/j.clinph.2019.04.010",
-  "10.1037/xlm0000558",
-  "10.1037/xge0000496",
-  "10.1093/sleep/zsad209"
-)
-
-data_extract %>% filter(doi %in% doi_exclude_studies) #check exclusions
+  select(Extractor:prereg, 
+         n_before_exclusion:mental_health_exclusion, 
+         normality:homoscedasticity_how,
+         sphericity:dt_rationale_ref,
+         design_within_levels_max:comment)
 
 data_extract = data_extract %>% filter(doi %in% doi_exclude_studies == F)
 N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
