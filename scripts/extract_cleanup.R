@@ -55,6 +55,9 @@ data_extract = data_extract.original %>%
          design_within_levels_max:comment)
 
 
+# Manual Edits ------------------------------------------------------------
+data_extract = data_extract %>% mutate(EMG_orbicularis_oculi=NA) #manual check: orbicularis EMG has never been used outside of startle responses
+
 
 # Longer Format: Data Transformations -------------------------------------
 N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
@@ -69,7 +72,6 @@ data_extract.dt = data_extract %>%
   mutate(DV = DV %>% gsub("EMG_", "", .)) %>% #just "startle" instead of "EMG_startle"
   mutate(DV = DV %>% gsub("PUPIL_SIZE", "pupil", .)) %>% 
   mutate(DV = DV %>% gsub("EYE_tracking", "eye", .)) %>% 
-  filter(DV != "orbicularis_oculi") %>% #temporary fix
   relocate(DV)
 
 
