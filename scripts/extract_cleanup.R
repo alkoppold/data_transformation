@@ -54,13 +54,14 @@ data_extract = data_extract.original %>%
          sphericity:dt_rationale_ref,
          design_within_levels_max:comment)
 
-data_extract = data_extract %>% filter(doi %in% doi_exclude_studies == F)
-N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
 
 
 # Longer Format: Data Transformations -------------------------------------
-data_extract %>% count(doi) %>% filter(n != 1)
+N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
+
 #data_extract %>% filter(doi %>% is.na()) %>% select(title) #manually replaced NAs
+data_extract %>% count(doi) %>% filter(n != 1)
+#TODO remove duplicated ROIs! Googlesheet strictly in wide format
 
 data_extract.dt = data_extract %>% 
   pivot_longer(HR:PUPIL_SIZE, names_to = "DV", values_to = "transformation") %>% 
