@@ -68,16 +68,17 @@ data_extract %>% count(doi) %>% filter(n != 1)
 
 data_extract.dt = data_extract %>% 
   pivot_longer(HR:PUPIL_SIZE, names_to = "DV", values_to = "transformation") %>% 
-  filter(transformation %>% is.na() == F) %>% 
   mutate(DV = DV %>% gsub("EMG_", "", .)) %>% #just "startle" instead of "EMG_startle"
   mutate(DV = DV %>% gsub("PUPIL_SIZE", "pupil", .)) %>% 
   mutate(DV = DV %>% gsub("EYE_tracking", "eye", .)) %>% 
+  mutate(DV = DV %>% as_factor()) %>% 
+  filter(transformation %>% is.na() == F) %>% 
   relocate(DV)
 
 
 # Check & Clean Columns of Interest ---------------------------------------
 checkContent = function(df, col, print=T) {
-  result = df %>% count(!!rlang::ensym(col)) %>% arrange(desc(n))
+  result = df %>% count(!!rlang::ensym(col), .drop=F) %>% arrange(desc(n))
   if (print) {
     result %>% print(n = nrow(.))
     return(invisible(result))
