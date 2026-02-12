@@ -72,13 +72,16 @@ data_extract.dt = data_extract %>%
   filter(DV != "orbicularis_oculi") %>% #temporary fix
   relocate(DV)
 
+
 # Check & Clean Columns of Interest ---------------------------------------
 checkContent = function(df, col, print=T) {
   result = df %>% count(!!rlang::ensym(col)) %>% arrange(desc(n))
-  if (print) result %>% print(n = nrow(.))
+  if (print) {
+    result %>% print(n = nrow(.))
+    return(invisible(result))
+  }
   return(result)
 }
-
 
 # * Data Transformations --------------------------------------------------
 data_extract.dt %>% checkContent(DV, print=F) %>% mutate(p = n / N_studies)
