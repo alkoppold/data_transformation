@@ -73,11 +73,15 @@ data_extract.dt = data_extract %>%
   relocate(DV)
 
 # Check & Clean Columns of Interest ---------------------------------------
-checkContent = function(df, col) df %>% count(!!rlang::ensym(col)) %>% arrange(desc(n)) %>% print(n = nrow(.))
+checkContent = function(df, col, print=T) {
+  result = df %>% count(!!rlang::ensym(col)) %>% arrange(desc(n))
+  if (print) result %>% print(n = nrow(.))
+  return(result)
+}
 
 
 # * Data Transformations --------------------------------------------------
-data_extract.dt %>% checkContent(DV) %>% mutate(p = n / N_studies)
+data_extract.dt %>% checkContent(DV, print=F) %>% mutate(p = n / N_studies)
 #data_extract %>% filter(EMG_orbicularis_oculi %>% is.na() == F) %>% select(Extractor, doi:title, starts_with("EMG_"))
 #data_extract %>% filter(EMG_orbicularis_oculi %>% is.na() == F, EMG_orbicularis_oculi != EMG_startle) %>% select(Extractor, doi:title, starts_with("EMG_"))
 #manual check: EMG_orbicularis_oculi has never been used outside of fear potentiated startle => exclude
@@ -189,7 +193,7 @@ data_extract.tests = data_extract %>%
 #data_extract.tests %>% filter(doi %in% {data_extract %>% filter(statistical_test == "multiple") %>% pull(doi)}) %>% checkContent(statistical_test)
 #data_extract.tests %>% select(statistical_test, statistical_test_details) %>% filter(statistical_test == "rmANOVA")
 
-data_extract.tests %>% checkContent(statistical_test) %>% mutate(p = n / N_studies)
+data_extract.tests %>% checkContent(statistical_test, print=F) %>% mutate(p = n / N_studies)
 
 
 # Write to RDS ------------------------------------------------------------
