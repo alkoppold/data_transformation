@@ -60,7 +60,11 @@ data_extract = data_extract %>%
 
 
 # Manual Edits ------------------------------------------------------------
-data_extract = data_extract %>% mutate(EMG_orbicularis_oculi=NA) #manual check: orbicularis EMG has never been used outside of startle responses
+data_extract = data_extract %>% 
+  mutate(EMG_orbicularis_oculi=NA) %>% #manual check: orbicularis EMG has never been used outside of startle responses
+  mutate(doi = case_when(doi %>% str_starts("http") ~ doi,
+                         T ~ paste0("https://doi.org/", doi)))
+#data_extract %>% filter(doi %>% str_detect("doi.org") == F) %>% pull(doi) #articles without DOIs
 
 
 # Longer Format: Data Transformations -------------------------------------
