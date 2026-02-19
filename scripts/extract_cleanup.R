@@ -116,8 +116,6 @@ data_extract.dt %>% #start with data_extract to avoid duplicates from data trans
            gsub("\\d+", "N", .) #generify number for check
   ) %>% 
   checkContent(n_after_exclusion)
-#TODO check "partially not reported" (only valid if "partial" refers to experiments; for partial reporting of DVs: report individually)
-#TODO check "cued fear" vs. "context fear": manual recode to cue conditioning (delete context conditioning)?
 
 
 # * * Longer Format: Sample Sizes -----------------------------------------
