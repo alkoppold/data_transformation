@@ -67,8 +67,7 @@ data_extract = data_extract %>% mutate(EMG_orbicularis_oculi=NA) #manual check: 
 N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
 
 #data_extract %>% filter(doi %>% is.na()) %>% select(title) #manually replaced NAs
-data_extract %>% count(doi) %>% filter(n != 1)
-#TODO remove duplicated ROIs! Googlesheet strictly in wide format
+#data_extract %>% count(doi) %>% filter(n != 1)
 
 data_extract.dt = data_extract %>% 
   pivot_longer(HR:PUPIL_SIZE, names_to = "DV", values_to = "transformation") %>% 
