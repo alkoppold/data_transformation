@@ -5,7 +5,7 @@ data_extract.original = gsheet2tbl('https://docs.google.com/spreadsheets/d/1In5I
 
 # Renaming ----------------------------------------------------------------
 #data_extract.original %>% names()
-data_extract.original = data_extract.original %>% 
+data_extract = data_extract.original %>% 
   #manual renames to avoid error in subsequent rename_with
   rename(normality_how = `If yes, how? (e.g., specific test or visually), if no: NA`,
          homoscedasticity_how = `If yes, how?  (e.g., specific test or visually), if no: NA...27`,
@@ -43,28 +43,35 @@ data_extract.original = data_extract.original %>%
          ) %>% 
   rename_with(\(x) x %>% gsub("\\s*\\([^)]*\\)", "", .) %>% gsub(" ", "_", .)) #get rid of info in parentheses & replace space with "_"
 
-tibble(new = data_extract.original %>% names(), old = data_extract.original %>% names()) %>% print(n = nrow(.))
+tibble(new = data_extract %>% names(), old = data_extract.original %>% names()) %>% print(n = nrow(.))
 
 
 # Select Variables --------------------------------------------------------
-data_extract = data_extract.original %>% 
+data_extract = data_extract %>% 
   select(Extractor:prereg, 
+         #deselecting cross_vs_long, n_with_exclusions, n_female_total, age_mean_total, age_sd_total
          n_before_exclusion:mental_health_exclusion, 
-         normality:homoscedasticity_how,
-         sphericity:dt_rationale_ref,
+         #deselecting individual_level & individual_level_VOI
+         normality:homoscedasticity_how, 
+         #deselecting sphericity_old
+         sphericity:dt_rationale_ref, 
+         #deselecting dt_when, design
          design_within_levels_max:comment)
 
 
 # Manual Edits ------------------------------------------------------------
-data_extract = data_extract %>% mutate(EMG_orbicularis_oculi=NA) #manual check: orbicularis EMG has never been used outside of startle responses
+data_extract = data_extract %>% 
+  mutate(EMG_orbicularis_oculi=NA) %>% #manual check: orbicularis EMG has never been used outside of startle responses
+  mutate(doi = case_when(doi %>% str_starts("http") ~ doi,
+                         T ~ paste0("https://doi.org/", doi)))
+#data_extract %>% filter(doi %>% str_detect("doi.org") == F) %>% pull(doi) #articles without DOIs
 
 
 # Longer Format: Data Transformations -------------------------------------
 N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
 
 #data_extract %>% filter(doi %>% is.na()) %>% select(title) #manually replaced NAs
-data_extract %>% count(doi) %>% filter(n != 1)
-#TODO remove duplicated ROIs! Googlesheet strictly in wide format
+#data_extract %>% count(doi) %>% filter(n != 1)
 
 data_extract.dt = data_extract %>% 
   pivot_longer(HR:PUPIL_SIZE, names_to = "DV", values_to = "transformation") %>% 
@@ -113,8 +120,6 @@ data_extract.dt %>% #start with data_extract to avoid duplicates from data trans
            gsub("\\d+", "N", .) #generify number for check
   ) %>% 
   checkContent(n_after_exclusion)
-#TODO check "partially not reported" (only valid if "partial" refers to experiments; for partial reporting of DVs: report individually)
-#TODO check "cued fear" vs. "context fear": manual recode to cue conditioning (delete context conditioning)?
 
 
 # * * Longer Format: Sample Sizes -----------------------------------------
