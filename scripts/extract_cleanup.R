@@ -208,42 +208,69 @@ data_extract.tests %>% checkContent(statistical_test, print=F) %>% mutate(p = n 
 
 
 # Check consistency of columns --------------------------------------------
-data_extract.tests %>% checkContent(open_data, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(open_code, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(open_material, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(prereg, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(n_before_exclusion, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(n_after_exclusion, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(mental_health_exclusion, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(normality, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(normality_how, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(normality_when, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(homoscedasticity, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(homoscedasticity_how, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(sphericity, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(independence, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(independence_how, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(linearity, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(linearity_how, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(multicollinearity, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(multicollinearity_how, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(outlier, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(outlier_when, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(outlier_how, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(HR, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(HRV, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(EMG_orbicularis_oculi, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(EMG_startle, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(SCR, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(SCL, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(EYE_tracking, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(PUPIL_SIZE, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(dt_specs, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(Range_correction_type, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(dt_rationale, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(dt_rationale_details, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(dt_rationale_ref, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(design_within_levels_max, print=F) %>% mutate(p = n / N_studies)
+#TODO check if longer format is needed for some columns
+#open science
+data_extract %>% checkContent(open_data, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(open_code, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(open_material, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(prereg, print=F) %>% mutate(p = n / N_studies)
+
+#sample size
+data_extract.dt %>% 
+  mutate(n_before_exclusion = n_before_exclusion %>% gsub("\\d+", "N", .)) %>% 
+  checkContent(n_before_exclusion, print=F) %>% mutate(p = n / N_studies)
+data_extract.dt %>% 
+  mutate(n_after_exclusion = n_after_exclusion %>% gsub("\\d+", "N", .)) %>% 
+  checkContent(n_after_exclusion, print=F) %>% mutate(p = n / N_studies)
+
+data_extract %>% checkContent(mental_health_exclusion, print=F) %>% mutate(p = n / N_studies)
+
+#assumptions
+data_extract %>% checkContent(normality, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% filter(normality != "not reported") %>% checkContent(normality_how, print=F) %>% mutate(p = n / sum(n))
+data_extract %>% filter(normality != "not reported") %>% checkContent(normality_when, print=F) %>% mutate(p = n / sum(n))
+
+data_extract %>% checkContent(homoscedasticity, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(homoscedasticity_how, print=F) %>% mutate(p = n / N_studies)
+
+data_extract %>% checkContent(sphericity, print=F) %>% mutate(p = n / N_studies)
+
+data_extract %>% checkContent(independence, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(independence_how, print=F) %>% mutate(p = n / N_studies)
+
+data_extract %>% checkContent(linearity, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(linearity_how, print=F) %>% mutate(p = n / N_studies)
+
+data_extract %>% checkContent(multicollinearity, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(multicollinearity_how, print=F) %>% mutate(p = n / N_studies)
+
+#outlier
+data_extract %>% checkContent(outlier, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(outlier_when, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(outlier_how, print=F) %>% mutate(p = n / N_studies)
+
+#data transformations
+data_extract %>% checkContent(HR, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(HRV, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(EMG_orbicularis_oculi, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(EMG_startle, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(SCR, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(SCL, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(EYE_tracking, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(PUPIL_SIZE, print=F) %>% mutate(p = n / N_studies)
+
+data_extract.dt %>% checkContent(DV, print=F) %>% mutate(p = n / N_studies)
+
+data_extract %>% checkContent(dt_specs, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(Range_correction_type, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(dt_rationale, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(dt_rationale_details, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(dt_rationale_ref, print=F) %>% mutate(p = n / N_studies)
+
+#statistical tests
+data_extract.tests %>% 
+  mutate(design_within_levels_max = design_within_levels_max %>% gsub("\\d+", "N", .)) %>% 
+  checkContent(design_within_levels_max, print=F) %>% mutate(p = n / N_studies)
 data_extract.tests %>% checkContent(statistical_test, print=F) %>% mutate(p = n / N_studies)
 data_extract.tests %>% checkContent(statistical_test_details, print=F) %>% mutate(p = n / N_studies)
 
