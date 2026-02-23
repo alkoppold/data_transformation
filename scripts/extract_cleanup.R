@@ -5,7 +5,7 @@ data_extract.original = gsheet2tbl('https://docs.google.com/spreadsheets/d/1In5I
 
 # Renaming ----------------------------------------------------------------
 #data_extract.original %>% names()
-data_extract = data_extract.original %>% 
+data_extract.full = data_extract.original %>% 
   #manual renames to avoid error in subsequent rename_with
   rename(normality_how = `If yes, how? (e.g., specific test or visually), if no: NA`,
          homoscedasticity_how = `If yes, how?  (e.g., specific test or visually), if no: NA...27`,
@@ -43,11 +43,11 @@ data_extract = data_extract.original %>%
          ) %>% 
   rename_with(\(x) x %>% gsub("\\s*\\([^)]*\\)", "", .) %>% gsub(" ", "_", .)) #get rid of info in parentheses & replace space with "_"
 
-tibble(new = data_extract %>% names(), old = data_extract.original %>% names()) %>% print(n = nrow(.))
+tibble(new = data_extract.full %>% names(), old = data_extract.original %>% names()) %>% print(n = nrow(.))
 
 
 # Select Variables --------------------------------------------------------
-data_extract = data_extract %>% 
+data_extract = data_extract.full %>% 
   select(Extractor:prereg, 
          #deselecting cross_vs_long, n_with_exclusions, n_female_total, age_mean_total, age_sd_total
          n_before_exclusion:mental_health_exclusion, 
