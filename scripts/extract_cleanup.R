@@ -263,7 +263,7 @@ data_extract %>% filter(linearity != "not reported") %>% checkContent(linearity_
 
 data_extract %>% checkContent(multicollinearity, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% filter(multicollinearity != "not reported") %>% checkContent(multicollinearity_how, print=F) %>% mutate(p = n / N_studies)
-#TODO check NA
+#data_extract %>% filter(multicollinearity != "not reported") %>% select(doi, starts_with("multicoll")) #manual check completed
 
 #outlier
 data_extract %>% checkContent(outlier, print=F) %>% mutate(p = n / N_studies)
