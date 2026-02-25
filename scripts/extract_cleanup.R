@@ -227,8 +227,8 @@ data_extract %>% checkContent(mental_health_exclusion, print=F) %>% mutate(p = n
 
 #assumptions
 data_extract %>% checkContent(normality, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% filter(normality == "not specified") %>% select(doi, starts_with("normality"))
 #data_extract %>% filter(normality != "not reported", normality_how %>% is.na()) %>% pull(doi) #inconsistencies manually corrected
+#data_extract %>% filter(normality == "not specified") %>% select(doi, starts_with("normality")) #manually checked and split up into "unclear [IF normality test has been performed]" vs. "not specified" (test has been reported but not specified)
 data_extract %>% filter(normality != "not reported") %>% checkContent(normality_how, print=F) %>% mutate(p = n / sum(n))
 data_extract %>% filter(normality != "not reported") %>% checkContent(normality_when, print=F) %>% mutate(p = n / sum(n))
 
