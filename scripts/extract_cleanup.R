@@ -252,7 +252,8 @@ data_extract %>% filter(linearity_how == "linear trends") %>% select(doi, starts
 data_extract %>% filter(linearity != "not reported") %>% checkContent(linearity_how, print=F) %>% mutate(p = n / sum(n))
 
 data_extract %>% checkContent(multicollinearity, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% checkContent(multicollinearity_how, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% filter(multicollinearity != "not reported") %>% checkContent(multicollinearity_how, print=F) %>% mutate(p = n / N_studies)
+#TODO check NA
 
 #outlier
 data_extract %>% checkContent(outlier, print=F) %>% mutate(p = n / N_studies)
