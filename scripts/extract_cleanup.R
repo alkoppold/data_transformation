@@ -241,7 +241,15 @@ data_extract %>% checkContent(independence, print=F) %>% mutate(p = n / N_studie
 data_extract %>% checkContent(independence_how, print=F) %>% mutate(p = n / N_studies)
 
 data_extract %>% checkContent(linearity, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% checkContent(linearity_how, print=F) %>% mutate(p = n / N_studies)
+#data_extract %>% filter(linearity != "not reported") %>% checkContent(linearity_how, print=F) %>% mutate(p = n / sum(n))
+data_extract = data_extract %>% 
+  mutate(linearity_how = case_when(linearity_how %>% str_detect("quadr") ~ "quadratic slope",
+                                   T ~ linearity_how)) %>% filter(linearity != "not reported")
+#TODO check entries
+data_extract %>% filter(linearity != "not reported", linearity_how %>% is.na() | linearity_how == "not reported") %>% select(doi, starts_with("linearity"))
+data_extract %>% filter(linearity_how == "linear trends") %>% select(doi, starts_with("linearity"))
+
+data_extract %>% filter(linearity != "not reported") %>% checkContent(linearity_how, print=F) %>% mutate(p = n / sum(n))
 
 data_extract %>% checkContent(multicollinearity, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% checkContent(multicollinearity_how, print=F) %>% mutate(p = n / N_studies)
