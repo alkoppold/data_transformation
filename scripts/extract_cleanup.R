@@ -273,6 +273,7 @@ data_extract %>% checkContent(dt_rationale_ref, print=F) %>% mutate(p = n / N_st
 data_extract.tests %>% 
   mutate(design_within_levels_max = design_within_levels_max %>% gsub("\\d+", "N", .)) %>% 
   checkContent(design_within_levels_max, print=F) %>% mutate(p = n / N_studies)
+#TODO separate_longer_delim (Exp1 vs. 2: just check if any number > 3)
 data_extract.tests %>% checkContent(statistical_test, print=F) %>% mutate(p = n / N_studies)
 data_extract.tests %>% checkContent(statistical_test_details, print=F) %>% mutate(p = n / N_studies)
 
