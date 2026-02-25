@@ -229,8 +229,16 @@ data_extract %>% checkContent(mental_health_exclusion, print=F) %>% mutate(p = n
 data_extract %>% checkContent(normality, print=F) %>% mutate(p = n / N_studies)
 #data_extract %>% filter(normality != "not reported", normality_how %>% is.na()) %>% pull(doi) #inconsistencies manually corrected
 #data_extract %>% filter(normality == "not specified") %>% select(doi, starts_with("normality")) #manually checked and split up into "unclear [IF normality test has been performed]" vs. "not specified" (test has been reported but not specified)
+
 data_extract %>% filter(normality != "not reported") %>% checkContent(normality_how, print=F) %>% mutate(p = n / sum(n))
+data_extract = data_extract %>% 
+  mutate(normality_how = case_when(normality_how %>% str_detect("visually") ~ "visually", #code "visually, histograms" as "visually"
+                                   normality_how %>% str_detect("Shapiro-Wilk test") ~ "Shapiro-Wilk test", #code "Q-Q plots, Shapiro-Wilk test" as "Shapiro-Wilk test"
+                                   T ~ normality_how))
+data_extract %>% filter(normality != "not reported") %>% checkContent(normality_how, print=F) %>% mutate(p = n / sum(n))
+
 data_extract %>% filter(normality != "not reported") %>% checkContent(normality_when, print=F) %>% mutate(p = n / sum(n))
+
 
 data_extract %>% checkContent(homoscedasticity, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% checkContent(homoscedasticity_how, print=F) %>% mutate(p = n / N_studies)
