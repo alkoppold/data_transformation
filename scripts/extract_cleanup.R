@@ -73,6 +73,7 @@ N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
 #data_extract %>% filter(doi %>% is.na()) %>% select(title) #manually replaced NAs
 #data_extract %>% count(doi) %>% filter(n != 1)
 
+#TODO move to results?
 data_extract.dt = data_extract %>% 
   pivot_longer(HR:PUPIL_SIZE, names_to = "DV", values_to = "transformation") %>% 
   mutate(DV = DV %>% gsub("EMG_", "", .)) %>% #just "startle" instead of "EMG_startle"
@@ -92,6 +93,14 @@ checkContent = function(df, col, print=T) {
   }
   return(result)
 }
+
+
+# * Open Science ----------------------------------------------------------
+data_extract %>% checkContent(open_data, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(open_code, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(open_material, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(prereg, print=F) %>% mutate(p = n / N_studies)
+
 
 # * Data Transformations --------------------------------------------------
 data_extract.dt %>% checkContent(DV, print=F) %>% mutate(p = n / N_studies)
@@ -153,10 +162,63 @@ data_extract.N %>% arrange(retention) #TODO check lowest entries for plausibilit
 if (nrow(data_extract.dt) != nrow(data_extract.N)) { warning("Rows in data_extract.dt and data_extract.N don't match. Check difference with anti_join.")
 } else data_extract.dt = data_extract.N %>% select(-DV2)
 
-# * mental_health_exclusion -----------------------------------------------
-data_extract %>% checkContent(mental_health_exclusion)
+#sample size: check result
+data_extract.dt %>% 
+  mutate(n_before_exclusion = n_before_exclusion %>% gsub("\\d+", "N", .)) %>% 
+  checkContent(n_before_exclusion, print=F) %>% mutate(p = n / N_studies)
+data_extract.dt %>% 
+  mutate(n_after_exclusion = n_after_exclusion %>% gsub("\\d+", "N", .)) %>% 
+  checkContent(n_after_exclusion, print=F) %>% mutate(p = n / N_studies)
 
-# * Statistical Test ------------------------------------------------------
+
+# * mental_health_exclusion -----------------------------------------------
+data_extract %>% checkContent(mental_health_exclusion, print=F) %>% mutate(p = n / N_studies)
+
+
+# * Assumptions -----------------------------------------------------------
+
+# * * Normality Checks ----------------------------------------------------
+
+# * * * Normality ---------------------------------------------------------
+#data_extract %>% filter(normality == "unclear") %>% select(doi, starts_with("normality")) #manually checked and split up into "unclear [IF normality test has been performed]" vs. "not specified" (test has been reported but not specified)
+data_extract = data_extract %>% 
+  mutate(normality = case_when(normality == "unclear" ~ "not reported", #"unclear" was supposed to be coded as "not reported" => drop and discuss
+                               T ~ normality))
+data_extract %>% checkContent(normality, print=F) %>% mutate(p = n / N_studies)
+#data_extract %>% filter(normality != "not reported", normality_how %>% is.na()) %>% pull(doi) #inconsistencies manually corrected
+#data_extract %>% filter(normality == "not specified") %>% select(doi, starts_with("normality")) #manually checked and split up into "unclear [IF normality test has been performed]" vs. "not specified" (test has been reported but not specified)
+
+
+# * * * normality_how -----------------------------------------------------
+data_extract %>% filter(normality != "not reported") %>% checkContent(normality_how, print=F) %>% mutate(p = n / sum(n))
+data_extract = data_extract %>% 
+  mutate(normality_how = case_when(normality_how %>% str_detect("visually") ~ "visually", #code "visually, histograms" as "visually"
+                                   normality_how %>% str_detect("Shapiro-Wilk test") ~ "Shapiro-Wilk test", #code "Q-Q plots, Shapiro-Wilk test" as "Shapiro-Wilk test"
+                                   T ~ normality_how))
+data_extract %>% filter(normality != "not reported") %>% checkContent(normality_how, print=F) %>% mutate(p = n / sum(n))
+
+
+# * * * normality_when ----------------------------------------------------
+data_extract %>% filter(normality != "not reported") %>% checkContent(normality_when, print=F) %>% mutate(p = n / sum(n))
+#data_extract %>% filter(normality != "not reported", normality_when %>% is.na()) %>% select(doi, starts_with("normality"))
+
+
+
+# * * Homoscedasticity ----------------------------------------------------
+data_extract %>% checkContent(homoscedasticity, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% filter(homoscedasticity != "not reported") %>% checkContent(homoscedasticity_how, print=F) %>% mutate(p = n / sum(n))
+#data_extract %>% filter(homoscedasticity != "not reported", homoscedasticity_how %>% is.na()) %>% select(doi, starts_with("homoscedasticity"))
+
+
+
+# * * Sphericity ----------------------------------------------------------
+
+# * * * Within-Subject Levels ---------------------------------------------
+data_extract.dt %>% checkContent(design_within_levels_max) 
+#TODO long format
+
+
+# * * * Statistical Model -------------------------------------------------
 data_extract %>% checkContent(statistical_test)
 #TODO check "general linear model" (could be an emulation of ANOVA/regression or even a mixed model)
 #TODO collapse regression & correlation? (but ANOVA & ttest are also separate)
@@ -199,60 +261,50 @@ data_extract.tests = data_extract %>%
                                  
                                  T ~ statistical_test),
     statistical_test = if_else(statistical_test == "multilevel model", "mixed model", statistical_test) #collapse multilevel & mixed model
-)
+  )
 
 #data_extract.tests %>% filter(doi %in% {data_extract %>% filter(statistical_test == "multiple") %>% pull(doi)}) %>% checkContent(statistical_test)
 #data_extract.tests %>% select(statistical_test, statistical_test_details) %>% filter(statistical_test == "rmANOVA")
 
 data_extract.tests %>% checkContent(statistical_test, print=F) %>% mutate(p = n / N_studies)
 
+data_extract.tests %>% 
+  mutate(design_within_levels_max = design_within_levels_max %>% gsub("\\d+", "N", .)) %>% 
+  checkContent(design_within_levels_max, print=F) %>% mutate(p = n / N_studies)
+#TODO separate_longer_delim (Exp1 vs. 2: just check if any number > 3)
 
-# Check consistency of columns --------------------------------------------
-#TODO check if longer format is needed for some columns
-#open science
-data_extract %>% checkContent(open_data, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% checkContent(open_code, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% checkContent(open_material, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% checkContent(prereg, print=F) %>% mutate(p = n / N_studies)
+data_extract.tests %>% checkContent(statistical_test, print=F) %>% mutate(p = n / N_studies)
+data_extract.tests %>% checkContent(statistical_test_details, print=F) %>% mutate(p = n / N_studies)
 
-#sample size
-data_extract.dt %>% 
-  mutate(n_before_exclusion = n_before_exclusion %>% gsub("\\d+", "N", .)) %>% 
-  checkContent(n_before_exclusion, print=F) %>% mutate(p = n / N_studies)
-data_extract.dt %>% 
-  mutate(n_after_exclusion = n_after_exclusion %>% gsub("\\d+", "N", .)) %>% 
-  checkContent(n_after_exclusion, print=F) %>% mutate(p = n / N_studies)
 
-data_extract %>% checkContent(mental_health_exclusion, print=F) %>% mutate(p = n / N_studies)
-
-#assumptions
-#data_extract %>% filter(normality == "unclear") %>% select(doi, starts_with("normality")) #manually checked and split up into "unclear [IF normality test has been performed]" vs. "not specified" (test has been reported but not specified)
+# * * * Sphericity Handling -----------------------------------------------
+#TODO long format?
 data_extract = data_extract %>% 
-  mutate(normality = case_when(normality == "unclear" ~ "not reported", #"unclear" was supposed to be coded as "not reported" => drop and discuss
-                               T ~ normality))
-data_extract %>% checkContent(normality, print=F) %>% mutate(p = n / N_studies)
-#data_extract %>% filter(normality != "not reported", normality_how %>% is.na()) %>% pull(doi) #inconsistencies manually corrected
-#data_extract %>% filter(normality == "not specified") %>% select(doi, starts_with("normality")) #manually checked and split up into "unclear [IF normality test has been performed]" vs. "not specified" (test has been reported but not specified)
+  ## does not work because of multiple entries
+  # mutate(sphericity = case_when(sphericity %>% str_detect("Greenhouse") ~ "Greenhouse-Geisser correction",
+  #                               sphericity %>% str_detect("Huynh") ~ "Huynh-Feldt correction",))
+  mutate(sphericity = sphericity %>% gsub("–", "-", .))
 
-data_extract %>% filter(normality != "not reported") %>% checkContent(normality_how, print=F) %>% mutate(p = n / sum(n))
-data_extract = data_extract %>% 
-  mutate(normality_how = case_when(normality_how %>% str_detect("visually") ~ "visually", #code "visually, histograms" as "visually"
-                                   normality_how %>% str_detect("Shapiro-Wilk test") ~ "Shapiro-Wilk test", #code "Q-Q plots, Shapiro-Wilk test" as "Shapiro-Wilk test"
-                                   T ~ normality_how))
-data_extract %>% filter(normality != "not reported") %>% checkContent(normality_how, print=F) %>% mutate(p = n / sum(n))
+data_extract %>% 
+  #TODO implement filters (not working yet)
+  #filter(statistical_test == "ANOVA", design_within_levels_max > 2) %>% 
+  checkContent(sphericity, print=F) %>% mutate(p = n / sum(n))
+#checked: Epsilon correction is different from GG or HF corrections
+#checked: Mendoza's sphericity test exists
+#checked: "Greenhouse-Geisser correction & Huynh-Feldt correction" is different from rest (e.g., "Greenhouse-Geisser correction (ɛ < .75) or Huynh-Feldt correction (ɛ > .75)")
+#checked: "unclear" is correct
+#TODO check NA vs. "not reported"
+#TODO split up into test vs. correction column? (could collapse "Greenhouse-Geisser" vs. "Mauchly's test, Greenhouse-Geisser)
 
-data_extract %>% filter(normality != "not reported") %>% checkContent(normality_when, print=F) %>% mutate(p = n / sum(n))
 
-
-data_extract %>% checkContent(homoscedasticity, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% checkContent(homoscedasticity_how, print=F) %>% mutate(p = n / N_studies)
-
-data_extract %>% checkContent(sphericity, print=F) %>% mutate(p = n / N_studies)
-
+# * * Independence of Residuals -------------------------------------------
 data_extract %>% checkContent(independence, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% checkContent(independence_how, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% #filter(independence != "not reported") %>% #no one did this :')
+  checkContent(independence_how, print=F) %>% mutate(p = n / sum(n))
 
 
+
+# * * Linearity -----------------------------------------------------------
 data_extract %>% checkContent(linearity, print=F) %>% mutate(p = n / N_studies)
 
 #data_extract %>% filter(linearity != "not reported") %>% checkContent(linearity_how, print=F) %>% mutate(p = n / sum(n))
@@ -265,14 +317,29 @@ data_extract = data_extract %>%
 data_extract %>% filter(linearity != "not reported") %>% checkContent(linearity_how, print=F) %>% mutate(p = n / sum(n))
 
 
+
+# * * Multicollinearity ---------------------------------------------------
 data_extract %>% checkContent(multicollinearity, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% filter(multicollinearity != "not reported") %>% checkContent(multicollinearity_how, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% filter(multicollinearity != "not reported") %>% checkContent(multicollinearity_how, print=F) %>% mutate(p = n / sum(n))
 #data_extract %>% filter(multicollinearity != "not reported") %>% select(doi, starts_with("multicoll")) #manual check completed
 
-#outlier
+
+# * Outlier Handling ------------------------------------------------------
 data_extract %>% checkContent(outlier, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% checkContent(outlier_when, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% checkContent(outlier_how, print=F) %>% mutate(p = n / N_studies)
+
+data_extract %>% filter(outlier != "no") %>% checkContent(outlier_when, print=F) %>% mutate(p = n / sum(n))
+#data_extract %>% filter(outlier != "no", outlier_when %>% is.na()) %>% select(doi, starts_with("outlier")) #problem fixed
+
+data_extract %>% filter(outlier != "no") %>% checkContent(outlier_how, print=F) %>% mutate(p = n / sum(n))
+#TODO separate into outlier_procedure (SD-based vs. IQR-based) & outlier_parameter (numeric cutoff used)
+
+#TODO check:
+data_extract %>% filter(outlier != "no", outlier_how %>% is.na()) %>% select(doi, starts_with("outlier"))
+
+
+
+# Check consistency of columns --------------------------------------------
+#TODO check if longer format is needed for some columns
 
 #data transformations
 data_extract %>% checkContent(HR, print=F) %>% mutate(p = n / N_studies)
@@ -288,18 +355,11 @@ data_extract.dt %>% checkContent(DV, print=F) %>% mutate(p = n / N_studies)
 
 data_extract %>% checkContent(dt_specs, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% checkContent(Range_correction_type, print=F) %>% mutate(p = n / N_studies)
+#data_extract %>% filter(Range_correction_type %>% str_detect("baseline")) %>% select(doi, Range_correction_type)
+
 data_extract %>% checkContent(dt_rationale, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% checkContent(dt_rationale_details, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% checkContent(dt_rationale_ref, print=F) %>% mutate(p = n / N_studies)
-
-#statistical tests
-data_extract.tests %>% 
-  mutate(design_within_levels_max = design_within_levels_max %>% gsub("\\d+", "N", .)) %>% 
-  checkContent(design_within_levels_max, print=F) %>% mutate(p = n / N_studies)
-#TODO separate_longer_delim (Exp1 vs. 2: just check if any number > 3)
-data_extract.tests %>% checkContent(statistical_test, print=F) %>% mutate(p = n / N_studies)
-data_extract.tests %>% checkContent(statistical_test_details, print=F) %>% mutate(p = n / N_studies)
-
 
 
 # Write to RDS ------------------------------------------------------------
