@@ -258,7 +258,7 @@ data_extract %>% checkContent(linearity, print=F) %>% mutate(p = n / N_studies)
 #data_extract %>% filter(linearity != "not reported") %>% checkContent(linearity_how, print=F) %>% mutate(p = n / sum(n))
 data_extract = data_extract %>% 
   mutate(linearity_how = case_when(linearity_how %>% str_detect("quadr") ~ "quadratic slope",
-                                   T ~ linearity_how)) %>% filter(linearity != "not reported")
+                                   T ~ linearity_how)) 
 #data_extract %>% filter(linearity != "not reported", linearity_how %>% is.na() | linearity_how == "not reported") %>% select(doi, starts_with("linearity")) #manual check completed
 #data_extract %>% filter(linearity_how == "linear trends") %>% select(doi, starts_with("linearity")) #manual check completed
 
