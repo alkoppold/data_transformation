@@ -114,9 +114,9 @@ data_extract %>% checkContent(prereg, print=F) %>% mutate(p = n / N_studies)
 
 # * Data Transformations --------------------------------------------------
 data_extract.dt %>% checkContent(DV, print=F) %>% mutate(p = n / N_studies)
-#data_extract %>% filter(EMG_orbicularis_oculi %>% is.na() == F) %>% select(Extractor, doi:title, starts_with("EMG_"))
-#data_extract %>% filter(EMG_orbicularis_oculi %>% is.na() == F, EMG_orbicularis_oculi != EMG_startle) %>% select(Extractor, doi:title, starts_with("EMG_"))
-#manual check: EMG_orbicularis_oculi has never been used outside of fear potentiated startle => exclude
+#data_extract %>% filter(orbicularis_oculi %>% is.na() == F) %>% select(Extractor, doi:title, starts_with(""))
+#data_extract %>% filter(orbicularis_oculi %>% is.na() == F, orbicularis_oculi != startle) %>% select(Extractor, doi:title, starts_with(""))
+#manual check: orbicularis_oculi has never been used outside of fear potentiated startle => exclude
 
 data_extract.dt %>% checkContent(transformation)
 #TODO even longer format with separate_longer_delim ? but sequence is important!
@@ -406,12 +406,12 @@ sanity_check_dt_rationale_ref <- data_extract[which(data_extract$dt_rationale ==
 #data transformations
 data_extract %>% checkContent(HR, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% checkContent(HRV, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% checkContent(EMG_orbicularis_oculi, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% checkContent(EMG_startle, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(orbicularis_oculi, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(startle, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% checkContent(SCR, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% checkContent(SCL, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% checkContent(EYE_tracking, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% checkContent(PUPIL_SIZE, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(eye, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(pupil, print=F) %>% mutate(p = n / N_studies)
 
 data_extract %>% checkContent(dt_specs, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% checkContent(Range_correction_type, print=F) %>% mutate(p = n / N_studies)
