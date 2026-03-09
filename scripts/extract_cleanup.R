@@ -71,6 +71,10 @@ data_extract = data_extract %>%
          pupil = PUPIL_SIZE,
          eye = EYE_tracking) %>% 
   mutate(orbicularis_oculi=NA) %>% #manual check: orbicularis EMG has never been used outside of startle responses
+  
+  mutate(across(starts_with("n_"), \(x) x %>% gsub(",", ";", .) %>% 
+                  na_if("not reported") %>% na_if("partially not reported"))) %>% 
+  
   mutate(doi = case_when(doi %>% str_starts("http") ~ doi,
                          T ~ paste0("https://doi.org/", doi)))
 #data_extract %>% filter(doi %>% str_detect("doi.org") == F) %>% pull(doi) #articles without DOIs
@@ -139,8 +143,6 @@ data_extract.dt %>% #start with data_extract to avoid duplicates from data trans
 
 # * * Longer Format: Sample Sizes -----------------------------------------
 data_extract.N = data_extract.dt %>% #start with data_extract.dt to retain DV row (if n_* has one entry but there are several DVs, N counts for all DVs and should be duplicated for explicitness)
-  mutate(across(starts_with("n_"), \(x) x %>% gsub(",", ";", .) %>% 
-                  na_if("not reported") %>% na_if("partially not reported"))) %>% 
   separate_longer_delim(starts_with("n_"), ";") %>% 
   #filter(n_before_exclusion %>% grepl("^\\d+$", .) == F) %>% 
   #filter(if_any(starts_with("n_"), \(x) x %>% grepl("^\\d+$", .) == F)) %>% #only entries that are not completely made up of digits
