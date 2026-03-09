@@ -69,7 +69,7 @@ data_extract = data_extract %>%
   rename(orbicularis_oculi = EMG_orbicularis_oculi,
          startle = EMG_startle,
          pupil = PUPIL_SIZE,
-         eye = EYE_tracking)
+         eye = EYE_tracking) %>% 
   mutate(orbicularis_oculi=NA) %>% #manual check: orbicularis EMG has never been used outside of startle responses
   mutate(doi = case_when(doi %>% str_starts("http") ~ doi,
                          T ~ paste0("https://doi.org/", doi)))
