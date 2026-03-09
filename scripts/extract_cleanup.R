@@ -220,9 +220,19 @@ sanity_check_normality_when <- data_extract[which(data_extract$normality != "not
 
 
 # * * Homoscedasticity ----------------------------------------------------
-data_extract %>% checkContent(homoscedasticity, print=F) %>% mutate(p = n / N_studies)
-data_extract %>% filter(homoscedasticity != "not reported") %>% checkContent(homoscedasticity_how, print=F) %>% mutate(p = n / sum(n))
-#data_extract %>% filter(homoscedasticity != "not reported", homoscedasticity_how %>% is.na()) %>% select(doi, starts_with("homoscedasticity"))
+
+# * * * Design ------------------------------------------------------------
+data_extract %>% checkContent(design)
+#TODO check NA
+#TODO check "not reported"
+#TODO check "within, mixed"
+
+# * * * Homoscedasticity --------------------------------------------------
+data_extract %>% filter(design != "within") %>% checkContent(homoscedasticity, print=F) %>% mutate(p = n / N_studies)
+
+# * * * Homoscedasticity How ----------------------------------------------
+data_extract %>% filter(design != "within", homoscedasticity != "not reported") %>% checkContent(homoscedasticity_how, print=F) %>% mutate(p = n / sum(n))
+#data_extract %>% filter(design != "within", homoscedasticity != "not reported", homoscedasticity_how %>% is.na()) %>% select(doi, starts_with("homoscedasticity"))
 
 ## Sanity checks: homoscedasticity
 sanity_check_homoscedasticity_how <- data_extract[which(data_extract$homoscedasticity != "not reported" & is.na(data_extract$homoscedasticity_how)), ]
@@ -231,14 +241,12 @@ sanity_check_homoscedasticity_how <- data_extract[which(data_extract$homoscedast
 # * * Sphericity ----------------------------------------------------------
 
 # * * * Within-Subject Levels ---------------------------------------------
-data_extract.dt %>% checkContent(design_within_levels_max) 
+data_extract %>% mutate(design_within_levels_max = design_within_levels_max %>% gsub("\\d+", "N", .)) %>% checkContent(design_within_levels_max)
 #TODO long format
 
 
 # * * * Statistical Model -------------------------------------------------
 data_extract %>% checkContent(statistical_test)
-#TODO check "general linear model" (could be an emulation of ANOVA/regression or even a mixed model)
-#TODO collapse regression & correlation? (but ANOVA & ttest are also separate)
 #TODO check "bayesian model" (what kind?)
 
 #data_extract %>% filter(statistical_test %>% is.na()) %>% pull(doi)
