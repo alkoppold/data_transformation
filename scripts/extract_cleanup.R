@@ -139,10 +139,8 @@ data_extract.dt %>% #start with data_extract to avoid duplicates from data trans
 
 # * * Longer Format: Sample Sizes -----------------------------------------
 data_extract.N = data_extract.dt %>% #start with data_extract.dt to retain DV row (if n_* has one entry but there are several DVs, N counts for all DVs and should be duplicated for explicitness)
-  mutate(across(starts_with("n_"), \(x) x %>% gsub(",", ";", .) %>% na_if("not reported"))) %>% 
-  mutate(n_after_exclusion = case_when(n_after_exclusion %>% str_detect("not reported") ~ NA, #temporary fix for "partially not reported"
-                                       n_after_exclusion %>% str_detect("cued fear") ~ NA, #temporary fix 
-                                       T ~ n_after_exclusion)) %>% 
+  mutate(across(starts_with("n_"), \(x) x %>% gsub(",", ";", .) %>% 
+                  na_if("not reported") %>% na_if("partially not reported"))) %>% 
   separate_longer_delim(starts_with("n_"), ";") %>% 
   #filter(n_before_exclusion %>% grepl("^\\d+$", .) == F) %>% 
   #filter(if_any(starts_with("n_"), \(x) x %>% grepl("^\\d+$", .) == F)) %>% #only entries that are not completely made up of digits
