@@ -66,7 +66,11 @@ data_extract = data_extract.full %>%
 
 # Manual Edits ------------------------------------------------------------
 data_extract = data_extract %>% 
-  mutate(EMG_orbicularis_oculi=NA) %>% #manual check: orbicularis EMG has never been used outside of startle responses
+  rename(orbicularis_oculi = EMG_orbicularis_oculi,
+         startle = EMG_startle,
+         pupil = PUPIL_SIZE,
+         eye = EYE_tracking)
+  mutate(orbicularis_oculi=NA) %>% #manual check: orbicularis EMG has never been used outside of startle responses
   mutate(doi = case_when(doi %>% str_starts("http") ~ doi,
                          T ~ paste0("https://doi.org/", doi)))
 #data_extract %>% filter(doi %>% str_detect("doi.org") == F) %>% pull(doi) #articles without DOIs
@@ -78,13 +82,10 @@ N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
 #data_extract %>% filter(doi %>% is.na()) %>% select(title) #manually replaced NAs
 #data_extract %>% count(doi) %>% filter(n != 1)
 
-#TODO move to results?
+#TODO move to results
 data_extract.dt = data_extract %>% 
-  pivot_longer(HR:PUPIL_SIZE, names_to = "DV", values_to = "transformation") %>% 
-  mutate(DV = DV %>% gsub("EMG_", "", .)) %>% #just "startle" instead of "EMG_startle"
-  mutate(DV = DV %>% gsub("PUPIL_SIZE", "pupil", .)) %>% 
-  mutate(DV = DV %>% gsub("EYE_tracking", "eye", .)) %>% 
-  mutate(DV = DV %>% as_factor()) %>% 
+  pivot_longer(HR:pupil, names_to = "DV", values_to = "transformation") %>% 
+  mutate(DV = DV %>% as_factor()) %>% #ensures that orbicularis is not dropped by count function (explicit 0)
   filter(transformation %>% is.na() == F) %>% 
   relocate(DV)
 
