@@ -52,11 +52,16 @@ data_extract = data_extract.full %>%
          #deselecting cross_vs_long, n_with_exclusions, n_female_total, age_mean_total, age_sd_total
          n_before_exclusion:mental_health_exclusion, 
          #deselecting individual_level & individual_level_VOI
+         
+         #TODO keep design column? (important for homoscedasticity but was not checked thoroughly)
+         design:statistical_test_details, #move columns forward (important for statistical assumptions)
+         #design_within_levels_max:statistical_test_details, #move columns forward (important for statistical assumptions)
+         
          normality:homoscedasticity_how, 
          #deselecting sphericity_old
          sphericity:dt_rationale_ref, 
-         #deselecting dt_when, design
-         design_within_levels_max:comment)
+         #deselecting dt_when
+         comment)
 
 
 # Manual Edits ------------------------------------------------------------
