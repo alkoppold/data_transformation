@@ -76,7 +76,7 @@ data_extract = data_extract %>%
                   na_if("not reported") %>% na_if("partially not reported"))) %>% 
   
   mutate(doi = case_when(doi %>% str_starts("http") ~ doi,
-                         T ~ paste0("https://doi.org/", doi)))
+                         T ~ paste0("https://doi.org/", doi))) #ensure doi is full link
 #data_extract %>% filter(doi %>% str_detect("doi.org") == F) %>% pull(doi) #articles without DOIs
 
 
@@ -86,7 +86,7 @@ N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
 #data_extract %>% filter(doi %>% is.na()) %>% select(title) #manually replaced NAs
 #data_extract %>% count(doi) %>% filter(n != 1)
 
-#TODO move to results
+#TODO copy to results
 data_extract.dt = data_extract %>% 
   pivot_longer(HR:pupil, names_to = "DV", values_to = "transformation") %>% 
   mutate(DV = DV %>% as_factor()) %>% #ensures that orbicularis is not dropped by count function (explicit 0)
@@ -142,6 +142,7 @@ data_extract.dt %>% #start with data_extract to avoid duplicates from data trans
 
 
 # * * Longer Format: Sample Sizes -----------------------------------------
+#TODO copy to results
 data_extract.N = data_extract.dt %>% #start with data_extract.dt to retain DV row (if n_* has one entry but there are several DVs, N counts for all DVs and should be duplicated for explicitness)
   separate_longer_delim(starts_with("n_"), ";") %>% 
   #filter(n_before_exclusion %>% grepl("^\\d+$", .) == F) %>% 
@@ -273,7 +274,7 @@ data_extract.tests = data_extract %>%
                                  statistical_test %>% grepl("hierarchical", .) ~ "multilevel model",
                                  statistical_test %>% grepl("multilevel", .) ~ "multilevel model",
                                  
-                                 statistical_test %>% grepl("mixed", .) ~ "mixed model",
+                                 statistical_test %>% grepl("mixed", .) ~ "mixed model", #note: mixed models extent GLMs by random effects
                                  
                                  T ~ statistical_test),
     statistical_test = if_else(statistical_test == "multilevel model", "mixed model", statistical_test) #collapse multilevel & mixed model
@@ -287,14 +288,13 @@ data_extract.tests %>% checkContent(statistical_test, print=F) %>% mutate(p = n 
 data_extract.tests %>% 
   mutate(design_within_levels_max = design_within_levels_max %>% gsub("\\d+", "N", .)) %>% 
   checkContent(design_within_levels_max, print=F) %>% mutate(p = n / N_studies)
-#TODO separate_longer_delim (Exp1 vs. 2: just check if any number > 3)
 
 data_extract.tests %>% checkContent(statistical_test, print=F) %>% mutate(p = n / N_studies)
 data_extract.tests %>% checkContent(statistical_test_details, print=F) %>% mutate(p = n / N_studies)
 
 
 # * * * Sphericity Handling -----------------------------------------------
-#TODO long format?
+#TODO long format
 data_extract = data_extract %>% 
   ## does not work because of multiple entries
   # mutate(sphericity = case_when(sphericity %>% str_detect("Greenhouse") ~ "Greenhouse-Geisser correction",
@@ -364,9 +364,6 @@ data_extract %>% filter(outlier != "no") %>% checkContent(outlier_how, print=F) 
 #TODO check:
 data_extract %>% filter(outlier != "no", outlier_how %>% is.na()) %>% select(doi, starts_with("outlier"))
 
-## Sanity checks: outlier
-sanity_check_outlier_how <- data_extract[which(data_extract$outlier == "yes" & is.na(data_extract$outlier_how)), ]    #TODO: CHECK!!
-sanity_check_outlier_when <- data_extract[which(data_extract$outlier == "yes" & is.na(data_extract$outlier_when)), ]
 
 
 # * Range correction type -------------------------------------------------
@@ -405,8 +402,6 @@ data_extract %>% checkContent(SCR, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% checkContent(SCL, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% checkContent(EYE_tracking, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% checkContent(PUPIL_SIZE, print=F) %>% mutate(p = n / N_studies)
-
-data_extract.dt %>% checkContent(DV, print=F) %>% mutate(p = n / N_studies)
 
 data_extract %>% checkContent(dt_specs, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% checkContent(Range_correction_type, print=F) %>% mutate(p = n / N_studies)
