@@ -239,9 +239,8 @@ sanity_check_normality_when <- data_extract[which(data_extract$normality != "not
 
 # * * * Design ------------------------------------------------------------
 data_extract %>% checkContent(design)
-#TODO check NA
-#TODO check "not reported"
-#TODO check "within, mixed"
+#TODO check NA -> Talk to Mario
+#TODO check "within, mixed" -> I think we can't ;-)
 
 # * * * Homoscedasticity --------------------------------------------------
 data_extract %>% filter(design != "within") %>% checkContent(homoscedasticity, print=F) %>% mutate(p = n / sum(n))
@@ -258,12 +257,12 @@ sanity_check_homoscedasticity_how <- data_extract[which(data_extract$homoscedast
 
 # * * * Within-Subject Levels ---------------------------------------------
 data_extract %>% mutate(design_within_levels_max = design_within_levels_max %>% gsub("\\d+", "N", .)) %>% checkContent(design_within_levels_max)
-#TODO long format
+#TODO long format -> Vorschlag: wir nehmen den größeren Faktor. Wir haben assumptions nicht für outcomes aufgelöst.
 
 
 # * * * Statistical Model -------------------------------------------------
 data_extract %>% checkContent(statistical_test)
-#TODO check "bayesian model" (what kind?)
+#TODO check "bayesian model" (what kind?) -> bayesian t-test? Check here: https://www.degruyterbrill.com/document/doi/10.1515/sjpain-2019-0177/html
 
 #data_extract %>% filter(statistical_test %>% is.na()) %>% pull(doi)
 data_extract %>% filter(statistical_test == "multiple") %>% select(doi, statistical_test_details)
@@ -398,7 +397,7 @@ data_extract %>% checkContent(Range_correction_type, print=F) %>% mutate(p = n /
 
 # Sanity checks: range correction type
 cols_to_check <- c("SCR", "SCL")  # replace with your column names
-sanity_check_Range_correction_type <- data_extract[rowSums(data_extract[, cols_to_check] == "rc", na.rm = TRUE) > 0 & is.na(data_extract$Range_correction_type), ] #TODO: CHECK!!
+sanity_check_Range_correction_type <- data_extract[rowSums(data_extract[, cols_to_check] == "rc", na.rm = TRUE) > 0 & is.na(data_extract$Range_correction_type), ] 
 
 
 # * Rationale -------------------------------------------------------------
@@ -408,8 +407,8 @@ data_extract %>% checkContent(dt_rationale_details, print=F) %>% mutate(p = n / 
 data_extract %>% checkContent(dt_rationale_ref, print=F) %>% mutate(p = n / sum(n))
 
 # Sanity checks: rationale
-sanity_check_dt_rationale_details <- data_extract[which(data_extract$dt_rationale != "no" & is.na(data_extract$dt_rationale_details)), ]           #TODO: CHECK!!
-sanity_check_dt_rationale_ref <- data_extract[which(data_extract$dt_rationale != "no" & is.na(data_extract$dt_rationale_ref)), ]                   #TODO: CHECK!!
+sanity_check_dt_rationale_details <- data_extract[which(data_extract$dt_rationale != "no" & is.na(data_extract$dt_rationale_details)), ]           #TODO: Talk to Mario :-)
+sanity_check_dt_rationale_ref <- data_extract[which(data_extract$dt_rationale != "no" & is.na(data_extract$dt_rationale_ref)), ]                   
 
 
 
@@ -436,6 +435,7 @@ assump_linearity <- c("Structural Equation Modeling","mixed model","general line
 assump_multicollinearity <- c("Structural Equation Modeling","mixed model","general linear model","ANOVA","regression")
 
 # Fill the columns accordingly and add additional criteria
+#TODO: Add "not bayesian" for e.g. t-tests
 data_extract$normality_need <- ifelse(
                                data_extract$statistical_test %in% assump_normality,
                                "yes", "no")
