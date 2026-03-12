@@ -257,8 +257,20 @@ sanity_check_homoscedasticity_how <- data_extract[which(data_extract$homoscedast
 
 # * * * Within-Subject Levels ---------------------------------------------
 data_extract %>% mutate(design_within_levels_max = design_within_levels_max %>% gsub("\\d+", "N", .)) %>% checkContent(design_within_levels_max)
-#TODO long format -> Vorschlag: wir nehmen den größeren Faktor. Wir haben assumptions nicht für outcomes aufgelöst.
 
+#data_extract %>% filter(design_within_levels_max %>% str_detect(";")) %>% checkContent(design_within_levels_max)
+data_extract = data_extract %>% mutate(design_within_levels_max = design_within_levels_max %>% 
+                                         str_replace_all("EMG", "startle") %>% #EMG means startle
+                                         str_replace_all("PUPIL", "pupil")) %>% #pupil in lowercase for consistency
+  #only keep maximum number if different by DV
+  separate_wider_delim(design_within_levels_max, "; ", names_sep = "_", too_few = "align_start") %>% #, cols_remove = F #doesn't work correctly together with names_sep
+  mutate(across(starts_with("design_within_levels_max"), \(x) x %>% gsub("\\D+", "", .) %>% as.integer())) %>% #extract integers (drop dv.descriptors)
+  #select(starts_with("design_within_levels_max")) %>% filter(design_within_levels_max_1 %>% is.na() == F, design_within_levels_max_2 %>% is.na() == F) %>% 
+  rowwise() %>% mutate(design_within_levels_max_1 = suppressWarnings(max(c(design_within_levels_max_1, design_within_levels_max_2), na.rm=T))) %>% ungroup() %>% #rowwise maximum
+  rename(design_within_levels_max = design_within_levels_max_1) %>% select(-design_within_levels_max_2) %>% #acrobatics needed to preserve column position (since cols_remove = F doesn't work correctly together with names_sep)
+  mutate(design_within_levels_max = design_within_levels_max %>% na_if(-Inf)) #set -Inf to NA again
+
+data_extract %>% mutate(design_within_levels_max = design_within_levels_max %>% gsub("\\d+", "N", .)) %>% checkContent(design_within_levels_max)
 
 # * * * Statistical Model -------------------------------------------------
 data_extract %>% checkContent(statistical_test)
