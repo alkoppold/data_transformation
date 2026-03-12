@@ -282,7 +282,7 @@ data_extract.tests = data_extract %>%
                                  statistical_test %>% str_detect("ttest") ~ "ttest",
                                  
                                  #statistical_test %>% str_detect("Welch") ~ "ttest", #(for unequal variances)
-                                 statistical_test %>% str_detect("Welch") ~ "Welch test", #leave Welch test separate because it does not require homoscedasticity
+                                 statistical_test %>% str_detect("Welch") ~ "Welch ttest", #leave Welch test separate because it does not require homoscedasticity
                                  
                                  statistical_test %>% str_detect("Whitney") ~ "ordinal ttest", #for independent samples
                                  statistical_test %>% str_detect("Wilcoxon") ~ "ordinal ttest", #for paired samples
