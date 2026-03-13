@@ -161,8 +161,8 @@ data_extract.dt %>% #start with data_extract to avoid duplicates from data trans
 #TODO copy to results
 data_extract.N = data_extract.dt %>% #start with data_extract.dt to retain DV row (if n_* has one entry but there are several DVs, N counts for all DVs and should be duplicated for explicitness)
   separate_longer_delim(starts_with("n_"), ";") %>% 
-  #filter(n_before_exclusion %>% grepl("^\\d+$", .) == F) %>% 
-  #filter(if_any(starts_with("n_"), \(x) x %>% grepl("^\\d+$", .) == F)) %>% #only entries that are not completely made up of digits
+  #filter(n_before_exclusion %>% str_detect("^\\d+$") == F) %>% 
+  #filter(if_any(starts_with("n_"), \(x) x %>% str_detect("^\\d+$") == F)) %>% #only entries that are not completely made up of digits
   mutate(DV2 = n_after_exclusion %>% str_extract("\\b[a-zA-Z]+\\b")) %>% relocate(starts_with("DV")) #extract measurement (dependent variable, DV) from n_after_exclusion (if n_before_exclusion has several measurements, so does n_after_exclusion)
 
 dv.descriptors = data_extract.dt %>% pull(DV) %>% unique() %>% sort()
@@ -304,14 +304,14 @@ data_extract.tests = data_extract %>%
                                  statistical_test %>% str_detect("equation") ~ "Structural Equation Modeling",
                                  statistical_test %>% str_detect("path") ~ "Structural Equation Modeling", 
                                  
-                                 statistical_test %>% grepl("growth", .) ~ "computational modeling", #"multilevel growth" = "computational" not "hierarchical"
+                                 statistical_test %>% str_detect("growth") ~ "computational modeling", #"multilevel growth" = "computational" not "hierarchical"
                                  #statistical_test == "growth curve models with multilevel modelling" ~ "multilevel growth curve model",
                                  statistical_test == "computational model" ~ "computational modeling",
                                  
-                                 statistical_test %>% grepl("hierarchical", .) ~ "multilevel model",
-                                 statistical_test %>% grepl("multilevel", .) ~ "multilevel model",
+                                 statistical_test %>% str_detect("hierarchical") ~ "multilevel model",
+                                 statistical_test %>% str_detect("multilevel") ~ "multilevel model",
                                  
-                                 statistical_test %>% grepl("mixed", .) ~ "mixed model", #note: mixed models extent GLMs by random effects
+                                 statistical_test %>% str_detect("mixed") ~ "mixed model", #note: mixed models extent GLMs by random effects
                                  
                                  T ~ statistical_test),
     statistical_test = if_else(statistical_test == "multilevel model", "mixed model", statistical_test) #collapse multilevel & mixed model
