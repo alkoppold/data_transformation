@@ -296,19 +296,19 @@ data_extract.tests = data_extract %>%
                                  #statistical_test %>% str_detect("Welch") ~ "ttest", #(for unequal variances)
                                  statistical_test %>% str_detect("Welch") ~ "Welch ttest", #leave Welch test separate because it does not require homoscedasticity
                                  
-                                 statistical_test %>% str_detect("Whitney") ~ "ordinal ttest", #for independent samples
+                                 statistical_test %>% str_detect("Whitney") ~ "ordinal ttest", #for independent samples (homoscedasticity not required due to rank transformation)
                                  statistical_test %>% str_detect("Wilcoxon") ~ "ordinal ttest", #for paired samples
                                  
                                  statistical_test %>% str_detect("regression") ~ "regression",
                                  
                                  statistical_test %>% str_detect("equation") ~ "Structural Equation Modeling",
+                                 statistical_test %>% str_detect("latent") ~ "Structural Equation Modeling",
                                  statistical_test %>% str_detect("path") ~ "Structural Equation Modeling", 
                                  
-                                 statistical_test %>% str_detect("growth") ~ "computational modeling", #"multilevel growth" = "computational" not "hierarchical"
-                                 #statistical_test == "growth curve models with multilevel modelling" ~ "multilevel growth curve model",
-                                 statistical_test == "computational model" ~ "computational modeling",
+                                 #statistical_test == "computational model" ~ "computational modeling",
                                  
-                                 statistical_test %>% str_detect("hierarchical") ~ "multilevel model",
+                                 statistical_test %>% str_detect("growth") ~ "multilevel model", #growth curve = multilevel mixed model (exception: latent growth curve = SEM)
+                                 statistical_test %>% str_detect("hierarchical") ~ "multilevel model", #hierarchical = multilevel (exception: hierarchical regression = regression)
                                  statistical_test %>% str_detect("multilevel") ~ "multilevel model",
                                  
                                  statistical_test %>% str_detect("mixed") ~ "mixed model", #note: mixed models extent GLMs by random effects
