@@ -53,7 +53,7 @@ data_extract = data_extract.full %>%
          n_before_exclusion:mental_health_exclusion, 
          #deselecting individual_level & individual_level_VOI
          
-         #TODO keep design column? (important for homoscedasticity but was not checked thoroughly)
+         #TODO keep design column? (important for homoscedasticity but was not checked thoroughly) -> let's talk!
          design:statistical_test_details, #move columns forward (important for statistical assumptions)
          #design_within_levels_max:statistical_test_details, #move columns forward (important for statistical assumptions)
          
@@ -239,8 +239,8 @@ sanity_check_normality_when <- data_extract[which(data_extract$normality != "not
 
 # * * * Design ------------------------------------------------------------
 data_extract %>% checkContent(design)
-#TODO check NA -> Talk to Mario
-#TODO check "within, mixed" -> I think we can't ;-)
+#TODO check NA 
+#TODO check "within, mixed" 
 
 # * * * Homoscedasticity --------------------------------------------------
 data_extract %>% filter(design != "within") %>% checkContent(homoscedasticity, print=F) %>% mutate(p = n / sum(n))
@@ -274,7 +274,6 @@ data_extract %>% mutate(design_within_levels_max = design_within_levels_max %>% 
 
 # * * * Statistical Model -------------------------------------------------
 data_extract %>% checkContent(statistical_test)
-#TODO check "bayesian model" (what kind?) -> bayesian t-test? Check here: https://www.degruyterbrill.com/document/doi/10.1515/sjpain-2019-0177/html
 
 #data_extract %>% filter(statistical_test %>% is.na()) %>% pull(doi)
 data_extract %>% filter(statistical_test == "multiple") %>% select(doi, statistical_test_details)
@@ -454,10 +453,12 @@ data_extract$normality_need <- ifelse(
 
 data_extract$homoscedasticity_need <- ifelse(
                                       (data_extract$statistical_test %in% assump_homoscedasticity) & 
+                                      (data_extract$design != "within") &
                                       (data_extract$design_within_levels_max < 3),
                                       "yes", "no")
 data_extract$sphericity_need <- ifelse(
                                 (data_extract$statistical_test %in% assump_sphericity) & 
+                                (data_extract$design != "between") &
                                 (data_extract$design_within_levels_max > 2),
                                 "yes", "no")
 
