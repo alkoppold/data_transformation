@@ -345,7 +345,7 @@ data_extract %>%
 #checked: Mendoza's sphericity test exists
 #checked: "Greenhouse-Geisser correction & Huynh-Feldt correction" is different from rest (e.g., "Greenhouse-Geisser correction (ɛ < .75) or Huynh-Feldt correction (ɛ > .75)")
 #checked: "unclear" is correct
-#TODO check NA vs. "not reported"
+#TODO check NA vs. "not reported": due to previous column: was the sphericity checked? yes/not reported -> if not reported = NA // NA should be not reported?
 #TODO split up into test vs. correction column? (could collapse "Greenhouse-Geisser" vs. "Mauchly's test, Greenhouse-Geisser)
 
 
@@ -397,8 +397,8 @@ data_extract %>% filter(outlier != "no") %>% checkContent(outlier_when, print=F)
 data_extract %>% filter(outlier != "no") %>% checkContent(outlier_how, print=F) %>% mutate(p = n / sum(n))
 #TODO separate into outlier_procedure (SD-based vs. IQR-based) & outlier_parameter (numeric cutoff used)
 
-#TODO check:
-data_extract %>% filter(outlier != "no", outlier_how %>% is.na()) %>% select(doi, starts_with("outlier"))
+# Sanity check:
+data_extract %>% filter(outlier != "no", outlier_how %>% is.na()) %>% select(title, starts_with("outlier"))
 
 
 
@@ -418,7 +418,7 @@ data_extract %>% checkContent(dt_rationale_details, print=F) %>% mutate(p = n / 
 data_extract %>% checkContent(dt_rationale_ref, print=F) %>% mutate(p = n / sum(n))
 
 # Sanity checks: rationale
-sanity_check_dt_rationale_details <- data_extract[which(data_extract$dt_rationale != "no" & is.na(data_extract$dt_rationale_details)), ]           #TODO: Talk to Mario :-)
+sanity_check_dt_rationale_details <- data_extract[which(data_extract$dt_rationale != "no" & is.na(data_extract$dt_rationale_details)), ]
 sanity_check_dt_rationale_ref <- data_extract[which(data_extract$dt_rationale != "no" & is.na(data_extract$dt_rationale_ref)), ]                   
 
 
