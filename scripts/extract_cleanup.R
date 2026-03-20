@@ -207,6 +207,14 @@ data_extract %>% checkContent(mental_health_exclusion, print=F) %>% mutate(p = n
 
 
 # * Assumptions -----------------------------------------------------------
+#TODO computational models do not imply a statistical test (but currently coded in column statistical_test)
+# make sure that studies coded as computational models:
+# 1) do NOT use a statistical test on "2nd level" (e.g., Rescorla-Wagner model + t-test with learning rates)
+#    => if they use both, report that statistical test
+# 2) those papers that use computational modeling without statistical tests (e.g., just model comparisons with AIC/BIC) 
+#    => code "computational model" in design column
+# 3) computational models without statistical tests should be removed from all descriptives on statistical assumptions
+data_extract %>% filter(statistical_test %>% str_detect("comput")) %>% select(doi, design, starts_with("statistical_test"))
 
 # * * Normality Checks ----------------------------------------------------
 
