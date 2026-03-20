@@ -230,6 +230,18 @@ data_extract = data_extract %>%
 data_extract %>% filter(normality != "not reported") %>% checkContent(normality_how, print=F) %>% mutate(p = n / sum(n))
 
 
+
+# * * * normality_how_category --------------------------------------------
+data_extract = data_extract %>% mutate(normality_how_category = case_when(
+  normality_how == "Q-Q plots, Shapiro-Wilk test" ~ "visually & descriptively",
+  normality_how %>% str_detect("test") ~ "statistical test",
+  normality_how %>% str_detect("skewness") ~ "descriptively",
+  T ~ normality_how
+  )) %>% relocate(normality_how_category, .after = normality_how)
+
+data_extract %>% filter(normality != "not reported") %>% checkContent(normality_how_category, print=F) %>% mutate(p = n / sum(n))
+#note: visually = qualitatively, statistical test + descriptively = quantitatively
+
 # * * * normality_when ----------------------------------------------------
 data_extract %>% filter(normality != "not reported") %>% checkContent(normality_when, print=F) %>% mutate(p = n / sum(n))
 #data_extract %>% filter(normality != "not reported", normality_when %>% is.na()) %>% select(doi, starts_with("normality"))
