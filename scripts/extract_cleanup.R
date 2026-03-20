@@ -72,9 +72,8 @@ data_extract = data_extract %>%
          eye = EYE_tracking) %>% 
   mutate(orbicularis_oculi=NA) %>% #manual check: orbicularis EMG has never been used outside of startle responses
   
-  # Maren: should be not reported instead of NA?
   mutate(across(starts_with("n_"), \(x) x %>% str_replace_all(",", ";") %>% 
-                  #
+                  #convert "not reported" to NA for columns that need to be numeric (will be done later for design_within_levels_max)
                   na_if("not reported") %>% na_if("partially not reported"))) %>% 
   
   mutate(doi = case_when(doi %>% str_starts("http") ~ doi,
