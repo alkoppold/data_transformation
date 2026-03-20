@@ -249,9 +249,12 @@ data_extract %>% checkContent(design)
 data_extract %>% checkContent(homoscedasticity, print=F) %>% mutate(p = n / sum(n))
 data_extract %>% filter(design != "within") %>% checkContent(homoscedasticity, print=F) %>% mutate(p = n / sum(n))
 
+#TODO Maren: check in data set
+data_extract %>% filter(design == "within", homoscedasticity != "not reported") %>% select(doi, starts_with("homoscedasticity"))
+
 # * * * Homoscedasticity How ----------------------------------------------
 data_extract %>% checkContent(homoscedasticity_how, print=F) %>% mutate(p = n / sum(n))
-# Maren: check why visually is missing when using the filer
+# Maren: check why visually is missing when using the filter
 data_extract %>% filter(design != "within", homoscedasticity != "not reported") %>% checkContent(homoscedasticity_how, print=F) %>% mutate(p = n / sum(n))
 #data_extract %>% filter(design != "within", homoscedasticity != "not reported", homoscedasticity_how %>% is.na()) %>% select(doi, starts_with("homoscedasticity"))
 
