@@ -281,7 +281,6 @@ sanity_check_homoscedasticity_how <- data_extract[which(data_extract$homoscedast
 # * * Sphericity ----------------------------------------------------------
 
 # * * * Within-Subject Levels ---------------------------------------------
-range(data_extract$design_within_levels_max, na.rm=T)
 data_extract %>% mutate(design_within_levels_max = design_within_levels_max %>% str_replace_all("\\d+", "N")) %>% checkContent(design_within_levels_max)
 
 #data_extract %>% filter(design_within_levels_max %>% str_detect(";")) %>% checkContent(design_within_levels_max)
@@ -297,6 +296,7 @@ data_extract = data_extract %>% mutate(design_within_levels_max = design_within_
   mutate(design_within_levels_max = design_within_levels_max %>% na_if(-Inf)) #set -Inf to NA again
 
 data_extract %>% mutate(design_within_levels_max = design_within_levels_max %>% str_replace_all("\\d+", "N")) %>% checkContent(design_within_levels_max)
+range(data_extract$design_within_levels_max, na.rm=T)
 
 # * * * Statistical Model -------------------------------------------------
 data_extract %>% checkContent(statistical_test)
