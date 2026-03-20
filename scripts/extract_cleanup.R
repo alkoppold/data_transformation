@@ -222,10 +222,10 @@ data_extract %>% checkContent(normality, print=F) %>% mutate(p = n / N_studies)
 
 # * * * normality_how -----------------------------------------------------
 data_extract %>% filter(normality != "not reported") %>% checkContent(normality_how, print=F) %>% mutate(p = n / sum(n))
-# Maren: Q-Q plot should be "visually"?; maybe lump skewness and kurtosis together?
 data_extract = data_extract %>% 
   mutate(normality_how = case_when(normality_how %>% str_detect("visually") ~ "visually", #code "visually, histograms" as "visually"
-                                   normality_how %>% str_detect("Shapiro-Wilk test") ~ "Shapiro-Wilk test", #code "Q-Q plots, Shapiro-Wilk test" as "Shapiro-Wilk test"
+                                   #normality_how %>% str_detect("Shapiro-Wilk test") ~ "Shapiro-Wilk test", #code "Q-Q plots, Shapiro-Wilk test" as "Shapiro-Wilk test"
+                                   #leave "Q-Q plots, Shapiro-Wilk test" separate because it is one qualitative (visually) and one quantitative (p-value based) method
                                    T ~ normality_how))
 data_extract %>% filter(normality != "not reported") %>% checkContent(normality_how, print=F) %>% mutate(p = n / sum(n))
 
