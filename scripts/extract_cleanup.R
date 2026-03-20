@@ -41,7 +41,7 @@ data_extract.full = data_extract.original %>%
          statistical_test   = `Main statistical test: ttest, AN(C)OVA, correlation, regression, mixed model, other (ask Perplexity.ai with copy pasting info from the method section)`,
          statistical_test_details = `Main statistical test: further specification (e.g., non-parametric test), if ANCOVA: centered covariate?, if mixed model: paste formula here, of other: name of test (e.g. chi-squared, MANOVA)`
          ) %>% 
-  rename_with(\(x) x %>% gsub("\\s*\\([^)]*\\)", "", .) %>% gsub(" ", "_", .)) #get rid of info in parentheses & replace space with "_"
+  rename_with(\(x) x %>% str_replace_all("\\s*\\([^)]*\\)", "") %>% str_replace_all(" ", "_")) #get rid of info in parentheses & replace space with "_"
 
 tibble(new = data_extract.full %>% names(), old = data_extract.original %>% names()) %>% print(n = nrow(.))
 
@@ -73,7 +73,8 @@ data_extract = data_extract %>%
   mutate(orbicularis_oculi=NA) %>% #manual check: orbicularis EMG has never been used outside of startle responses
   
   # Maren: should be not reported instead of NA?
-  mutate(across(starts_with("n_"), \(x) x %>% gsub(",", ";", .) %>% 
+  mutate(across(starts_with("n_"), \(x) x %>% str_replace_all(",", ";") %>% 
+                  #
                   na_if("not reported") %>% na_if("partially not reported"))) %>% 
   
   mutate(doi = case_when(doi %>% str_starts("http") ~ doi,
@@ -146,16 +147,16 @@ data_extract %>% checkContent(dt_specs, print=F) %>% mutate(p = n / N_studies)
 # * * n_before_exclusion --------------------------------------------------
 data_extract %>% #start with data_extract to avoid duplicates from data transformations
   mutate(n_before_exclusion = n_before_exclusion %>% 
-           #gsub("Exp\\.?\\w?:?\\w?", "ExpX:", .) %>%  #different experiments shall just be added up => recoded manually
-           gsub("\\d+", "N", .) #generify number for check
+           #str_replace_all("Exp\\.?\\w?:?\\w?", "ExpX:") %>%  #different experiments shall just be added up => recoded manually
+           str_replace_all("\\d+", "N") #generify number for check
   ) %>% 
   checkContent(n_before_exclusion)
 
 # * * n_after_exclusion ---------------------------------------------------
 data_extract.dt %>% #start with data_extract to avoid duplicates from data transformations
   mutate(n_after_exclusion = n_after_exclusion %>% 
-           #gsub("Exp\\.?\\w?:?\\w?", "ExpX:", .) %>% 
-           gsub("\\d+", "N", .) #generify number for check
+           #str_replace_all("Exp\\.?\\w?:?\\w?", "ExpX:") %>% 
+           str_replace_all("\\d+", "N") #generify number for check
   ) %>% 
   checkContent(n_after_exclusion)
 
@@ -173,7 +174,7 @@ dv.descriptors = data_extract.dt %>% pull(DV) %>% unique() %>% sort()
 
 data_extract.N = data_extract.N %>% 
   filter(DV == DV2 | DV2 %>% is.na() | DV2 %in% dv.descriptors == F) %>% 
-  mutate(across(starts_with("n_"), \(x) x %>% gsub("\\D", "", .)), #delete everything that is not a digit
+  mutate(across(starts_with("n_"), \(x) x %>% str_replace_all("\\D", "")), #delete everything that is not a digit
          across(starts_with("n_"), as.integer),
          retention = n_after_exclusion / n_before_exclusion, exclusion = 1 - retention) %>% 
   relocate(starts_with("DV"), exclusion, retention, starts_with("n_"))
@@ -190,10 +191,10 @@ if (nrow(data_extract.dt) != nrow(data_extract.N)) { warning("Rows in data_extra
 
 #sample size: check result
 data_extract.dt %>% 
-  mutate(n_before_exclusion = n_before_exclusion %>% gsub("\\d+", "N", .)) %>% 
+  mutate(n_before_exclusion = n_before_exclusion %>% str_replace_all("\\d+", "N")) %>% 
   checkContent(n_before_exclusion, print=F) %>% mutate(p = n / N_studies)
 data_extract.dt %>% 
-  mutate(n_after_exclusion = n_after_exclusion %>% gsub("\\d+", "N", .)) %>% 
+  mutate(n_after_exclusion = n_after_exclusion %>% str_replace_all("\\d+", "N")) %>% 
   checkContent(n_after_exclusion, print=F) %>% mutate(p = n / N_studies)
 
 # Sanity check: n_before_exclusion should be > n_after_exclusion; check also range 
@@ -266,7 +267,7 @@ sanity_check_homoscedasticity_how <- data_extract[which(data_extract$homoscedast
 
 # * * * Within-Subject Levels ---------------------------------------------
 range(data_extract$design_within_levels_max, na.rm=T)
-data_extract %>% mutate(design_within_levels_max = design_within_levels_max %>% gsub("\\d+", "N", .)) %>% checkContent(design_within_levels_max)
+data_extract %>% mutate(design_within_levels_max = design_within_levels_max %>% str_replace_all("\\d+", "N")) %>% checkContent(design_within_levels_max)
 
 #data_extract %>% filter(design_within_levels_max %>% str_detect(";")) %>% checkContent(design_within_levels_max)
 data_extract = data_extract %>% mutate(design_within_levels_max = design_within_levels_max %>% 
@@ -274,13 +275,13 @@ data_extract = data_extract %>% mutate(design_within_levels_max = design_within_
                                          str_replace_all("PUPIL", "pupil")) %>% #pupil in lowercase for consistency
   #only keep maximum number if different by DV
   separate_wider_delim(design_within_levels_max, "; ", names_sep = "_", too_few = "align_start") %>% #, cols_remove = F #doesn't work correctly together with names_sep
-  mutate(across(starts_with("design_within_levels_max"), \(x) x %>% gsub("\\D+", "", .) %>% as.integer())) %>% #extract integers (drop dv.descriptors)
+  mutate(across(starts_with("design_within_levels_max"), \(x) x %>% str_replace_all("\\D+", "") %>% as.integer())) %>% #extract integers (drop dv.descriptors)
   #select(starts_with("design_within_levels_max")) %>% filter(design_within_levels_max_1 %>% is.na() == F, design_within_levels_max_2 %>% is.na() == F) %>% 
   rowwise() %>% mutate(design_within_levels_max_1 = suppressWarnings(max(c(design_within_levels_max_1, design_within_levels_max_2), na.rm=T))) %>% ungroup() %>% #rowwise maximum
   rename(design_within_levels_max = design_within_levels_max_1) %>% select(-design_within_levels_max_2) %>% #acrobatics needed to preserve column position (since cols_remove = F doesn't work correctly together with names_sep)
   mutate(design_within_levels_max = design_within_levels_max %>% na_if(-Inf)) #set -Inf to NA again
 
-data_extract %>% mutate(design_within_levels_max = design_within_levels_max %>% gsub("\\d+", "N", .)) %>% checkContent(design_within_levels_max)
+data_extract %>% mutate(design_within_levels_max = design_within_levels_max %>% str_replace_all("\\d+", "N")) %>% checkContent(design_within_levels_max)
 
 # * * * Statistical Model -------------------------------------------------
 data_extract %>% checkContent(statistical_test)
@@ -336,7 +337,7 @@ data_extract.tests %>% checkContent(statistical_test, print=F) %>% mutate(p = n 
 
 # Check design_within_levels
 data_extract.tests %>% 
-  mutate(design_within_levels_max = design_within_levels_max %>% gsub("\\d+", "N", .)) %>% 
+  mutate(design_within_levels_max = design_within_levels_max %>% str_replace_all("\\d+", "N")) %>% 
   checkContent(design_within_levels_max, print=F) %>% mutate(p = n / N_studies)
 
 
@@ -350,7 +351,7 @@ data_extract = data_extract %>%
   ## does not work because of multiple entries
   # mutate(sphericity = case_when(sphericity %>% str_detect("Greenhouse") ~ "Greenhouse-Geisser correction",
   #                               sphericity %>% str_detect("Huynh") ~ "Huynh-Feldt correction",))
-  mutate(sphericity = sphericity %>% gsub("–", "-", .))
+  mutate(sphericity = sphericity %>% str_replace_all("–", "-"))
 
 data_extract %>% 
   #TODO implement filters (not working yet)
