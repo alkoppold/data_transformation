@@ -256,19 +256,23 @@ sanity_check_normality_when <- data_extract[which(data_extract$normality != "not
 # * * * Design ------------------------------------------------------------
 data_extract %>% checkContent(design)
 #TODO check NA -> 1 not reported, 1 computational model, 1 growth model
+data_extract %>% filter(design %>% is.na() | design == "not reported") %>% select(doi, design, starts_with("statistical_test"))
 
 # * * * Homoscedasticity --------------------------------------------------
 data_extract %>% checkContent(homoscedasticity, print=F) %>% mutate(p = n / sum(n))
 data_extract %>% filter(design != "within") %>% checkContent(homoscedasticity, print=F) %>% mutate(p = n / sum(n))
 
 #TODO Maren: check in data set
-data_extract %>% filter(design == "within", homoscedasticity != "not reported") %>% select(doi, starts_with("homoscedasticity"))
+data_extract %>% filter(design == "within", homoscedasticity != "not reported") %>% select(doi, design, starts_with("homoscedasticity"))
 
 # * * * Homoscedasticity How ----------------------------------------------
 data_extract %>% checkContent(homoscedasticity_how, print=F) %>% mutate(p = n / sum(n))
-# Maren: check why visually is missing when using the filter
+
+#TODO Maren: check why visually is missing when using the filter
+data_extract %>% filter(homoscedasticity_how %>% is.na() == F) %>% select(doi, design, starts_with("homoscedasticity"))
+
 data_extract %>% filter(design != "within", homoscedasticity != "not reported") %>% checkContent(homoscedasticity_how, print=F) %>% mutate(p = n / sum(n))
-#data_extract %>% filter(design != "within", homoscedasticity != "not reported", homoscedasticity_how %>% is.na()) %>% select(doi, starts_with("homoscedasticity"))
+#data_extract %>% filter(design != "within", homoscedasticity != "not reported", homoscedasticity_how %>% is.na() == F) %>% select(doi, starts_with("homoscedasticity"))
 
 ## Sanity checks: homoscedasticity
 sanity_check_homoscedasticity_how <- data_extract[which(data_extract$homoscedasticity != "not reported" & is.na(data_extract$homoscedasticity_how)), ]
