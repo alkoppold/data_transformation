@@ -381,8 +381,16 @@ data_extract %>%
 #checked: "Greenhouse-Geisser correction & Huynh-Feldt correction" is different from rest (e.g., "Greenhouse-Geisser correction (ɛ < .75) or Huynh-Feldt correction (ɛ > .75)")
 
 #TODO check NA vs. "not reported": due to previous column: was the sphericity checked? yes/not reported -> if not reported = NA // NA should be not reported?
-#TODO split up into test vs. correction column? (could collapse "Greenhouse-Geisser" vs. "Mauchly's test, Greenhouse-Geisser)
 
+
+# * * * Sphericity Category -----------------------------------------------
+data_extract = data_extract %>% mutate(sphericity_category = case_when(
+  sphericity %>% str_detect("test") & sphericity %>% str_detect("correction") ~ "both",
+  sphericity %>% str_detect("test") ~ "test",
+  sphericity %>% str_detect("correction") ~ "correction",
+  T ~ "neither")) %>% relocate(sphericity_category, .after = sphericity)
+
+data_extract %>% filter(statistical_test == "ANOVA", design_within_levels_max > 2, sphericity %>% is.na() == F, sphericity != "not reported") %>% checkContent(sphericity_category, print=F) %>% mutate(p = n / sum(n))
 
 
 # * * Independence of Residuals -------------------------------------------
