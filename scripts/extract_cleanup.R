@@ -43,7 +43,7 @@ data_extract.full = data_extract.original %>%
          ) %>% 
   rename_with(\(x) x %>% str_replace_all("\\s*\\([^)]*\\)", "") %>% str_replace_all(" ", "_")) #get rid of info in parentheses & replace space with "_"
 
-tibble(new = data_extract.full %>% names(), old = data_extract.original %>% names()) %>% print(n = nrow(.))
+#tibble(new = data_extract.full %>% names(), old = data_extract.original %>% names()) %>% print(n = nrow(.))
 
 
 # Select Variables --------------------------------------------------------
@@ -168,7 +168,8 @@ data_extract.N = data_extract.dt %>% #start with data_extract.dt to retain DV ro
   #filter(if_any(starts_with("n_"), \(x) x %>% str_detect("^\\d+$") == F)) %>% #only entries that are not completely made up of digits
   mutate(DV2 = n_after_exclusion %>% str_extract("\\b[a-zA-Z]+\\b")) %>% relocate(starts_with("DV")) #extract measurement (dependent variable, DV) from n_after_exclusion (if n_before_exclusion has several measurements, so does n_after_exclusion)
 
-dv.descriptors = data_extract.dt %>% pull(DV) %>% unique() %>% sort()
+#dv.descriptors = data_extract.dt %>% pull(DV) %>% unique() %>% sort()
+dv.descriptors = data_extract.dt %>% pull(DV) %>% levels()
 #data_extract.N %>% pull(DV2) %>% unique() %>% sort() %>% setdiff(dv.descriptors) #check invalid descriptors
 
 data_extract.N = data_extract.N %>% 
@@ -243,7 +244,7 @@ data_extract %>% filter(normality != "not reported") %>% checkContent(normality_
 data_extract = data_extract %>% mutate(normality_how_category = case_when(
   normality_how == "Q-Q plots, Shapiro-Wilk test" ~ "visually & descriptively",
   normality_how %>% str_detect("test") ~ "statistical test",
-  normality_how %>% str_detect("skewness") ~ "descriptively",
+  normality_how %>% str_detect("skewness") ~ "descriptively", #"skewness and/or kurtosis"
   T ~ normality_how
   )) %>% relocate(normality_how_category, .after = normality_how)
 
@@ -358,18 +359,12 @@ data_extract.tests = data_extract %>%
 # Final check
 data_extract.tests %>% checkContent(statistical_test, print=F) %>% mutate(p = n / N_studies)
 
-# Check design_within_levels
-data_extract.tests %>% 
-  mutate(design_within_levels_max = design_within_levels_max %>% str_replace_all("\\d+", "N")) %>% 
-  checkContent(design_within_levels_max, print=F) %>% mutate(p = n / N_studies)
 
-
-# Check colum with stat models details
+# * * * Statistical Model Details -----------------------------------------
 data_extract.tests %>% checkContent(statistical_test_details, print=F) %>% mutate(p = n / N_studies)
 
 
 # * * * Sphericity Handling -----------------------------------------------
-#TODO long format
 data_extract = data_extract %>% 
   ## does not work because of multiple entries
   # mutate(sphericity = case_when(sphericity %>% str_detect("Greenhouse") ~ "Greenhouse-Geisser correction",
