@@ -438,8 +438,22 @@ data_extract %>% checkContent(outlier, print=F) %>% mutate(p = n / N_studies)
 data_extract %>% filter(outlier != "no") %>% checkContent(outlier_when, print=F) %>% mutate(p = n / sum(n))
 #data_extract %>% filter(outlier != "no", outlier_when %>% is.na()) %>% select(doi, starts_with("outlier")) #problem fixed
 
-data_extract %>% filter(outlier != "no") %>% checkContent(outlier_how, print=F) %>% mutate(p = n / sum(n))
-#TODO separate into outlier_procedure (SD-based vs. IQR-based) & outlier_parameter (numeric cutoff used)
+data_extract %>% filter(outlier != "no") %>% checkContent(outlier_how, print=F) %>% mutate(p = n / sum(n)) %>% print(n = nrow(.))
+
+data_extract = data_extract %>% mutate(
+  outlier_procedure = case_when(
+    outlier_how %>% str_detect("SD") ~ "SD-based",
+    outlier_how %>% str_detect("Z") ~ "SD-based", #based on z-values is also SD-based
+    outlier_how %>% str_detect("IQR") ~ "IQR-based",
+    T ~ outlier_how),
+    #T ~ "absolute criterion") #TODO use this as soon as other entries are categorized
+  outlier_parameter = outlier_how %>% str_extract_all("\\d*\\.?\\d+") %>% sapply(last) #any number (including decimals, excluding minus sign) & only last match
+) %>% relocate(outlier_procedure, outlier_parameter, .after = outlier)
+
+data_extract %>% filter(outlier != "no") %>% checkContent(outlier_procedure)
+#TODO expand categorization above
+
+data_extract %>% filter(outlier != "no") %>% checkContent(outlier_parameter)
 
 # Sanity check:
 data_extract %>% filter(outlier != "no", outlier_how %>% is.na()) %>% select(title, starts_with("outlier"))
