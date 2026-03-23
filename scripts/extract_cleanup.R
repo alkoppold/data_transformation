@@ -365,6 +365,8 @@ data_extract.tests %>% checkContent(statistical_test_details, print=F) %>% mutat
 
 
 # * * * Sphericity Handling -----------------------------------------------
+data_extract %>% checkContent(sphericity) %>% mutate(p = n / N_studies)
+
 data_extract = data_extract %>% 
   ## does not work because of multiple entries
   # mutate(sphericity = case_when(sphericity %>% str_detect("Greenhouse") ~ "Greenhouse-Geisser correction",
@@ -372,13 +374,12 @@ data_extract = data_extract %>%
   mutate(sphericity = sphericity %>% str_replace_all("–", "-"))
 
 data_extract %>% 
-  #TODO implement filters (not working yet)
-  #filter(statistical_test == "ANOVA", design_within_levels_max > 2) %>% 
+  filter(statistical_test == "ANOVA", design_within_levels_max > 2) %>% 
   checkContent(sphericity, print=F) %>% mutate(p = n / N_studies)
 #checked: Epsilon correction is different from GG or HF corrections
 #checked: Mendoza's sphericity test exists
 #checked: "Greenhouse-Geisser correction & Huynh-Feldt correction" is different from rest (e.g., "Greenhouse-Geisser correction (ɛ < .75) or Huynh-Feldt correction (ɛ > .75)")
-#checked: "unclear" is correct
+
 #TODO check NA vs. "not reported": due to previous column: was the sphericity checked? yes/not reported -> if not reported = NA // NA should be not reported?
 #TODO split up into test vs. correction column? (could collapse "Greenhouse-Geisser" vs. "Mauchly's test, Greenhouse-Geisser)
 
