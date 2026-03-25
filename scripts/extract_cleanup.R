@@ -96,6 +96,7 @@ data_extract.dt = data_extract %>%
 # Check & Clean Columns of Interest ---------------------------------------
 checkContent = function(df, col, p.denominator=NA, print=T) {
   if (p.denominator %>% is.na() == F && p.denominator %>% is.numeric() == F) warning("p.denominator not numeric. Using sum(n).")
+  #TODO add option to give column name for p.denominator => use number of unique cases
   result = df %>% count(!!rlang::ensym(col), .drop=F) %>% 
     arrange(desc(n)) %>% 
     mutate(p = n / if_else(p.denominator %>% is.numeric(), p.denominator, sum(n)))
