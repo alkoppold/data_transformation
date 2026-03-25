@@ -381,7 +381,7 @@ data_extract = data_extract %>%
 
 data_extract %>% 
   filter(statistical_test == "ANOVA", design_within_levels_max > 2) %>% 
-  checkContent(sphericity)
+  checkContent(sphericity_how)
 #checked: Epsilon correction is different from GG or HF corrections
 #checked: Mendoza's sphericity test exists
 #checked: "Greenhouse-Geisser correction & Huynh-Feldt correction" is different from rest (e.g., "Greenhouse-Geisser correction (ɛ < .75) or Huynh-Feldt correction (ɛ > .75)")
@@ -397,13 +397,13 @@ data_extract = data_extract %>% mutate(sphericity_category = case_when(
   sphericity_how %>% str_detect("correction") ~ "correction",
   T ~ "neither")) %>% relocate(sphericity_category, .after = sphericity_how)
 
-data_extract %>% filter(statistical_test == "ANOVA", design_within_levels_max > 2, sphericity_how %>% is.na() == F, sphericity_how != "not reported") %>% checkContent(sphericity_category, print=F) %>% mutate(p = n / sum(n))
+data_extract %>% filter(statistical_test == "ANOVA", design_within_levels_max > 2, sphericity_how %>% is.na() == F, sphericity_how != "not reported") %>% checkContent(sphericity_category)
 
 
 # * * Independence of Residuals -------------------------------------------
-data_extract %>% checkContent(independence, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(independence)
 data_extract %>% #filter(independence != "not reported") %>% #no one did this :')
-  checkContent(independence_how, print=F) %>% mutate(p = n / N_studies)
+  checkContent(independence_how)
 
 ## Sanity checks: independence
 sanity_check_independence_how <- data_extract[which(data_extract$independence != "not reported" & is.na(data_extract$independence_how)), ]
