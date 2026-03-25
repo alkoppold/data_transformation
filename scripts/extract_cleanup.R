@@ -284,6 +284,11 @@ data_extract %>% filter(homoscedasticity_how %>% is.na() == F) %>% select(doi, d
 data_extract %>% filter(design != "within", homoscedasticity != "not reported") %>% checkContent(homoscedasticity_how)
 #data_extract %>% filter(design != "within", homoscedasticity != "not reported", homoscedasticity_how %>% is.na() == F) %>% select(doi, starts_with("homoscedasticity"))
 
+# Check homoscedasticity tested in within designs# Some checks
+data_extract %>%
+  filter(homoscedasticity == "yes" & design == "within") %>%
+  select(title)
+
 ## Sanity checks: homoscedasticity
 sanity_check_homoscedasticity_how <- data_extract[which(data_extract$homoscedasticity != "not reported" & is.na(data_extract$homoscedasticity_how)), ]
 
@@ -368,8 +373,18 @@ data_extract.tests %>% checkContent(statistical_test_details, N_studies)
 # * * * Sphericity Handling -----------------------------------------------
 data_extract %>% checkContent(sphericity)
 
-# All sphericity_how = anything should be sphericity = yes
+### All sphericity_how = anything should be sphericity = yes
+# Some checks
+data_extract %>%
+  filter(sphericity == "yes" & is.na(sphericity_how)) %>%
+  select(title)
+data_extract %>%
+  filter(sphericity != "yes" & !is.na(sphericity_how)) %>%
+  select(title)
 
+# Do it: All sphericity_how = anything should be sphericity = yes
+data_extract <- data_extract %>%
+  mutate(sphericity = ifelse(!is.na(sphericity_how), "yes", NA))
 
 # Check sphericity_how column
 data_extract %>% checkContent(sphericity_how)
