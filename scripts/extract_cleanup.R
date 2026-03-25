@@ -21,8 +21,8 @@ data_extract.full = data_extract.original %>%
          normality = `Was the normal distribution checked? answers: dependent variable, independent variable, residuals, mixed, not reported`,
          normality_when = `If yes, was the normal distribution tested before or after transformation procedure? answers: before, after, both, not reported. if no: NA`,
          homoscedasticity = `Was the homoscedasticity checked? answers: yes, not reported`,
-         sphericity_old = `Was the sphericity checked? answers: yes, not reported`, #has been replaced by subsequent column (inclusion of sphericity corrections, not only tests)
-         sphericity = `How was sphericity handeled (test, correction)`,
+         sphericity = `Was the sphericity checked? answers: yes, not reported`, #has been replaced by subsequent column (inclusion of sphericity corrections, not only tests)
+         sphericity_how = `How was sphericity handeled (test, correction)`,
          independence = `Was the independence of residuals checked? answers: yes, not reported`,
          linearity = `Was the linearity checked? answers: yes, not reported`,
          linearity_how = `If yes, how?  search for linearity, quadratic (predictor/ trends)`,
@@ -57,9 +57,7 @@ data_extract = data_extract.full %>%
          design:statistical_test_details, #move columns forward (important for statistical assumptions)
          #design_within_levels_max:statistical_test_details, #move columns forward (important for statistical assumptions)
          
-         normality:homoscedasticity_how, 
-         #deselecting sphericity_old
-         sphericity:dt_rationale_ref, 
+         normality:dt_rationale_ref, 
          #deselecting dt_when
          comment)
 
@@ -267,7 +265,7 @@ sanity_check_normality_when <- data_extract[which(data_extract$normality != "not
 
 # * * * Design ------------------------------------------------------------
 data_extract %>% checkContent(design)
-#TODO check NA -> 1 not reported, 1 computational model, 1 growth model
+# NAs checked -> stat. models not reported
 data_extract %>% filter(design %>% is.na() | design == "not reported") %>% select(doi, design, starts_with("statistical_test"))
 
 # * * * Homoscedasticity --------------------------------------------------
@@ -280,7 +278,6 @@ data_extract %>% filter(design == "within", homoscedasticity != "not reported") 
 # * * * Homoscedasticity How ----------------------------------------------
 data_extract %>% checkContent(homoscedasticity_how)
 
-#TODO Maren: check why visually is missing when using the filter
 data_extract %>% filter(homoscedasticity_how %>% is.na() == F) %>% select(doi, design, starts_with("homoscedasticity"))
 
 data_extract %>% filter(design != "within", homoscedasticity != "not reported") %>% checkContent(homoscedasticity_how)
@@ -322,7 +319,7 @@ data_extract.tests = data_extract %>%
   mutate(statistical_test = if_else(statistical_test == "multiple", statistical_test_details, statistical_test)) %>% 
   separate_longer_delim(statistical_test, ", ") %>% 
   
-  # Maren: Do we have to adjust also further specifications?
+  #TODO: Do we have to adjust also further specifications?
   mutate(
     statistical_test = case_when(statistical_test == "rmANOVA" ~ "ANOVA", #should only be specified in details
                                  statistical_test == "ANCOVA" ~ "ANOVA", #should only be specified in details
@@ -370,11 +367,17 @@ data_extract.tests %>% checkContent(statistical_test_details, N_studies)
 # * * * Sphericity Handling -----------------------------------------------
 data_extract %>% checkContent(sphericity)
 
+# All sphericity_how = anything should be sphericity = yes
+
+
+# Check sphericity_how column
+data_extract %>% checkContent(sphericity_how)
+
 data_extract = data_extract %>% 
   ## does not work because of multiple entries
-  # mutate(sphericity = case_when(sphericity %>% str_detect("Greenhouse") ~ "Greenhouse-Geisser correction",
-  #                               sphericity %>% str_detect("Huynh") ~ "Huynh-Feldt correction",))
-  mutate(sphericity = sphericity %>% str_replace_all("–", "-"))
+  # mutate(sphericity_how = case_when(sphericity_how %>% str_detect("Greenhouse") ~ "Greenhouse-Geisser correction",
+  #                               sphericity_how %>% str_detect("Huynh") ~ "Huynh-Feldt correction",))
+  mutate(sphericity_how = sphericity_how %>% str_replace_all("–", "-"))
 
 data_extract %>% 
   filter(statistical_test == "ANOVA", design_within_levels_max > 2) %>% 
@@ -386,14 +389,15 @@ data_extract %>%
 #TODO check NA vs. "not reported": due to previous column: was the sphericity checked? yes/not reported -> if not reported = NA // NA should be not reported?
 
 
+
 # * * * Sphericity Category -----------------------------------------------
 data_extract = data_extract %>% mutate(sphericity_category = case_when(
-  sphericity %>% str_detect("test") & sphericity %>% str_detect("correction") ~ "both",
-  sphericity %>% str_detect("test") ~ "test",
-  sphericity %>% str_detect("correction") ~ "correction",
-  T ~ "neither")) %>% relocate(sphericity_category, .after = sphericity)
+  sphericity_how %>% str_detect("test") & sphericity_how %>% str_detect("correction") ~ "both",
+  sphericity_how %>% str_detect("test") ~ "test",
+  sphericity_how %>% str_detect("correction") ~ "correction",
+  T ~ "neither")) %>% relocate(sphericity_category, .after = sphericity_how)
 
-data_extract %>% filter(statistical_test == "ANOVA", design_within_levels_max > 2, sphericity %>% is.na() == F, sphericity != "not reported") %>% checkContent(sphericity_category, print=F) %>% mutate(p = n / sum(n))
+data_extract %>% filter(statistical_test == "ANOVA", design_within_levels_max > 2, sphericity_how %>% is.na() == F, sphericity_how != "not reported") %>% checkContent(sphericity_category, print=F) %>% mutate(p = n / sum(n))
 
 
 # * * Independence of Residuals -------------------------------------------
