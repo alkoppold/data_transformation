@@ -225,7 +225,7 @@ data_extract %>% filter(statistical_test %>% str_detect("comput")) %>% select(do
 data_extract = data_extract %>% 
   mutate(normality = case_when(normality == "unclear" ~ "not reported", #"unclear" was supposed to be coded as "not reported" => drop and discuss
                                T ~ normality))
-data_extract %>% checkContent(normality, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(normality)
 #data_extract %>% filter(normality != "not reported", normality_how %>% is.na()) %>% pull(doi) #inconsistencies manually corrected
 #data_extract %>% filter(normality == "not specified") %>% select(doi, starts_with("normality")) #manually checked and split up into "unclear [IF normality test has been performed]" vs. "not specified" (test has been reported but not specified)
 
@@ -469,7 +469,7 @@ data_extract %>% filter(outlier != "no", outlier_how %>% is.na()) %>% select(tit
 
 # * Range correction type -------------------------------------------------
 # Check content
-data_extract %>% checkContent(Range_correction_type, print=F) %>% mutate(p = n / N_studies)
+data_extract %>% checkContent(Range_correction_type)
 
 # Sanity checks: range correction type
 cols_to_check <- c("SCR", "SCL")  # replace with your column names
