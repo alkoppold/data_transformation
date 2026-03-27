@@ -96,7 +96,8 @@ data_extract.dt = data_extract %>%
 # Check & Clean Columns of Interest ---------------------------------------
 checkContent = function(df, col, p.denominator=NA, print=T) {
   #symbol handling
-  if (exists(rlang::enexpr(p.denominator)) == F && #not a variable in global environment
+  if (suppressWarnings(is.na(rlang::enexpr(p.denominator)) == F) && #p.denominator=NA
+      exists(rlang::enexpr(p.denominator)) == F && #not a variable in global environment
       rlang::enexpr(p.denominator) %>% rlang::is_symbol()) { #column name passed without quotation
     p.denominator = rlang::ensym(p.denominator) %>% as.character() #cast column name to character for further evaluation
   }
