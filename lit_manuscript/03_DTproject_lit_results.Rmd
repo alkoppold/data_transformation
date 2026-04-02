@@ -16,18 +16,42 @@ editor_options:
 
 # Load packages
 library(tidyverse)
-library(scico)
 library(forcats)
 library(scales)
 library(patchwork)
 library(dplyr)
 library(stringr)
-library(forcats)
-library(data.table)
+library(glue)
+library(scico)
+library(ggrepel)
+library(ggsankey)
+
 
 
 # Load data
 data_extract = read_rds("data/data_extract.rds") #cf. script "extract_cleanup.R"
+
+```
+
+
+```{r results-define-plot-theme}
+
+# Define a theme for pretty plots
+lit_theme = theme(
+  text = element_text(size = 10),
+  axis.title.x = element_text(size = 16, face = "bold"),
+  axis.title.y = element_text(size = 16, face = "bold"),
+  axis.text.y = element_text(size = 12, face = "bold"),
+  axis.text.x = element_text(size = 14, face = "bold"),
+  axis.ticks.x = element_blank(),
+  legend.position = "none",
+  panel.border = element_blank(),
+  panel.grid.minor = element_blank(),
+  panel.grid.major = element_blank(),
+  panel.background = element_blank(),
+  axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+  axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'))
+
 
 ```
 
@@ -37,7 +61,7 @@ data_extract = read_rds("data/data_extract.rds") #cf. script "extract_cleanup.R"
 # For modern scientific color palettes
 
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
-df <- data_extract %>% select(doi, `HR`:PUPIL_SIZE)
+df <- data_extract %>% select(doi, `HR`:pupil)
 n_total <- df %>% pull(doi) %>% unique() %>% length()
 
 # Step 1: Pivot to long format (no drop_na yet!)
@@ -393,12 +417,6 @@ normality_plot
 
 ```{r assumptions-sphericity}
 
-# Load required libraries
-library(tidyverse)
-library(scales)
-library(glue)
-library(scico)
-library(forcats)
 
 ### Prepare the data
 # Filter and select relevant variables
@@ -482,8 +500,6 @@ sphericity_plot
 
 
 ```{r stats-models}
-
-library(ggrepel)
 
 ### Create a pie chart for the statistical model
 
@@ -600,7 +616,9 @@ data_trans_scr <- data_trans_scr %>%
 
 # Convert to long format
 data_trans_scr <- data_trans_scr %>%
-  make_long(scr_transf, transf_level, rationale_di)
+  make_long(
+    cols = c(scr_transf, transf_level, rationale_di)
+  )
 
 # data_trans_scr$node <- factor(data_trans_scr$node, levels = sort(unique(data_trans_scr$node)))
 
@@ -623,7 +641,7 @@ ggplot(data_trans_scr, aes(x = x,
                     axis.title.x = element_blank(), 
         plot.title = element_text(size=18, face="bold"))
 
-ggsave("datatransf_rationale_scr_sankey.png", width = 14, height = 8, dpi = 300)
+#ggsave("datatransf_rationale_scr_sankey.png", width = 14, height = 8, dpi = 300)
 
 
 ### SCL
@@ -632,7 +650,9 @@ names(data_trans_scl) <- c("scl_transf", "transf_level", "rationale_di")
 
 # Convert to long format
 data_trans_scl <- data_trans_scl %>%
-  make_long(scl_transf, transf_level, rationale_di)
+  make_long(
+    cols = c(scl_transf, transf_level, rationale_di)
+  )
 
 # Plot the Sankey diagram
 ggplot(data_trans_scl, aes(x = x, 
@@ -652,7 +672,7 @@ ggplot(data_trans_scl, aes(x = x,
                     axis.title.x = element_blank(),
         plot.title = element_text(size=18, face="bold"))
 
-ggsave("datatransf_rationale_scl_sankey.png", width = 14, height = 8, dpi = 300)
+#ggsave("datatransf_rationale_scl_sankey.png", width = 14, height = 8, dpi = 300)
 
 
 ### EMG Startle
@@ -675,6 +695,7 @@ data_trans_emg_startle <- data_trans_emg_startle %>%
 data_trans_emg_startle <- data_trans_emg_startle %>%
   make_long(emg_startle_transf, transf_level, rationale_di)
 
+
 # Plot the Sankey diagram
 ggplot(data_trans_emg_startle, aes(x = x, 
                     next_x = next_x, 
@@ -693,7 +714,7 @@ ggplot(data_trans_emg_startle, aes(x = x,
                     axis.title.x = element_blank(),
         plot.title = element_text(size=18, face="bold"))
 
-ggsave("datatransf_rationale_emgstartle_sankey.png", width = 14, height = 8, dpi = 300)
+#ggsave("datatransf_rationale_emgstartle_sankey.png", width = 14, height = 8, dpi = 300)
 
 
 ### EMG orbicularis oculi
@@ -751,7 +772,7 @@ ggplot(data_trans_hr, aes(x = x,
                     axis.title.x = element_blank(),
         plot.title = element_text(size=18, face="bold"))
 
-ggsave("datatransf_rationale_hr_sankey.png", width = 14, height = 8, dpi = 300)
+#ggsave("datatransf_rationale_hr_sankey.png", width = 14, height = 8, dpi = 300)
 
 
 ### HRV
@@ -762,6 +783,8 @@ names(data_trans_hrv) <- c("hrv_transf", "transf_level", "rationale_di")
 data_trans_hrv <- data_trans_hrv %>%
   make_long(hrv_transf, transf_level, rationale_di)
 
+
+#TODO: plot not working
 # Plot the Sankey diagram
 ggplot(data_trans_hrv, aes(x = x, 
                     next_x = next_x, 
@@ -780,7 +803,7 @@ ggplot(data_trans_hrv, aes(x = x,
                     axis.title.x = element_blank(),
         plot.title = element_text(size=18, face="bold"))
 
-ggsave("datatransf_rationale_hrv_sankey.png", width = 14, height = 8, dpi = 300)
+#ggsave("datatransf_rationale_hrv_sankey.png", width = 14, height = 8, dpi = 300)
 
 
 ### Eye tracking
@@ -809,7 +832,7 @@ ggplot(data_trans_eyetrack, aes(x = x,
                     axis.title.x = element_blank(),
         plot.title = element_text(size=18, face="bold"))
 
-ggsave("datatransf_rationale_eyetrack_sankey.png", width = 14, height = 8, dpi = 300)
+#ggsave("datatransf_rationale_eyetrack_sankey.png", width = 14, height = 8, dpi = 300)
 
 
 ### Pupil size
@@ -838,7 +861,7 @@ ggplot(data_trans_pupil, aes(x = x,
                     axis.title.x = element_blank(),
         plot.title = element_text(size=18, face="bold"))
 
-ggsave("datatransf_rationale_pupil_sankey.png", width = 14, height = 8, dpi = 300)
+#ggsave("datatransf_rationale_pupil_sankey.png", width = 14, height = 8, dpi = 300)
 
 ```
 
@@ -900,7 +923,7 @@ ggplot(data_outlier_grouped_long, aes(x = x,
                     axis.title.x = element_blank(), 
         plot.title = element_text(size=18, face="bold"))
 
-ggsave("outlier_removal_sankey.png", width = 14, height = 8, dpi = 300)
+#ggsave("outlier_removal_sankey.png", width = 14, height = 8, dpi = 300)
 
 
 # Group the outlier criterion thresholds by type (SD-, IQR- or Z-based)
@@ -939,33 +962,18 @@ ggsave("outlier_removal_thresholds_barplot.png", width = 14, height = 8, dpi = 3
 ```{r results-descriptives}
 #TODO: check everything! many column were not approved in quality control
 #e.g., n_with_exclusions are now n_before_exclusion vs. n_after_exclusions (+ multiple entries)
-#data_extract %>% select(starts_with("n_"))
-
-# Define a theme for pretty plots
-lit_theme = theme(
-  text = element_text(size = 10),
-  axis.title.x = element_text(size = 16, face = "bold"),
-  axis.title.y = element_text(size = 16, face = "bold"),
-  axis.text.y = element_text(size = 12, face = "bold"),
-  axis.text.x = element_text(size = 14, face = "bold"),
-  axis.ticks.x = element_blank(),
-  legend.position = "none",
-  panel.border = element_blank(),
-  panel.grid.minor = element_blank(),
-  panel.grid.major = element_blank(),
-  panel.background = element_blank(),
-  axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
-  axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'))
+#data_extract %>% select(starts_with("n_")
 
 
-# Number of all participants
+# Number of all participants 
+#TODO: take the long format, delete non-numeric values?
 
-violin_n <- ggplot(aes(x = 1, y = n_with_exclusions), data = data_extract) +
+violin_n <- ggplot(aes(x = 1, y = as.numeric(n_after_exclusion)), data = data_extract) +
   geom_violin(width = 0.5, scale = "width", fill = "#F7AEF8", alpha = 0.5) +  # Color the whole violin
   geom_boxplot(width = 0.1, color = "grey40", alpha = 0.2) +  # Transparent boxplot
   geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#F7AEF8") +  # Individual points
   xlab("") +
-  ylab("Number of participants") +
+  ylab("Number of participants after exclusion") +
   scale_y_continuous(breaks = seq(0, 150, by = 25),
                      labels =  seq(0, 150, by = 25), limits = c(0, 150)) +
   lit_theme +
@@ -973,8 +981,8 @@ violin_n <- ggplot(aes(x = 1, y = n_with_exclusions), data = data_extract) +
         axis.line.x = element_blank())
 
 
-
 # Number of females
+#TODO: Do we want to use the column?
 
 violin_female <- ggplot(aes(x = 1, y = n_female_total), data = data_extract) +
   geom_violin(width = 0.5, scale = "width", fill = "#B388EB", alpha = 0.5) +  
@@ -990,6 +998,7 @@ violin_female <- ggplot(aes(x = 1, y = n_female_total), data = data_extract) +
 
 
 # Mean age distribution
+#TODO: Do we want to use the column?
 
 violin_age_mean <- ggplot(aes(x = 1, y = age_mean_total), data = data_extract) +
   geom_violin(width = 0.5, scale = "width", fill = "#8093F1", alpha = 0.5) +  
@@ -1005,6 +1014,7 @@ violin_age_mean <- ggplot(aes(x = 1, y = age_mean_total), data = data_extract) +
 
 
 # SD Age distribution
+#TODO: Do we want to use the column?
 
 violin_age_sd <- ggplot(aes(x = 1, y = age_sd_total), data = data_extract) +
   geom_violin(width = 0.5, scale = "width", fill = "#72DDF7", alpha = 0.5) +  
