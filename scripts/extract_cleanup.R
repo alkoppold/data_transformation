@@ -40,7 +40,7 @@ data_extract.full = data_extract.original %>%
          design_within_levels_max = `If within or mixed: how many within factor levels (of largest within factor)? (e.g., two different CS stimuli = two within factors)`,
          statistical_test   = `Main statistical test: ttest, AN(C)OVA, correlation, regression, mixed model, other (ask Perplexity.ai with copy pasting info from the method section)`,
          statistical_test_details = `Main statistical test: further specification (e.g., non-parametric test), if ANCOVA: centered covariate?, if mixed model: paste formula here, of other: name of test (e.g. chi-squared, MANOVA)`
-         ) %>% 
+  ) %>% 
   rename_with(\(x) x %>% str_replace_all("\\s*\\([^)]*\\)", "") %>% str_replace_all(" ", "_")) #get rid of info in parentheses & replace space with "_"
 
 #tibble(new = data_extract.full %>% names(), old = data_extract.original %>% names()) %>% print(n = nrow(.))
@@ -95,25 +95,8 @@ data_extract.dt = data_extract %>%
 
 # Check & Clean Columns of Interest ---------------------------------------
 checkContent = function(df, col, p.denominator=NA, print=T) {
-  #symbol handling
-  if (suppressWarnings(is.na(rlang::enexpr(p.denominator)) == F) && #p.denominator=NA
-      exists(rlang::enexpr(p.denominator)) == F && #not a variable in global environment
-      rlang::enexpr(p.denominator) %>% rlang::is_symbol()) { #column name passed without quotation
-    p.denominator = rlang::ensym(p.denominator) %>% as.character() #cast column name to character for further evaluation
-  }
-  
-  #type handling
-  if (p.denominator %>% is.na() == F) { #not NA (for sum(n))
-    if (p.denominator %>% is.numeric() == F) { #not numeric => must be a column name
-      if (p.denominator %>% match(df %>% colnames()) %>% is.na()) {
-        stop(paste(p.denominator, ": Column not found in data frame"))
-      } else {
-        p.denominator = df %>% pull(!!p.denominator) %>% unique() %>% length()
-      }
-    }
-  }
-
-  #if (p.denominator %>% is.na() == F && p.denominator %>% is.numeric() == F) warning("p.denominator not numeric. Using sum(n).")
+  if (p.denominator %>% is.na() == F && p.denominator %>% is.numeric() == F) warning("p.denominator not numeric. Using sum(n).")
+  #TODO add option to give column name for p.denominator => use number of unique cases
   result = df %>% count(!!rlang::ensym(col), .drop=F) %>% 
     arrange(desc(n)) %>% 
     mutate(p = n / if_else(p.denominator %>% is.numeric(), p.denominator, sum(n)))
@@ -265,7 +248,7 @@ data_extract = data_extract %>% mutate(normality_how_category = case_when(
   normality_how %>% str_detect("test") ~ "statistical test",
   normality_how %>% str_detect("skewness") ~ "descriptively", #"skewness and/or kurtosis"
   T ~ normality_how
-  )) %>% relocate(normality_how_category, .after = normality_how)
+)) %>% relocate(normality_how_category, .after = normality_how)
 
 data_extract %>% filter(normality != "not reported") %>% checkContent(normality_how_category)
 #note: visually = qualitatively, statistical test + descriptively = quantitatively
@@ -384,11 +367,11 @@ data_extract.tests = data_extract %>%
 
 
 # Final check
-data_extract.tests %>% checkContent(statistical_test, doi)
+data_extract.tests %>% checkContent(statistical_test, N_studies)
 
 
 # * * * Statistical Model Details -----------------------------------------
-data_extract.tests %>% checkContent(statistical_test_details, doi)
+data_extract.tests %>% checkContent(statistical_test_details, N_studies)
 
 
 # * * * Sphericity Handling -----------------------------------------------
@@ -490,7 +473,7 @@ data_extract = data_extract %>% mutate(
     outlier_how %>% str_detect("Z") ~ "SD-based", #based on z-values is also SD-based
     outlier_how %>% str_detect("IQR") ~ "IQR-based",
     T ~ outlier_how),
-    #T ~ "absolute criterion") #TODO use this as soon as other entries are categorized
+  #T ~ "absolute criterion") #TODO use this as soon as other entries are categorized
   outlier_parameter = outlier_how %>% str_extract_all("\\d*\\.?\\d+") %>% sapply(last) #any number (including decimals, excluding minus sign) & only last match
 ) %>% relocate(outlier_procedure, outlier_parameter, .after = outlier)
 
@@ -550,31 +533,31 @@ assump_multicollinearity <- c("Structural Equation Modeling","mixed model","gene
 # Fill the columns accordingly and add additional criteria
 #TODO: Add "not bayesian" for e.g. t-tests
 data_extract$normality_need <- ifelse(
-                               data_extract$statistical_test %in% assump_normality,
-                               "yes", "no")
+  data_extract$statistical_test %in% assump_normality,
+  "yes", "no")
 
 data_extract$homoscedasticity_need <- ifelse(
-                                      (data_extract$statistical_test %in% assump_homoscedasticity) & 
-                                      (data_extract$design != "within") &
-                                      (data_extract$design_within_levels_max < 3),
-                                      "yes", "no")
+  (data_extract$statistical_test %in% assump_homoscedasticity) & 
+    (data_extract$design != "within") &
+    (data_extract$design_within_levels_max < 3),
+  "yes", "no")
 data_extract$sphericity_need <- ifelse(
-                                (data_extract$statistical_test %in% assump_sphericity) & 
-                                (data_extract$design != "between") &
-                                (data_extract$design_within_levels_max > 2),
-                                "yes", "no")
+  (data_extract$statistical_test %in% assump_sphericity) & 
+    (data_extract$design != "between") &
+    (data_extract$design_within_levels_max > 2),
+  "yes", "no")
 
 data_extract$independence_need <- ifelse(
-                                  data_extract$statistical_test %in% assump_independence,
-                                 "yes", "no")
+  data_extract$statistical_test %in% assump_independence,
+  "yes", "no")
 
 data_extract$linearity_need <- ifelse(
-                               data_extract$statistical_test %in% assump_linearity,
-                               "yes", "no")
+  data_extract$statistical_test %in% assump_linearity,
+  "yes", "no")
 
 data_extract$multicollinearity_need <- ifelse(
-                                       data_extract$statistical_test %in% assump_multicollinearity,
-                                       "yes", "no")
+  data_extract$statistical_test %in% assump_multicollinearity,
+  "yes", "no")
 
 # Write to RDS ------------------------------------------------------------
 data_extract %>% write_rds("data/data_extract.rds")
