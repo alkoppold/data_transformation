@@ -489,13 +489,15 @@ data_extract = data_extract %>% mutate(
     outlier_how %>% str_detect("SD") ~ "SD-based",
     outlier_how %>% str_detect("Z") ~ "SD-based", #based on z-values is also SD-based
     outlier_how %>% str_detect("IQR") ~ "IQR-based",
+    outlier_how %>% str_detect("Mahalanobis") ~ "Mahalanobis Distance", #multivariate outlier procedure
     T ~ outlier_how),
   #T ~ "absolute criterion") #TODO use this as soon as other entries are categorized
-  outlier_parameter = outlier_how %>% str_extract_all("\\d*\\.?\\d+") %>% sapply(last) #any number (including decimals, excluding minus sign) & only last match
+  outlier_parameter = outlier_how %>% str_extract_all("\\d*\\.?\\d+") %>% sapply(last), #any number (including decimals, excluding minus sign) & only last match
+  outlier_parameter = if_else(outlier_how %>% str_detect(";"), "multiple", outlier_parameter)
 ) %>% relocate(outlier_procedure, outlier_parameter, .after = outlier)
 
 data_extract %>% filter(outlier != "no") %>% checkContent(outlier_procedure)
-#TODO expand categorization above
+#TODO check "not reported"
 
 data_extract %>% filter(outlier != "no") %>% checkContent(outlier_parameter)
 
