@@ -53,7 +53,7 @@ data_extract = data_extract.full %>%
          n_before_exclusion:mental_health_exclusion, 
          #deselecting individual_level & individual_level_VOI
          
-         #TODO keep design column? (important for homoscedasticity but was not checked thoroughly) -> let's talk! -> decided: will not be used
+         #TODO keep design column? (important for homoscedasticity but was not checked thoroughly) -> let's talk! -> decision: will be dropped
          design:statistical_test_details, #move columns forward (important for statistical assumptions)
          #design_within_levels_max:statistical_test_details, #move columns forward (important for statistical assumptions)
          
@@ -423,7 +423,7 @@ data_extract %>%
 #checked: Mendoza's sphericity test exists
 #checked: "Greenhouse-Geisser correction & Huynh-Feldt correction" is different from rest (e.g., "Greenhouse-Geisser correction (ɛ < .75) or Huynh-Feldt correction (ɛ > .75)")
 
-#checked: NA vs. "not reported": due to previous column: was the sphericity checked? yes/not reported -> if not reported = NA 
+#check NA vs. "not reported": due to previous column: was the sphericity checked? yes/not reported -> if not reported = NA 
 
 
 
