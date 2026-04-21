@@ -526,57 +526,7 @@ sanity_check_dt_rationale_details <- data_extract[which(data_extract$dt_rational
 sanity_check_dt_rationale_ref <- data_extract[which(data_extract$dt_rationale != "no" & is.na(data_extract$dt_rationale_ref)), ]                   
 
 
-
-
 #TODO check if longer format is needed for some columns
-
-
-
-# * Add columns if assumptions are needed --------------------------------
-# Create default columns
-data_extract$normality_need <- NA
-data_extract$homoscedasticity_need <- NA
-data_extract$sphericity_need <- NA
-data_extract$independence_need <- NA
-data_extract$linearity_need <- NA
-data_extract$multicollinearity_need <- NA
-
-# Specify which assumptions should be met for statistical models
-assump_normality <- c("Structural Equation Modeling","mixed model","general linear model","ANOVA","ttest","Welch test","regression","correlation")
-assump_homoscedasticity <- c("Structural Equation Modeling","mixed model","general linear model","ANOVA","ttest","regression")
-assump_sphericity <- c("ANOVA","Welch test")
-assump_independence <- c("Structural Equation Modeling","mixed model","general linear model","ANOVA","ttest","regression","correlation")
-assump_linearity <- c("Structural Equation Modeling","mixed model","general linear model","ANOVA","ttest","Welch test","ordinal ttest","regression","correlation")
-assump_multicollinearity <- c("Structural Equation Modeling","mixed model","general linear model","ANOVA","regression")
-
-# Fill the columns accordingly and add additional criteria
-#TODO: Add "not bayesian" for e.g. t-tests
-data_extract$normality_need <- ifelse(
-  data_extract$statistical_test %in% assump_normality,
-  "yes", "no")
-
-data_extract$homoscedasticity_need <- ifelse(
-  (data_extract$statistical_test %in% assump_homoscedasticity) & 
-    (data_extract$design != "within") &
-    (data_extract$design_within_levels_max < 3),
-  "yes", "no")
-data_extract$sphericity_need <- ifelse(
-  (data_extract$statistical_test %in% assump_sphericity) & 
-    (data_extract$design != "between") &
-    (data_extract$design_within_levels_max > 2),
-  "yes", "no")
-
-data_extract$independence_need <- ifelse(
-  data_extract$statistical_test %in% assump_independence,
-  "yes", "no")
-
-data_extract$linearity_need <- ifelse(
-  data_extract$statistical_test %in% assump_linearity,
-  "yes", "no")
-
-data_extract$multicollinearity_need <- ifelse(
-  data_extract$statistical_test %in% assump_multicollinearity,
-  "yes", "no")
 
 # Write to RDS ------------------------------------------------------------
 data_extract %>% write_rds("data/data_extract.rds")
