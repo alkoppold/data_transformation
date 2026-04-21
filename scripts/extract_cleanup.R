@@ -53,7 +53,7 @@ data_extract = data_extract.full %>%
          n_before_exclusion:mental_health_exclusion, 
          #deselecting individual_level & individual_level_VOI
          
-         #TODO keep design column? (important for homoscedasticity but was not checked thoroughly) -> let's talk!
+         #TODO keep design column? (important for homoscedasticity but was not checked thoroughly) -> let's talk! -> decided: will not be used
          design:statistical_test_details, #move columns forward (important for statistical assumptions)
          #design_within_levels_max:statistical_test_details, #move columns forward (important for statistical assumptions)
          
@@ -346,7 +346,7 @@ data_extract.tests = data_extract %>%
   mutate(statistical_test = if_else(statistical_test == "multiple", statistical_test_details, statistical_test)) %>% 
   separate_longer_delim(statistical_test, ", ") %>% 
   
-  #TODO: Do we have to adjust also further specifications?
+  #TODO: Do we have to adjust also further specifications? -> NO
   mutate(
     statistical_test = case_when(statistical_test == "rmANOVA" ~ "ANOVA", #should only be specified in details
                                  statistical_test == "ANCOVA" ~ "ANOVA", #should only be specified in details
@@ -423,7 +423,7 @@ data_extract %>%
 #checked: Mendoza's sphericity test exists
 #checked: "Greenhouse-Geisser correction & Huynh-Feldt correction" is different from rest (e.g., "Greenhouse-Geisser correction (ɛ < .75) or Huynh-Feldt correction (ɛ > .75)")
 
-#TODO check NA vs. "not reported": due to previous column: was the sphericity checked? yes/not reported -> if not reported = NA // NA should be not reported?
+#checked: NA vs. "not reported": due to previous column: was the sphericity checked? yes/not reported -> if not reported = NA 
 
 
 
@@ -526,57 +526,7 @@ sanity_check_dt_rationale_details <- data_extract[which(data_extract$dt_rational
 sanity_check_dt_rationale_ref <- data_extract[which(data_extract$dt_rationale != "no" & is.na(data_extract$dt_rationale_ref)), ]                   
 
 
-
-
 #TODO check if longer format is needed for some columns
-
-
-
-# * Add columns if assumptions are needed --------------------------------
-# Create default columns
-data_extract$normality_need <- NA
-data_extract$homoscedasticity_need <- NA
-data_extract$sphericity_need <- NA
-data_extract$independence_need <- NA
-data_extract$linearity_need <- NA
-data_extract$multicollinearity_need <- NA
-
-# Specify which assumptions should be met for statistical models
-assump_normality <- c("Structural Equation Modeling","mixed model","general linear model","ANOVA","ttest","Welch test","regression","correlation")
-assump_homoscedasticity <- c("Structural Equation Modeling","mixed model","general linear model","ANOVA","ttest","regression")
-assump_sphericity <- c("ANOVA","Welch test")
-assump_independence <- c("Structural Equation Modeling","mixed model","general linear model","ANOVA","ttest","regression","correlation")
-assump_linearity <- c("Structural Equation Modeling","mixed model","general linear model","ANOVA","ttest","Welch test","ordinal ttest","regression","correlation")
-assump_multicollinearity <- c("Structural Equation Modeling","mixed model","general linear model","ANOVA","regression")
-
-# Fill the columns accordingly and add additional criteria
-#TODO: Add "not bayesian" for e.g. t-tests
-data_extract$normality_need <- ifelse(
-  data_extract$statistical_test %in% assump_normality,
-  "yes", "no")
-
-data_extract$homoscedasticity_need <- ifelse(
-  (data_extract$statistical_test %in% assump_homoscedasticity) & 
-    (data_extract$design != "within") &
-    (data_extract$design_within_levels_max < 3),
-  "yes", "no")
-data_extract$sphericity_need <- ifelse(
-  (data_extract$statistical_test %in% assump_sphericity) & 
-    (data_extract$design != "between") &
-    (data_extract$design_within_levels_max > 2),
-  "yes", "no")
-
-data_extract$independence_need <- ifelse(
-  data_extract$statistical_test %in% assump_independence,
-  "yes", "no")
-
-data_extract$linearity_need <- ifelse(
-  data_extract$statistical_test %in% assump_linearity,
-  "yes", "no")
-
-data_extract$multicollinearity_need <- ifelse(
-  data_extract$statistical_test %in% assump_multicollinearity,
-  "yes", "no")
 
 # Write to RDS ------------------------------------------------------------
 data_extract %>% write_rds("data/data_extract.rds")
