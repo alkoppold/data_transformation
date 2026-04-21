@@ -227,14 +227,6 @@ data_extract %>% checkContent(mental_health_exclusion)
 
 
 # * Assumptions -----------------------------------------------------------
-#TODO computational models do not imply a statistical test (but currently coded in column statistical_test)
-# make sure that studies coded as computational models:
-# 1) do NOT use a statistical test on "2nd level" (e.g., Rescorla-Wagner model + t-test with learning rates)
-#    => if they use both, report that statistical test
-# 2) those papers that use computational modeling without statistical tests (e.g., just model comparisons with AIC/BIC) 
-#    => code "computational model" in design column
-# 3) computational models without statistical tests should be removed from all descriptives on statistical assumptions
-data_extract %>% filter(statistical_test %>% str_detect("comput")) %>% select(doi, design, starts_with("statistical_test"))
 
 # * * Normality Checks ----------------------------------------------------
 
@@ -346,7 +338,6 @@ data_extract.tests = data_extract %>%
   mutate(statistical_test = if_else(statistical_test == "multiple", statistical_test_details, statistical_test)) %>% 
   separate_longer_delim(statistical_test, ", ") %>% 
   
-  #TODO: Do we have to adjust also further specifications? -> NO
   mutate(
     statistical_test = case_when(statistical_test == "rmANOVA" ~ "ANOVA", #should only be specified in details
                                  statistical_test == "ANCOVA" ~ "ANOVA", #should only be specified in details
@@ -491,7 +482,6 @@ data_extract = data_extract %>% mutate(
     outlier_how %>% str_detect("IQR") ~ "IQR-based",
     outlier_how %>% str_detect("Mahalanobis") ~ "Mahalanobis Distance", #multivariate outlier procedure
     T ~ outlier_how),
-  #T ~ "absolute criterion") #TODO use this as soon as other entries are categorized
   outlier_parameter = outlier_how %>% str_extract_all("\\d*\\.?\\d+") %>% sapply(last), #any number (including decimals, excluding minus sign) & only last match
   outlier_parameter = if_else(outlier_how %>% str_detect(";"), "multiple", outlier_parameter)
 ) %>% relocate(outlier_procedure, outlier_parameter, .after = outlier)
