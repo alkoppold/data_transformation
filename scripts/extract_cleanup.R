@@ -497,13 +497,13 @@ data_extract = data_extract %>% mutate(
 ) %>% relocate(outlier_procedure, outlier_parameter, .after = outlier)
 
 data_extract %>% filter(outlier != "no") %>% checkContent(outlier_procedure)
-#TODO check "not reported"
+#check "not reported" -> checked: in four studies, outlier are mentioned but the outlier criterion is not reported
 
 data_extract %>% filter(outlier != "no") %>% checkContent(outlier_parameter)
 
 # Sanity check:
 data_extract %>% filter(outlier != "no", outlier_how %>% is.na()) %>% select(title, starts_with("outlier"))
-
+data_extract %>% filter(outlier != "no", outlier_how == "not reported") %>% select(title, starts_with("outlier"))
 
 
 # * Range correction type -------------------------------------------------
