@@ -53,9 +53,9 @@ data_extract = data_extract.full %>%
          n_before_exclusion:mental_health_exclusion, 
          #deselecting individual_level & individual_level_VOI
          
-         #TODO keep design column? (important for homoscedasticity but was not checked thoroughly) -> let's talk! -> decision: will be dropped
-         design:statistical_test_details, #move columns forward (important for statistical assumptions)
-         #design_within_levels_max:statistical_test_details, #move columns forward (important for statistical assumptions)
+         #design:statistical_test_details, #move columns forward (important for statistical assumptions)
+         #deselecting design
+         design_within_levels_max:statistical_test_details, #move columns forward (important for statistical assumptions)
          
          normality:dt_rationale_ref, 
          #deselecting dt_when
@@ -227,14 +227,6 @@ data_extract %>% checkContent(mental_health_exclusion)
 
 
 # * Assumptions -----------------------------------------------------------
-#TODO computational models do not imply a statistical test (but currently coded in column statistical_test)
-# make sure that studies coded as computational models:
-# 1) do NOT use a statistical test on "2nd level" (e.g., Rescorla-Wagner model + t-test with learning rates)
-#    => if they use both, report that statistical test
-# 2) those papers that use computational modeling without statistical tests (e.g., just model comparisons with AIC/BIC) 
-#    => code "computational model" in design column
-# 3) computational models without statistical tests should be removed from all descriptives on statistical assumptions
-data_extract %>% filter(statistical_test %>% str_detect("comput")) %>% select(doi, design, starts_with("statistical_test"))
 
 # * * Normality Checks ----------------------------------------------------
 
@@ -281,34 +273,34 @@ sanity_check_normality_when <- data_extract[which(data_extract$normality != "not
 
 # * * Homoscedasticity ----------------------------------------------------
 
-# * * * Design ------------------------------------------------------------
-data_extract %>% checkContent(design)
-# NAs checked -> stat. models not reported
-data_extract %>% filter(design %>% is.na() | design == "not reported") %>% select(doi, design, starts_with("statistical_test"))
+# # * * * Design ------------------------------------------------------------
+# data_extract %>% checkContent(design)
+# # NAs checked -> stat. models not reported
+# data_extract %>% filter(design %>% is.na() | design == "not reported") %>% select(doi, design, starts_with("statistical_test"))
 
 # * * * Homoscedasticity --------------------------------------------------
 data_extract %>% checkContent(homoscedasticity)
-data_extract %>% filter(design != "within") %>% checkContent(homoscedasticity)
+#data_extract %>% filter(design != "within") %>% checkContent(homoscedasticity)
 
 ### Maren: check in data set
 # Case 1 (https://doi.org/10.1037/xge0000551): they used a paired t-test for the main effect of task but may have checked the homoscedasticity for other tests? 
 # But could not find unpaired tests... -> will be included in the discussion
 # Case 2 (https://doi.org/10.1016/j.biopsych.2008.09.011): needs to be checked -> is there a main effect of task?
 # Case 3 (https://doi.org/10.1080/02699931.2016.1158695): as case 1
-data_extract %>% filter(design == "within", homoscedasticity != "not reported") %>% select(doi, design, starts_with("homoscedasticity"))
+#data_extract %>% filter(design == "within", homoscedasticity != "not reported") %>% select(doi, design, starts_with("homoscedasticity"))
 
 # * * * Homoscedasticity How ----------------------------------------------
 data_extract %>% checkContent(homoscedasticity_how)
 
-data_extract %>% filter(homoscedasticity_how %>% is.na() == F) %>% select(doi, design, starts_with("homoscedasticity"))
+data_extract %>% filter(homoscedasticity_how %>% is.na() == F) %>% select(doi, starts_with("homoscedasticity"))
 
-data_extract %>% filter(design != "within", homoscedasticity != "not reported") %>% checkContent(homoscedasticity_how)
+#data_extract %>% filter(design != "within", homoscedasticity != "not reported") %>% checkContent(homoscedasticity_how)
 #data_extract %>% filter(design != "within", homoscedasticity != "not reported", homoscedasticity_how %>% is.na() == F) %>% select(doi, starts_with("homoscedasticity"))
 
-# Check homoscedasticity tested in within designs# Some checks
-data_extract %>%
-  filter(homoscedasticity == "yes" & design == "within") %>%
-  select(title)
+# # Check homoscedasticity tested in within designs# Some checks
+# data_extract %>%
+#   filter(homoscedasticity == "yes" & design == "within") %>%
+#   select(title)
 
 ## Sanity checks: homoscedasticity
 sanity_check_homoscedasticity_how <- data_extract[which(data_extract$homoscedasticity != "not reported" & is.na(data_extract$homoscedasticity_how)), ]
@@ -346,7 +338,6 @@ data_extract.tests = data_extract %>%
   mutate(statistical_test = if_else(statistical_test == "multiple", statistical_test_details, statistical_test)) %>% 
   separate_longer_delim(statistical_test, ", ") %>% 
   
-  #TODO: Do we have to adjust also further specifications? -> NO
   mutate(
     statistical_test = case_when(statistical_test == "rmANOVA" ~ "ANOVA", #should only be specified in details
                                  statistical_test == "ANCOVA" ~ "ANOVA", #should only be specified in details
@@ -491,7 +482,6 @@ data_extract = data_extract %>% mutate(
     outlier_how %>% str_detect("IQR") ~ "IQR-based",
     outlier_how %>% str_detect("Mahalanobis") ~ "Mahalanobis Distance", #multivariate outlier procedure
     T ~ outlier_how),
-  #T ~ "absolute criterion") #TODO use this as soon as other entries are categorized
   outlier_parameter = outlier_how %>% str_extract_all("\\d*\\.?\\d+") %>% sapply(last), #any number (including decimals, excluding minus sign) & only last match
   outlier_parameter = if_else(outlier_how %>% str_detect(";"), "multiple", outlier_parameter)
 ) %>% relocate(outlier_procedure, outlier_parameter, .after = outlier)
