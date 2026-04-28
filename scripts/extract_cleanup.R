@@ -152,12 +152,19 @@ data_extract %>% checkContent(SCL)
 data_extract %>% checkContent(eye)
 data_extract %>% checkContent(pupil)
 
+
+# * Range correction type -------------------------------------------------
+# Check content
 data_extract %>% checkContent(Range_correction_type)
-
-data_extract %>% checkContent(dt_specs)
-
+#TODO longer format (cf. sample sizes)
 #data_extract %>% filter(Range_correction_type %>% str_detect("baseline")) %>% select(doi, Range_correction_type)
 
+#data_extract %>% checkContent(dt_specs) #too much information :)
+
+
+# Sanity checks: range correction type
+cols_to_check <- c("SCR", "SCL")  # replace with your column names
+sanity_check_Range_correction_type <- data_extract[rowSums(data_extract[, cols_to_check] == "rc", na.rm = TRUE) > 0 & is.na(data_extract$Range_correction_type), ] 
 
 
 
@@ -494,15 +501,6 @@ data_extract %>% filter(outlier != "no") %>% checkContent(outlier_parameter)
 # Sanity check:
 data_extract %>% filter(outlier != "no", outlier_how %>% is.na()) %>% select(title, starts_with("outlier"))
 data_extract %>% filter(outlier != "no", outlier_how == "not reported") %>% select(title, starts_with("outlier"))
-
-
-# * Range correction type -------------------------------------------------
-# Check content
-data_extract %>% checkContent(Range_correction_type)
-
-# Sanity checks: range correction type
-cols_to_check <- c("SCR", "SCL")  # replace with your column names
-sanity_check_Range_correction_type <- data_extract[rowSums(data_extract[, cols_to_check] == "rc", na.rm = TRUE) > 0 & is.na(data_extract$Range_correction_type), ] 
 
 
 # * Rationale -------------------------------------------------------------
