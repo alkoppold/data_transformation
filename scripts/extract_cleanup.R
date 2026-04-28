@@ -208,7 +208,7 @@ data_extract.N = data_extract.N %>%
 data_extract.dt %>% anti_join(data_extract.N %>% select(DV, doi)) #detect entries with missing (sub-)sample size
 #data_extract.N %>% filter(doi %in% {data_extract.N %>% count(doi) %>% filter(n > 1) %>% pull(doi)}) %>% View("multiple Entries")
 #data_extract.N %>% filter(DV2 %>% is.na() == F) %>% View("changed entries")
-data_extract.N %>% arrange(retention) #TODO check lowest entries for plausibility
+#data_extract.N %>% arrange(retention) %>% select(doi, DV, exclusion:n_after_exclusion) #manually checked 10 most extreme  (i.e., lowest retention rate)
 
 
 # * * Write Tidy Sample Sizes into Data Transformations -------------------
