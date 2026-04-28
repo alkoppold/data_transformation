@@ -134,23 +134,21 @@ data_extract %>% checkContent(prereg)
 
 # * Data Transformations --------------------------------------------------
 data_extract.dt %>% checkContent(DV)
-#data_extract %>% filter(orbicularis_oculi %>% is.na() == F) %>% select(Extractor, doi:title, starts_with(""))
-#data_extract %>% filter(orbicularis_oculi %>% is.na() == F, orbicularis_oculi != startle) %>% select(Extractor, doi:title, starts_with(""))
-#manual check: orbicularis_oculi has never been used outside of fear potentiated startle => exclude
 
 data_extract.dt %>% checkContent(transformation)
-#TODO even longer format with separate_longer_delim ? but sequence is important! -> separate by ";"
+#data_extract.dt %>% filter(transformation %>% str_detect(";")) %>% select(doi, DV, transformation)
+#TODO even longer format with separate_longer_delim for ";"
 
 
 # Consistency check data transformations
-data_extract %>% checkContent(HR)
-data_extract %>% checkContent(HRV)
-data_extract %>% checkContent(orbicularis_oculi)
-data_extract %>% checkContent(startle)
-data_extract %>% checkContent(SCR)
-data_extract %>% checkContent(SCL)
-data_extract %>% checkContent(eye)
-data_extract %>% checkContent(pupil)
+# data_extract %>% checkContent(HR)
+# data_extract %>% checkContent(HRV)
+# data_extract %>% checkContent(orbicularis_oculi)
+# data_extract %>% checkContent(startle)
+# data_extract %>% checkContent(SCR)
+# data_extract %>% checkContent(SCL)
+# data_extract %>% checkContent(eye)
+# data_extract %>% checkContent(pupil)
 
 
 # * Range correction type -------------------------------------------------
@@ -513,8 +511,6 @@ data_extract %>% checkContent(dt_rationale_ref)
 sanity_check_dt_rationale_details <- data_extract[which(data_extract$dt_rationale != "no" & is.na(data_extract$dt_rationale_details)), ]
 sanity_check_dt_rationale_ref <- data_extract[which(data_extract$dt_rationale != "no" & is.na(data_extract$dt_rationale_ref)), ]                   
 
-
-#TODO check if longer format is needed for some columns
 
 # Write to RDS ------------------------------------------------------------
 data_extract %>% write_rds("data/data_extract.rds")
