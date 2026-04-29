@@ -80,8 +80,8 @@ data_extract = data_extract %>%
 #data_extract %>% filter(doi %>% str_detect("doi.org") == F) %>% pull(doi) #articles without DOIs
 
 
-# Longer Format: Data Transformations -------------------------------------
-N_studies = data_extract %>% pull(doi) %>% unique() %>% length()
+# Longer Format: Dependent Variables -------------------------------------
+#N_studies = data_extract %>% pull(doi) %>% unique() %>% length() #not needed anymore with updated checkContent function
 
 #data_extract %>% filter(doi %>% is.na()) %>% select(title) #manually replaced NAs
 #data_extract %>% count(doi) %>% filter(n != 1)
