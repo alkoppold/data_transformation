@@ -287,10 +287,10 @@ sanity_check_normality_when <- data_extract[which(data_extract$normality != "not
 data_extract %>% checkContent(homoscedasticity)
 #data_extract %>% filter(design != "within") %>% checkContent(homoscedasticity)
 
-### Maren: check in data set
+### Checked in data set:
 # Case 1 (https://doi.org/10.1037/xge0000551): they used a paired t-test for the main effect of task but may have checked the homoscedasticity for other tests? 
 # But could not find unpaired tests... -> will be included in the discussion
-# Case 2 (https://doi.org/10.1016/j.biopsych.2008.09.011): needs to be checked -> is there a main effect of task?
+# Case 2 (https://doi.org/10.1016/j.biopsych.2008.09.011): needs to be checked -> no differential fear conditioning = will be excluded
 # Case 3 (https://doi.org/10.1080/02699931.2016.1158695): as case 1
 #data_extract %>% filter(design == "within", homoscedasticity != "not reported") %>% select(doi, design, starts_with("homoscedasticity"))
 
