@@ -87,7 +87,7 @@ data_extract = data_extract %>%
 #data_extract %>% count(doi) %>% filter(n != 1)
 
 #TODO copy to results
-data_extract.dt = data_extract %>% 
+data_extract.dv = data_extract %>% 
   pivot_longer(HR:pupil, names_to = "DV", values_to = "transformation") %>% 
   mutate(DV = DV %>% as_factor()) %>% #ensures that orbicularis is not dropped by count function (explicit 0)
   filter(transformation %>% is.na() == F) %>% 
@@ -134,14 +134,9 @@ data_extract %>% checkContent(prereg)
 
 
 # * Data Transformations --------------------------------------------------
-data_extract.dt %>% checkContent(DV)
+# * * DV ------------------------------------------------------------------
+data_extract.dv %>% checkContent(DV, doi)
 
-data_extract.dt %>% checkContent(transformation)
-#data_extract.dt %>% filter(transformation %>% str_detect(";")) %>% select(doi, DV, transformation)
-#TODO even longer format with separate_longer_delim for ";"
-
-
-# Consistency check data transformations
 # data_extract %>% checkContent(HR)
 # data_extract %>% checkContent(HRV)
 # data_extract %>% checkContent(orbicularis_oculi)
@@ -152,11 +147,49 @@ data_extract.dt %>% checkContent(transformation)
 # data_extract %>% checkContent(pupil)
 
 
+# * * Transformation ------------------------------------------------------
+data_extract.dv %>% checkContent(transformation, doi)
+#data_extract.dv %>% filter(transformation %>% str_detect(";")) %>% select(doi, DV, transformation)
+
+data_extract.transformation = data_extract.dv %>% separate_longer_delim(transformation, "; ")
+data_extract.transformation %>% checkContent(transformation, doi)
+
+
+
+# * * Transformation: Main vs. RC -----------------------------------------
+#TODO copy to results
+data_extract.transformation = data_extract.transformation %>% 
+  mutate(transformation_main = transformation %>% str_remove_all("(,\\s*)\\brc\\b|\\brc\\b(,\\s*)"), #remove "rc" with leading or trailing ", " (but not both leading AND trialing)
+         transformation_rc = transformation %>% str_detect(fixed("rc"))) %>% 
+  relocate(transformation_main, transformation_rc, .after = transformation)
+
+#data_extract.transformation %>% select(starts_with("transformation")) %>% unique()
+data_extract.transformation %>% filter(transformation != "not reported") %>% checkContent(transformation_main, doi)
+data_extract.transformation %>% filter(transformation != "not reported") %>% checkContent(transformation_rc, doi)
+
+
 # * Range correction type -------------------------------------------------
 # Check content
 data_extract %>% checkContent(Range_correction_type)
-#TODO longer format (cf. sample sizes)
 #data_extract %>% filter(Range_correction_type %>% str_detect("baseline")) %>% select(doi, Range_correction_type)
+
+#TODO copy to results
+data_extract.rc_type = data_extract.dv %>% 
+  separate_longer_delim(Range_correction_type, "; ") %>% 
+  mutate(DV2 = if_else(Range_correction_type %>% str_detect(":"), #if classifier is present
+                       Range_correction_type %>% str_remove_all(":.*$"), #remove everything after ":"
+                       DV)) %>% #otherwise: duplicate information from DV
+  relocate(DV2, .after = DV) %>% 
+  #filter(Range_correction_type %>% str_detect(":")) %>% 
+  mutate(Range_correction_type = Range_correction_type %>% str_remove_all("^.*:\\s*")) %>% #remove everything before ": "
+  #select(starts_with("DV"), Range_correction_type) %>% unique() %>% 
+  filter(DV2 %>% is.na() | DV == DV2)
+
+data_extract.rc_type %>% filter(Range_correction_type %>% is.na() == F) %>% checkContent(Range_correction_type, doi)
+
+# * * Write Tidy RC-Type into Long Format -------------------
+if (nrow(data_extract.dv) != nrow(data_extract.rc_type)) { warning("Rows in data_extract.dv and data_extract.N don't match. Check difference with anti_join.")
+} else data_extract.dv = data_extract.rc_type %>% select(-DV2)
 
 #data_extract %>% checkContent(dt_specs) #too much information :)
 
@@ -177,7 +210,7 @@ data_extract %>% #start with data_extract to avoid duplicates from data transfor
   checkContent(n_before_exclusion)
 
 # * * n_after_exclusion ---------------------------------------------------
-data_extract.dt %>% #start with data_extract to avoid duplicates from data transformations
+data_extract.dv %>% #start with data_extract to avoid duplicates from data transformations
   mutate(n_after_exclusion = n_after_exclusion %>% 
            #str_replace_all("Exp\\.?\\w?:?\\w?", "ExpX:") %>% 
            str_replace_all("\\d+", "N") #generify number for check
@@ -187,14 +220,14 @@ data_extract.dt %>% #start with data_extract to avoid duplicates from data trans
 
 # * * Longer Format: Sample Sizes -----------------------------------------
 #TODO copy to results
-data_extract.N = data_extract.dt %>% #start with data_extract.dt to retain DV row (if n_* has one entry but there are several DVs, N counts for all DVs and should be duplicated for explicitness)
+data_extract.N = data_extract.dv %>% #start with data_extract.dv to retain DV row (if n_* has one entry but there are several DVs, N counts for all DVs and should be duplicated for explicitness)
   separate_longer_delim(starts_with("n_"), ";") %>% 
   #filter(n_before_exclusion %>% str_detect("^\\d+$") == F) %>% 
   #filter(if_any(starts_with("n_"), \(x) x %>% str_detect("^\\d+$") == F)) %>% #only entries that are not completely made up of digits
   mutate(DV2 = n_after_exclusion %>% str_extract("\\b[a-zA-Z]+\\b")) %>% relocate(starts_with("DV")) #extract measurement (dependent variable, DV) from n_after_exclusion (if n_before_exclusion has several measurements, so does n_after_exclusion)
 
-#dv.descriptors = data_extract.dt %>% pull(DV) %>% unique() %>% sort()
-dv.descriptors = data_extract.dt %>% pull(DV) %>% levels()
+#dv.descriptors = data_extract.dv %>% pull(DV) %>% unique() %>% sort()
+dv.descriptors = data_extract.dv %>% pull(DV) %>% levels()
 #data_extract.N %>% pull(DV2) %>% unique() %>% sort() %>% setdiff(dv.descriptors) #check invalid descriptors
 
 data_extract.N = data_extract.N %>% 
@@ -204,21 +237,21 @@ data_extract.N = data_extract.N %>%
          retention = n_after_exclusion / n_before_exclusion, exclusion = 1 - retention) %>% 
   relocate(starts_with("DV"), exclusion, retention, starts_with("n_"))
 
-data_extract.dt %>% anti_join(data_extract.N %>% select(DV, doi)) #detect entries with missing (sub-)sample size
+data_extract.dv %>% anti_join(data_extract.N %>% select(DV, doi)) #detect entries with missing (sub-)sample size
 #data_extract.N %>% filter(doi %in% {data_extract.N %>% count(doi) %>% filter(n > 1) %>% pull(doi)}) %>% View("multiple Entries")
 #data_extract.N %>% filter(DV2 %>% is.na() == F) %>% View("changed entries")
 #data_extract.N %>% arrange(retention) %>% select(doi, DV, exclusion:n_after_exclusion) #manually checked 10 most extreme  (i.e., lowest retention rate)
 
 
-# * * Write Tidy Sample Sizes into Data Transformations -------------------
-if (nrow(data_extract.dt) != nrow(data_extract.N)) { warning("Rows in data_extract.dt and data_extract.N don't match. Check difference with anti_join.")
-} else data_extract.dt = data_extract.N %>% select(-DV2)
+# * * Write Tidy Sample Sizes into Long Format -------------------
+if (nrow(data_extract.dv) != nrow(data_extract.N)) { warning("Rows in data_extract.dv and data_extract.N don't match. Check difference with anti_join.")
+} else data_extract.dv = data_extract.N %>% select(-DV2)
 
 #sample size: check result
-data_extract.dt %>% 
+data_extract.dv %>% 
   mutate(n_before_exclusion = n_before_exclusion %>% str_replace_all("\\d+", "N")) %>% 
   checkContent(n_before_exclusion)
-data_extract.dt %>% 
+data_extract.dv %>% 
   mutate(n_after_exclusion = n_after_exclusion %>% str_replace_all("\\d+", "N")) %>% 
   checkContent(n_after_exclusion)
 
@@ -515,5 +548,5 @@ sanity_check_dt_rationale_ref <- data_extract[which(data_extract$dt_rationale !=
 
 # Write to RDS ------------------------------------------------------------
 data_extract %>% write_rds("data/data_extract.rds")
-# data_extract.dt %>% write_rds("data/data_extract.dt.rds")
+# data_extract.dv %>% write_rds("data/data_extract.dv.rds")
 # data_extract.tests %>% write_rds("data/data_extract.tests.rds")
