@@ -185,11 +185,13 @@ data_extract.rc_type = data_extract.dv %>%
   #select(starts_with("DV"), Range_correction_type) %>% unique() %>% 
   filter(DV2 %>% is.na() | DV == DV2)
 
-data_extract.rc_type %>% filter(Range_correction_type %>% is.na() == F) %>% checkContent(Range_correction_type, doi)
+#data_extract.rc_type %>% filter(Range_correction_type %>% is.na() == F) %>% checkContent(Range_correction_type, doi)
 
 # * * Write Tidy RC-Type into Long Format -------------------
 if (nrow(data_extract.dv) != nrow(data_extract.rc_type)) { warning("Rows in data_extract.dv and data_extract.N don't match. Check difference with anti_join.")
 } else data_extract.dv = data_extract.rc_type %>% select(-DV2)
+
+data_extract.dv %>% filter(Range_correction_type %>% is.na() == F) %>% checkContent(Range_correction_type, doi)
 
 #data_extract %>% checkContent(dt_specs) #too much information :)
 
