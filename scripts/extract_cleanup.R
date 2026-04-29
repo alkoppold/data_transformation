@@ -69,6 +69,7 @@ data_extract = data_extract %>%
          pupil = PUPIL_SIZE,
          eye = EYE_tracking) %>% 
   mutate(orbicularis_oculi=NA) %>% #manual check: orbicularis EMG has never been used outside of startle responses
+  filter(doi %>% str_detect("10.1016/j.biopsych.2008.09.011") == F) %>% #remove this paper (no differential fear conditioning)
   
   mutate(across(starts_with("n_"), \(x) x %>% str_replace_all(",", ";") %>% 
                   #convert "not reported" to NA for columns that need to be numeric (will be done later for design_within_levels_max)
