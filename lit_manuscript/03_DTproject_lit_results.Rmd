@@ -15,6 +15,7 @@ editor_options:
 ```{r results-load-packages-data}
 
 # Load packages
+library(here)
 library(tidyverse)
 library(forcats)
 library(scales)
@@ -25,11 +26,14 @@ library(glue)
 library(scico)
 library(ggrepel)
 library(ggsankey)
+library(data.table)
 
 
 
 # Load data
-data_extract = read_rds("data/data_extract.rds") #cf. script "extract_cleanup.R"
+data_extract <- readr::read_rds(
+  here("data", "data_extract.rds")
+) #cf. script "extract_cleanup.R"
 
 ```
 
@@ -221,22 +225,22 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 df_check = data_extract %>% select(normality:multicollinearity_how, statistical_test)
 
-names(df_check) <- c(
-  "normal_distribution",
-  "normal_how",
-  "normal_before_after",
-  "homoscedasticity",
-  "homoscedasticity_how",
-  #"sphericity", #sphericity old, which got deselected
-  "sphericity_how", 
-  "independence of residuals",
-  "independence_how",
-  "linearity",
-  "linearity_how",
-  "multicollinearity",
-  "multicollinearity_how",
-  "statistical_test"
-)
+# names(df_check) <- c(
+#   "normal_distribution",
+#   "normal_how",
+#   "normal_before_after",
+#   "homoscedasticity",
+#   "homoscedasticity_how",
+#   #"sphericity", #sphericity old, which got deselected
+#   "sphericity_how", 
+#   "independence of residuals",
+#   "independence_how",
+#   "linearity",
+#   "linearity_how",
+#   "multicollinearity",
+#   "multicollinearity_how",
+#   "statistical_test"
+# )
 
 ```
 
@@ -292,10 +296,10 @@ ggplot(data_assump, aes(x = factor(Assumption), y = n, fill = Checked)) +
 # Prepare data for pie charts
 # -----------------------------
 #data.frame(colname = df_check %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
-df_cake <- df_check %>% select(normal_distribution, homoscedasticity, sphericity_how, linearity, multicollinearity)
+df_cake <- df_check %>% select(normality, homoscedasticity, sphericity_how, linearity, multicollinearity)
 
 # Customize normality column: if normality is not "not reported" -> yes
-df_cake$normal_distribution[df_cake$normal_distribution != "not reported"] <- "yes"
+df_cake$normality[df_cake$normality != "not reported"] <- "yes"
 
 # Set names for plot titles
 names(df_cake) <- c("Normality","Homoscedasticity","Sphericity","Linearity","Multicollinearity")
@@ -366,10 +370,10 @@ coll_pies
 # Create normal_distribution bar plot with percentages
 # -----------------------------
 plot_normal_bar <- df_check %>%
-  filter(!is.na(normal_distribution)) %>%
-  count(normal_distribution) %>%
+  filter(!is.na(normality)) %>%
+  count(normality) %>%
   mutate(percent = n / sum(n)) %>%
-  ggplot(aes(x = fct_reorder(normal_distribution, n), y = n, fill = normal_distribution)) +
+  ggplot(aes(x = fct_reorder(normality, n), y = n, fill = normality)) +
   scale_y_continuous(breaks = seq(0, 600, by = 100), limits = c(0, 600),
                      expand = expansion(mult = c(0, 0.1))) +
   geom_col(width = 0.7) +
@@ -743,7 +747,7 @@ ggplot(data_trans_emg_orbic, aes(x = x,
                     axis.title.x = element_blank(),
         plot.title = element_text(size=18, face="bold"))
 
-ggsave("datatransf_rationale_emgorbic_sankey.png", width = 14, height = 8, dpi = 300)
+#ggsave("datatransf_rationale_emgorbic_sankey.png", width = 14, height = 8, dpi = 300)
 
 
 ### HR
@@ -876,7 +880,7 @@ Compare frequencies of different criteria (e.g., +/-2SD vs. +/-3SD)
 ### Outlier removal methods
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 data_outlier <- data_extract %>%
-  select(outlier:outlier_how) %>%
+  select(outlier, outlier_when, outlier_how) %>%
    rename_with(~ c("outlier_reported", "outlier_scope", "outlier_criterion"), everything()) %>%
     filter(!if_all(everything(), ~ is.na(.) | . == ""))
 
@@ -953,7 +957,7 @@ ggplot(data_outlier_grouped_plots, aes(x = factor(cutoff_value), fill = outlier_
         legend.text = element_text(size = 12),         
         legend.title = element_text(size = 14, face = "bold"))
   
-ggsave("outlier_removal_thresholds_barplot.png", width = 14, height = 8, dpi = 300)
+#ggsave("outlier_removal_thresholds_barplot.png", width = 14, height = 8, dpi = 300)
 
 ```
 
@@ -980,61 +984,46 @@ violin_n <- ggplot(aes(x = 1, y = as.numeric(n_after_exclusion)), data = data_ex
   theme(axis.text.x = element_blank(),
         axis.line.x = element_blank())
 
+violin_n
 
-# Number of females
-#TODO: Do we want to use the column?
-
-violin_female <- ggplot(aes(x = 1, y = n_female_total), data = data_extract) +
-  geom_violin(width = 0.5, scale = "width", fill = "#B388EB", alpha = 0.5) +  
-  geom_boxplot(width = 0.1, color = "grey40", alpha = 0.2) +  
-  geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#B388EB") +  
-  xlab("") +
-  ylab("Number of female participants") +
-  scale_y_continuous(breaks = seq(0, 100, by = 25),
-                     labels = seq(0, 100, by = 25), limits = c(0, 100)) +
-  lit_theme +
-  theme(axis.text.x = element_blank(),
-        axis.line.x = element_blank())
-
-
-# Mean age distribution
-#TODO: Do we want to use the column?
-
-violin_age_mean <- ggplot(aes(x = 1, y = age_mean_total), data = data_extract) +
-  geom_violin(width = 0.5, scale = "width", fill = "#8093F1", alpha = 0.5) +  
-  geom_boxplot(width = 0.1, color = "grey40", alpha = 0.2) +  
-  geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#8093F1") +  
-  xlab("") +
-  ylab("Mean age of participants") +
-  scale_y_continuous(breaks = seq(0, 50, by = 10),
-                     labels = seq(0, 50, by = 10), limits = c(0, 50)) +
-  lit_theme +
-  theme(axis.text.x = element_blank(),
-        axis.line.x = element_blank())
-
-
-# SD Age distribution
-#TODO: Do we want to use the column?
-
-violin_age_sd <- ggplot(aes(x = 1, y = age_sd_total), data = data_extract) +
-  geom_violin(width = 0.5, scale = "width", fill = "#72DDF7", alpha = 0.5) +  
-  geom_boxplot(width = 0.1, color = "grey40", alpha = 0.2) +  
-  geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#72DDF7") +  
-  xlab("") +
-  ylab("SD age of participants") +
-  scale_y_continuous(breaks = seq(0, 12, by = 3),
-                     labels = seq(0, 12, by = 3), limits = c(0, 12)) +
-  lit_theme +
-  theme(axis.text.x = element_blank(),
-        axis.line.x = element_blank())
-
-
-### Combine the plots using patchwork
-combined_violin_descript_plot <- violin_n + violin_female + violin_age_mean + violin_age_sd +
-  plot_layout(ncol = 4)
-
-# Display the combined plot
-combined_violin_descript_plot
+# # Mean age distribution
+# #TODO: Do we want to use the column?
+# 
+# violin_age_mean <- ggplot(aes(x = 1, y = age_mean_total), data = data_extract) +
+#   geom_violin(width = 0.5, scale = "width", fill = "#8093F1", alpha = 0.5) +  
+#   geom_boxplot(width = 0.1, color = "grey40", alpha = 0.2) +  
+#   geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#8093F1") +  
+#   xlab("") +
+#   ylab("Mean age of participants") +
+#   scale_y_continuous(breaks = seq(0, 50, by = 10),
+#                      labels = seq(0, 50, by = 10), limits = c(0, 50)) +
+#   lit_theme +
+#   theme(axis.text.x = element_blank(),
+#         axis.line.x = element_blank())
+# 
+# 
+# # SD Age distribution
+# #TODO: Do we want to use the column?
+# 
+# violin_age_sd <- ggplot(aes(x = 1, y = age_sd_total), data = data_extract) +
+#   geom_violin(width = 0.5, scale = "width", fill = "#72DDF7", alpha = 0.5) +  
+#   geom_boxplot(width = 0.1, color = "grey40", alpha = 0.2) +  
+#   geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#72DDF7") +  
+#   xlab("") +
+#   ylab("SD age of participants") +
+#   scale_y_continuous(breaks = seq(0, 12, by = 3),
+#                      labels = seq(0, 12, by = 3), limits = c(0, 12)) +
+#   lit_theme +
+#   theme(axis.text.x = element_blank(),
+#         axis.line.x = element_blank())
+# 
+# 
+# ### Combine the plots using patchwork
+# combined_violin_descript_plot <- violin_n + violin_female + violin_age_mean + violin_age_sd +
+#   plot_layout(ncol = 4)
+# 
+# # Display the combined plot
+# combined_violin_descript_plot
 
 
 
