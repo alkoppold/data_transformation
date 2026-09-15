@@ -1,8 +1,18 @@
 ---
 output: html_document
-editor_options: 
-  chunk_output_type: console
 ---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+
+```
+
+
 ```{r results}
 
 # This file contains the results: 
@@ -601,8 +611,8 @@ bar_plot_stats
 ### c. Transformation Practices
 specification of data transformation method, rationale, was the transformation applied on trial or average level
 the different data transformations (how many studies use raw data?)
-```{r results-transformations}
 
+```{r results-transformations}
 
 ### SCR
 data_trans_scr <- na.omit(data_extract[ , c(40, 48, 45)])
