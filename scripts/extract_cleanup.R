@@ -262,6 +262,19 @@ range(data_extract.N$n_before_exclusion, na.rm =T)
 range(data_extract.N$n_after_exclusion, na.rm =T)
 
 
+# * * Retention Rate ------------------------------------------------------
+data_extract.dv %>% 
+  summarize(.by = doi, retention = mean(retention, na.rm=T)) %>% #publication-level aggregates (across DVs)
+  summarize(retention.m = mean(retention, na.rm=T),
+            retention.sd = sd(retention, na.rm=T))
+
+#retention rate by DV
+data_extract.dv %>% summarize(.by = DV,
+                              retention.m = mean(retention, na.rm=T),
+                              retention.sd = sd(retention, na.rm=T)) %>% 
+  arrange(retention.m)
+
+
 # * mental_health_exclusion -----------------------------------------------
 data_extract %>% checkContent(mental_health_exclusion)
 
