@@ -83,7 +83,7 @@ data_extract = data_extract %>%
 #N_studies = data_extract %>% pull(doi) %>% unique() %>% length() #not needed anymore with updated checkContent function
 
 #data_extract %>% filter(doi %>% is.na()) %>% select(title) #manually replaced NAs
-#data_extract %>% count(doi) %>% filter(n != 1)
+#data_extract %>% count(doi) %>% filter(n != 1) #manually put duplicates into one row in the GoogleSheet (e.g., for several studies within one paper)
 
 #TODO copy to results
 data_extract.dv = data_extract %>% 
