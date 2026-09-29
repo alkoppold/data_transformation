@@ -169,7 +169,7 @@ data_extract.transformation %>% filter(transformation != "not reported") %>% che
 
 # * Range correction type -------------------------------------------------
 # Check content
-data_extract %>% checkContent(Range_correction_type)
+data_extract %>% filter(Range_correction_type %>% is.na() == F) %>% checkContent(Range_correction_type)
 #data_extract %>% filter(Range_correction_type %>% str_detect("baseline")) %>% select(doi, Range_correction_type)
 
 #TODO copy to results
