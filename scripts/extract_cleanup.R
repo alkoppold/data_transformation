@@ -164,7 +164,13 @@ data_extract.transformation = data_extract.transformation %>%
 
 #data_extract.transformation %>% select(starts_with("transformation")) %>% unique()
 data_extract.transformation %>% filter(transformation != "not reported") %>% checkContent(transformation_main, doi)
+data_extract.transformation %>% filter(transformation != "not reported") %>% 
+  mutate(transformation_main_trunc = case_when(transformation_main %>% str_detect(",") ~ "multiple", T ~ transformation_main)) %>% 
+  checkContent(transformation_main_trunc, doi)
+
 data_extract.transformation %>% filter(transformation != "not reported") %>% checkContent(transformation_rc, doi)
+data_extract.transformation %>% filter(transformation != "not reported") %>% count(transformation_rc, DV) %>% 
+  mutate(.by = DV, p = n/sum(n)) %>% arrange(desc(p))
 
 
 # * Range correction type -------------------------------------------------
