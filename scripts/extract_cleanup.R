@@ -322,7 +322,7 @@ data_extract %>% filter(normality != "not reported") %>% checkContent(normality_
 #note: visually = qualitatively, statistical test + descriptively = quantitatively
 
 # * * * normality_when ----------------------------------------------------
-data_extract %>% filter(normality != "not reported") %>% checkContent(normality_when)
+data_extract %>% filter(normality != "not reported") %>% checkContent(normality_when) #in relation to data transformation
 #data_extract %>% filter(normality != "not reported", normality_when %>% is.na()) %>% select(doi, starts_with("normality"))
 
 ## Sanity checks: normality
