@@ -70,7 +70,7 @@ lit_theme = theme(
 ```
 
 
-```{r circle-plot}
+```{r circle-plot-transformations}
 
 # For modern scientific color palettes
 
@@ -227,6 +227,24 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
 
 
 ```
+
+
+
+```{r circle-plot-range-correction}
+
+# For modern scientific color palettes
+
+#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
+df <- data_extract %>% select(doi, `HR`:Range_correction_type, -dt_specs)
+n_total <- df %>% pull(doi) %>% unique() %>% length()
+
+# Step 1: Pivot to long format (no drop_na yet!)
+df_long <- df %>%
+  pivot_longer(cols = -doi, names_to = "measure", values_to = "transformation")
+
+
+```
+
 
 
 ```{r assumptions-prepare-data}
