@@ -324,7 +324,7 @@ ggplot(data_assump, aes(x = factor(Assumption), y = n, fill = Checked)) +
 # Prepare data for pie charts
 # -----------------------------
 #data.frame(colname = df_check %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
-df_cake <- df_check %>% select(normality, homoscedasticity, sphericity_how, linearity, multicollinearity)
+df_cake <- df_check %>% select(normality, homoscedasticity, sphericity, linearity, multicollinearity)
 
 # Customize normality column: if normality is not "not reported" -> yes
 df_cake$normality[df_cake$normality != "not reported"] <- "yes"
@@ -455,14 +455,14 @@ normality_plot
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 df_rmanova_spher <- data_extract %>%
   filter(statistical_test_details == "rmANOVA") %>% #TODO number of within factor levels
-  select(sphericity) %>%
-  drop_na(sphericity)
+  select(sphericity_how, sphericity_category) %>%
+  drop_na(sphericity_how, sphericity_category)
 
 # Total articles with rmANOVA
 n_articles_rmANOVA <- nrow(df_rmanova_spher)
 
 # Split cell with several entries divided by "," and remove NAs
-vec_spher <- unlist(strsplit(df_rmanova_spher$sphericity, split = ",\\s*"))
+vec_spher <- unlist(strsplit(c(df_rmanova_spher$sphericity_how,df_rmanova_spher$category), split = ",\\s*"))
 vec_spher <- vec_spher[!is.na(vec_spher)]
 
 # Delete spaces in front of 2 Greenhouse-Geissers
@@ -473,14 +473,20 @@ vec_spher <- gsub(" Greenhouse–Geisser correction", "Greenhouse–Geisser corr
 # BAR PLOT: sphericity_how
 # -------------------------------
 
+### Prepare data
 df_bar_spher <- tibble(response = vec_spher) %>%
   count(response) %>%
   mutate(
     percent = n / n_articles_rmANOVA,
     response = fct_reorder(response, n)
   )
+# Add categories: is it a test or a correction
+df_bar_spher$category <- "NA"
+df_bar_spher$category[grep("correction", df_bar_spher$response)] <- "Correction"
+df_bar_spher$category[grep("test", df_bar_spher$response)] <- "Test"
 
-plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = response)) +
+### PLOT
+plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = category)) +
   geom_col(width = 0.7) +
   geom_text(
     aes(label = paste0(" (", round(percent * 100, digits = 1), "%)")),
@@ -491,11 +497,11 @@ plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = resp
     limits = c(0, max(df_bar_spher$n) + 50),
     expand = expansion(mult = c(0, 0.1))
   ) +
-  scale_fill_scico_d(palette = "hawaii", direction = -1, guide = "none") +
+  scale_fill_scico_d(palette = "hawaii", direction = -1) +
   coord_flip() +
   theme_minimal(base_family = "Calibri") +
   theme(
-    legend.position = "none",
+    legend.position = "bottom",
     plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
     axis.title.y = element_blank(),
     axis.title.x = element_text(size = 13, face = "bold"),
@@ -506,7 +512,8 @@ plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = resp
   ) +
   labs(
     title = "How Was Sphericity Checked?",
-    y = "Number of studies"
+    y = "Number of studies",
+    fill = "Category"
   )
 
 # -----------------------------
