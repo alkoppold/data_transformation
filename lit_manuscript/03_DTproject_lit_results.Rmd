@@ -341,6 +341,47 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
 
 ```
 
+```{r rc-stackedbar}
+library(ggplot2)
+library(scico)
+
+# Clean labels for the legend
+d[, RC_label := gsub("_", " ", Range_correction_type)]
+d[, RC_label := factor(RC_label, levels = unique(RC_label[order(ID)]))]
+
+# Same palette family (lipari, reversed), now one color per correction type
+pal_rc <- rev(scico(n = nlevels(d$RC_label), palette = "lipari"))
+
+# Show a label only if the segment is big enough to be readable
+d[, show_label := ifelse(pct >= 5, pct_label, "")]
+
+ggplot(d, aes(x = Measure, y = pct, fill = RC_label)) +
+  geom_col(width = 0.7, color = "white", linewidth = 0.4) +
+  geom_text(aes(label = show_label),
+            position = position_stack(vjust = 0.5),
+            size = 3.8, color = "white", family = "Helvetica") +
+  scale_fill_manual(values = pal_rc, name = "Range correction type") +
+  scale_y_continuous(
+    breaks = seq(0, 100, 25),
+    labels = function(x) paste0(x, "%"),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  theme_minimal(base_size = 14, base_family = "Helvetica") +
+  theme(
+    axis.ticks = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_line(colour = "grey92", linewidth = 0.3),
+    legend.position = "right",
+    legend.title = element_text(face = "bold", size = 13),
+    legend.text = element_text(size = 12),
+    plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+    plot.subtitle = element_text(size = 13, hjust = 0.5, color = "grey40"),
+    panel.border = element_blank()
+  ) +
+  labs(x = NULL, y = "Percentage within measure")
+```
+
 
 
 ```{r assumptions-prepare-data}
@@ -733,270 +774,65 @@ bar_plot_stats
 specification of data transformation method, rationale, was the transformation applied on trial or average level
 the different data transformations (how many studies use raw data?)
 
-```{r results-transformations}
+```{r new-sankeyloop}
 
-### SCR
-data_trans_scr <- na.omit(data_extract[ , c(40, 48, 45)])
-names(data_trans_scr) <- c("scr_transf", "transf_level", "rationale_di")
+# Function 
+make_sankey2 <- function(label, transf_col, rationale_col = 49, data = data_extract) {
+  d <- na.omit(data[, c(transf_col, rationale_col)])
+  names(d) <- c("transf", "rationale_di")
 
-# Extract SCR-relevant info from multi-measure cells and uniformly code
-data_trans_scr <- data_trans_scr %>%
-  mutate(transf_level = case_when(
-    grepl("SCR: not reported", transf_level) ~ "not reported",
-    grepl("SCR: trial-level", transf_level) ~ "trial-level",
-    grepl("across trials", transf_level) ~ "trial-level",
-    grepl("assume on trial-level", transf_level) ~ "trial-level",
-    TRUE ~ transf_level  # keep original
-  ))
+  if (nrow(d) == 0) {
+    message("Skipping ", label, ": no complete rows after na.omit()")
+    return(NULL)
+  }
 
-# Convert to long format
-data_trans_scr <- data_trans_scr %>%
-  make_long(
-    cols = c(scr_transf, transf_level, rationale_di)
+  d_long <- make_long(d, transf, rationale_di)
+
+  ggplot(d_long, aes(x = x, next_x = next_x,
+                     node = node, next_node = next_node,
+                     label = factor(node))) +
+    geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
+    geom_sankey_label(size = 4, color = 1, fill = "white") +
+    scale_fill_viridis_d(option = "A", alpha = 0.95) +
+    scale_x_discrete(breaks = c("transf", "rationale_di"),
+                     labels = c("Transformation", "Rationale")) +
+    ggtitle(paste0(label, ": Data Transformation Methods and Reporting Rationale")) +
+    lit_theme +
+    theme(axis.text.y  = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.title.x = element_blank(),
+          plot.title   = element_text(size = 18, face = "bold"))
+}
+
+#create df
+measures <- data.frame(
+  label      = c("SCR", "SCL", "EMG Startle", "HR (bpm)", "HRV", "Eye tracking", "Pupil size"),
+  file       = c("scr", "scl", "emgstartle", "hr", "hrv", "eyetrack", "pupil"),
+  transf_col = c(43,     44,    42,            39,         40,    45,             46),
+  stringsAsFactors = FALSE
+)
+
+#run loop with saving on
+save_plots <- TRUE   # set FALSE to only display
+
+sankey_plots <- list()
+for (i in seq_len(nrow(measures))) {
+  m <- measures[i, ]
+
+  p <- tryCatch(
+    make_sankey2(m$label, m$transf_col),
+    error = function(e) { message("Failed for ", m$label, ": ", e$message); NULL }
   )
+  if (is.null(p)) next
 
-# data_trans_scr$node <- factor(data_trans_scr$node, levels = sort(unique(data_trans_scr$node)))
+  sankey_plots[[m$file]] <- p
+  print(p)
 
-
-# Plot the Sankey diagram
-ggplot(data_trans_scr, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("scr_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("SCR: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(), 
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_scr_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### SCL
-data_trans_scl <- na.omit(data_extract[ ,c(41, 48, 45)])
-names(data_trans_scl) <- c("scl_transf", "transf_level", "rationale_di")
-
-# Convert to long format
-data_trans_scl <- data_trans_scl %>%
-  make_long(
-    cols = c(scl_transf, transf_level, rationale_di)
-  )
-
-# Plot the Sankey diagram
-ggplot(data_trans_scl, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("scl_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("SCL: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_scl_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### EMG Startle
-data_trans_emg_startle <- na.omit(data_extract[ ,c(39, 48, 45)])
-names(data_trans_emg_startle) <- c("emg_startle_transf", "transf_level", "rationale_di")
-
-# Extract SCR-relevant info from multi-measure cells and uniformly code
-data_trans_emg_startle <- data_trans_emg_startle %>%
-  mutate(transf_level = case_when(
-    grepl("Startle: not reported", transf_level) ~ "not reported",
-    grepl("Startle: trial-level", transf_level) ~ "trial-level",
-    grepl("FPS: trial-level", transf_level) ~ "trial-level",
-    grepl("EMG: average-level", transf_level) ~ "average-level",
-    grepl("across trials", transf_level) ~ "trial-level",
-    grepl("SCR: trial-level", transf_level) ~ "not reported",
-    TRUE ~ transf_level  # keep original
-  ))
-
-# Convert to long format
-data_trans_emg_startle <- data_trans_emg_startle %>%
-  make_long(emg_startle_transf, transf_level, rationale_di)
-
-
-# Plot the Sankey diagram
-ggplot(data_trans_emg_startle, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("emg_startle_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("EMG Startle: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_emgstartle_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### EMG orbicularis oculi
-data_trans_emg_orbic <- na.omit(data_extract[ ,c(38, 48, 45)])
-names(data_trans_emg_orbic) <- c("emg_orbic_transf", "transf_level", "rationale_di")
-
-# Convert to long format
-data_trans_emg_orbic <- data_trans_emg_orbic %>%
-  make_long(emg_orbic_transf, transf_level, rationale_di)
-
-# Plot the Sankey diagram
-ggplot(data_trans_emg_orbic, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("emg_orbic_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("EMG Orbicularis Oculi: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_emgorbic_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### HR
-data_trans_hr <- na.omit(data_extract[ ,c(36, 48, 45)])
-names(data_trans_hr) <- c("hr_transf", "transf_level", "rationale_di")
-
-# Convert to long format
-data_trans_hr <- data_trans_hr %>%
-  make_long(hr_transf, transf_level, rationale_di)
-
-# Plot the Sankey diagram
-ggplot(data_trans_hr, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("hr_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("HR (bpm): Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_hr_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### HRV
-data_trans_hrv <- na.omit(data_extract[ ,c(37, 48, 45)])
-names(data_trans_hrv) <- c("hrv_transf", "transf_level", "rationale_di")
-
-# Convert to long format
-data_trans_hrv <- data_trans_hrv %>%
-  make_long(hrv_transf, transf_level, rationale_di)
-
-
-#TODO: plot not working
-# Plot the Sankey diagram
-ggplot(data_trans_hrv, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("hrv_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("HRV: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_hrv_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### Eye tracking
-data_trans_eyetrack <- na.omit(data_extract[ ,c(42, 48, 45)])
-names(data_trans_eyetrack) <- c("eyetrack_transf", "transf_level", "rationale_di")
-
-# Convert to long format
-data_trans_eyetrack <- data_trans_eyetrack %>%
-  make_long(eyetrack_transf, transf_level, rationale_di)
-
-# Plot the Sankey diagram
-ggplot(data_trans_eyetrack, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("eyetrack_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("Eye tracking: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_eyetrack_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### Pupil size
-data_trans_pupil <- na.omit(data_extract[ ,c(43, 48, 45)])
-names(data_trans_pupil) <- c("pupil_transf", "transf_level", "rationale_di")
-
-# Convert to long format
-data_trans_pupil <- data_trans_pupil %>%
-  make_long(pupil_transf, transf_level, rationale_di)
-
-# Plot the Sankey diagram
-ggplot(data_trans_pupil, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("pupil_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("Pupil size: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_pupil_sankey.png", width = 14, height = 8, dpi = 300)
+  if (save_plots) {
+    ggsave(paste0("datatransf_rationale_", m$file, "_sankey.png"),
+           plot = p, width = 14, height = 8, dpi = 300)
+  }
+}
 
 ```
 
