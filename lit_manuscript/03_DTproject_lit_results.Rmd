@@ -232,15 +232,111 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
 
 ```{r circle-plot-range-correction}
 
-# For modern scientific color palettes
-
-#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
+# Select columns
 df <- data_extract %>% select(doi, `HR`:Range_correction_type, -dt_specs)
 n_total <- df %>% pull(doi) %>% unique() %>% length()
 
-# Step 1: Pivot to long format (no drop_na yet!)
+# Step 1: Pivot to long format
 df_long <- df %>%
   pivot_longer(cols = -doi, names_to = "measure", values_to = "transformation")
+# Add range correction type
+rc_info <- data_extract[ ,c("doi","Range_correction_type")]
+df_long <- merge(df_long, rc_info, by = "doi", all.x = TRUE)
+df_long$Range_correction_type[-grep("rc", df_long$transformation)] <- NA
+
+# Step 2: Now drop NAs
+df_long <- df_long %>%
+  drop_na()
+
+counts <- df_long %>%
+  count(measure, Range_correction_type, drop = F) 
+
+df_wide <- counts %>%
+  pivot_wider(names_from = measure, values_from = n, values_fill = 0) %>%
+  mutate(ID = paste0("T", row_number())) %>%
+  relocate(ID)
+
+
+id_labels <- df_wide %>% select(ID, Range_correction_type)
+id_named_vec <- setNames(id_labels$Range_correction_type, id_labels$ID)
+id_named_vec <- gsub("_", " ", id_named_vec)
+
+d <- df_wide %>%
+  pivot_longer(cols = -c(ID, Range_correction_type), names_to = "Measure", values_to = "Count") %>%
+  filter(Count > 0) %>%
+  mutate(Type = ifelse(Count > 1, "more than one study", "one study only"))
+
+d <- setDT(d)
+
+# Step: Create a unique range-correction-type-to-ID mapping
+id_order <- d[ , .SD[1], by = Range_correction_type][order(Range_correction_type)]$ID
+
+# Apply it as the factor level order
+d[, ID := factor(ID, levels = id_order)]
+#d[, ID := factor(ID, levels = d[, .N, by = ID][order(N)]$ID)]
+#d[, Measure := factor(Measure, levels = d[, .N, by = Measure][order(N)]$Measure)]
+d[, Measure := factor(Measure, levels = sort(unique(Measure)))]
+d[, Measure2 := as.numeric(Measure)]
+
+
+### Calculate counts and percentages
+# Step 1: Calculate total counts per Measure
+d[, total_measure_count := sum(Count), by = Measure]
+
+# Step 2: Calculate percentage for each transformation within the measure
+d[, pct := 100 * Count / total_measure_count]
+
+# Step 3: Create a label with percentage rounded, e.g. "45%"
+d[, pct_label := paste0(round(pct, digits = 1), "%")]
+
+# Step 4: Renaming of cell entries
+d$Measure <- gsub("eye", "EYE tracking", d$Measure)
+d$Measure <- gsub("pupil", "PUPIL SIZE", d$Measure)
+d$Measure <- gsub("startle", "EMG startle", d$Measure)
+
+
+### Color palette
+d$Measure <- as.factor(d$Measure)
+pal1 <- scico(n = length(levels(d$Measure)), palette = "lipari")
+pal1 = rev(pal1)
+
+
+### PLOT
+ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) +
+  geom_line(alpha = 0.5, size = 0.8, color = "grey50") +
+  geom_point(aes(size = pct), stroke = 1.2, fill = "white") +  # SIZE mapped to pct
+  geom_hline(yintercept = 1:length(unique(d$Measure)), colour = "grey92", size = 0.3) +
+  geom_vline(xintercept = 1:length(unique(d$ID)), colour = "grey92", size = 0.3) +
+  geom_rect(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0.6, fill = "white", color = NA) +
+  coord_polar() +
+  scale_shape_manual(values = c(19, 21)) +
+  scale_y_continuous(
+    limits = c(0, length(unique(d$Measure)) + 1),
+    breaks = 1:length(unique(d$Measure)),
+    labels = levels(d$Measure)
+  ) +
+  scale_color_manual(values = pal1) +
+  scale_size(range = c(2, 10), name = "Percentage within measure") +  # Dot size scale
+  scale_x_discrete(labels = id_named_vec) +
+  theme_minimal(base_size = 14, base_family = "Helvetica") +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "right",
+    legend.title = element_text(face = "bold", size = 13),
+    legend.text = element_text(size = 12),
+    plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+    plot.subtitle = element_text(size = 13, hjust = 0.5, color = "grey40"),
+    panel.border = element_blank()
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    shape = "Transformation count",
+    color = paste0("Measure")
+  )
+
 
 
 ```
