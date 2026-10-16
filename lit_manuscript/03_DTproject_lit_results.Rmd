@@ -836,6 +836,50 @@ for (i in seq_len(nrow(measures))) {
 
 ```
 
+```{r sankey-oneplot}
+
+measures <- data.frame(
+  label      = c("SCR", "SCL", "EMG Startle", "HR (bpm)", "HRV", "Eye tracking", "Pupil size"),
+  file       = c("scr", "scl", "emgstartle", "hr", "hrv", "eyetrack", "pupil"),
+  transf_col = c(43,     44,    42,            39,         40,    45,             46),
+  stringsAsFactors = FALSE
+)
+measures_use <- measures[measures$file != "scr", ]   # drop SCR
+
+plots_panel <- list()
+for (i in seq_len(nrow(measures_use))) {
+  m <- measures_use[i, ]
+
+  p <- tryCatch({
+    p <- make_sankey2(m$label, m$transf_col)
+    if (is.null(p)) stop("no data")
+    p <- p + ggtitle(m$label) +
+      theme(legend.position = "none",
+            plot.title = element_text(size = 16, face = "bold"))
+    ggplotGrob(p)   # forces the plot to build, so errors show up here, not later
+    p
+  }, error = function(e) {
+    message("Dropped ", m$label, ": ", conditionMessage(e))
+    NULL
+  })
+
+  if (!is.null(p)) plots_panel[[m$file]] <- p
+}
+
+combined <- wrap_plots(plots_panel, ncol = 2) +
+  plot_annotation(
+    tag_levels = "A",
+    title = "Data Transformation Methods and Reporting Rationale",
+    theme = theme(plot.title = element_text(size = 22, face = "bold", hjust = 0.5),
+                  plot.tag   = element_text(size = 22, face = "bold"))
+  )
+
+print(combined)
+
+ggsave("datatransf_rationale_all_sankey.png", plot = combined,
+       width = 20, height = 20, dpi = 300)
+```
+
 
 ### d. Outlier Practices
 outlier removal reported?, outlier criterion, outlier refer to
