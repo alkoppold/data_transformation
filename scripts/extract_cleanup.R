@@ -471,13 +471,21 @@ data_extract = data_extract %>%
   mutate(sphericity_how = sphericity_how %>% str_replace_all("–", "-"))
 
 data_extract %>% 
-  filter(statistical_test == "ANOVA", design_within_levels_max > 2) %>% 
+  filter(statistical_test == "ANOVA", #TODO could also be something like an LMM, GLM, multiple, etc.
+         design_within_levels_max > 2) %>% 
   checkContent(sphericity_how)
 #checked: Epsilon correction is different from GG or HF corrections
 #checked: Mendoza's sphericity test exists
 
 #check NA vs. "not reported": due to previous column: was the sphericity checked? yes/not reported -> if not reported = NA 
 
+sphericity_toCheck = data_extract %>% 
+  filter(statistical_test != "ANOVA" | design_within_levels_max <= 2, 
+         sphericity_how %>% is.na() == F | sphericity_how != "not reported") %>% 
+  select(statistical_test, within_lvls = design_within_levels_max, sphericity_how, doi)
+sphericity_toCheck %>% checkContent(sphericity_how)
+sphericity_toCheck %>% filter(statistical_test != "ANOVA") %>% checkContent(statistical_test)
+sphericity_toCheck %>% filter(within_lvls <= 2) %>% checkContent(within_lvls)
 
 
 # * * * Sphericity Category -----------------------------------------------
