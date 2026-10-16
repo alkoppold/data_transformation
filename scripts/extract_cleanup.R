@@ -475,7 +475,6 @@ data_extract %>%
   checkContent(sphericity_how)
 #checked: Epsilon correction is different from GG or HF corrections
 #checked: Mendoza's sphericity test exists
-#checked: "Greenhouse-Geisser correction & Huynh-Feldt correction" is different from rest (e.g., "Greenhouse-Geisser correction (ɛ < .75) or Huynh-Feldt correction (ɛ > .75)")
 
 #check NA vs. "not reported": due to previous column: was the sphericity checked? yes/not reported -> if not reported = NA 
 
