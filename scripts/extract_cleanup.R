@@ -405,8 +405,10 @@ data_extract.tests = data_extract %>%
                                  
                                  statistical_test %>% str_detect("ttest") ~ "ttest",
                                  
+                                 #note: Welch does not occur anymore because the respective study has been excluded due to lack of CS-differentiation in acquisition phase
+                                 #statistical_test %>% str_detect("Welch") & statistical_test %>% str_detect("James") ~ "ANOVA", #for unequal variances (can also handle mixed designs)
                                  #statistical_test %>% str_detect("Welch") ~ "ttest", #(for unequal variances)
-                                 statistical_test %>% str_detect("Welch") ~ "Welch ttest", #leave Welch test separate because it does not require homoscedasticity
+                                 ##statistical_test %>% str_detect("Welch") ~ "Welch ttest", #leave Welch test separate because it does not require homoscedasticity
                                  
                                  statistical_test %>% str_detect("Whitney") ~ "ordinal ttest", #for independent samples (homoscedasticity not required due to rank transformation)
                                  statistical_test %>% str_detect("Wilcoxon") ~ "ordinal ttest", #for paired samples
