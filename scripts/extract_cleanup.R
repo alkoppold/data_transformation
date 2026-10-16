@@ -455,9 +455,11 @@ data_extract %>%
   filter(sphericity != "yes" & !is.na(sphericity_how)) %>%
   select(title)
 
-# Do it: All sphericity_how = anything should be sphericity = yes
+# If sphericity_how is NA or "not reported", sphericity should be "not reported". Otherwise sphericity should be "yes".
 data_extract <- data_extract %>%
-  mutate(sphericity = ifelse(!is.na(sphericity_how), "yes", NA))
+  mutate(sphericity = if_else(is.na(sphericity_how) | sphericity_how == "not reported", "not reported", "yes"))
+
+data_extract %>% checkContent(sphericity)
 
 # Check sphericity_how column
 data_extract %>% checkContent(sphericity_how)
