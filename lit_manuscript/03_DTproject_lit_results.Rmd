@@ -70,7 +70,7 @@ lit_theme = theme(
 ```
 
 
-```{r circle-plot}
+```{r circle-plot-transformations}
 
 # For modern scientific color palettes
 
@@ -182,11 +182,16 @@ d[, total_measure_count := sum(Count), by = Measure]
 # Step 2: Calculate percentage for each transformation within the measure
 d[, pct := 100 * Count / total_measure_count]
 
-# Step 3: Create a label with percentage rounded, e.g. "45%"
+# Step 3a: Create a label with percentage rounded, e.g. "45%"
 d[, pct_label := paste0(round(pct, digits = 1), "%")]
 
 pal1 <- scico(n = length(levels(d$Measure)), palette = "lipari")
 pal1 = rev(pal1)
+
+# Step 3b: Renaming of cell entries
+d$Measure <- gsub("eye", "EYE tracking", d$Measure)
+d$Measure <- gsub("pupil", "PUPIL SIZE", d$Measure)
+d$Measure <- gsub("startle", "EMG startle", d$Measure)
 
 
 # Step 4: Add geom_text to the plot, adjust position with nudge_x or nudge_y
@@ -226,6 +231,278 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
   )
 
 
+d_trans <- copy(d); id_named_vec_trans <- id_named_vec
+
+
+```
+
+
+
+```{r circle-plot-range-correction}
+
+# Select columns
+df <- data_extract %>% select(doi, `HR`:Range_correction_type, -dt_specs)
+n_total <- df %>% pull(doi) %>% unique() %>% length()
+
+# Step 1: Pivot to long format
+df_long <- df %>%
+  pivot_longer(cols = -doi, names_to = "measure", values_to = "transformation")
+# Add range correction type
+rc_info <- data_extract[ ,c("doi","Range_correction_type")]
+df_long <- merge(df_long, rc_info, by = "doi", all.x = TRUE)
+df_long$Range_correction_type[-grep("rc", df_long$transformation)] <- NA
+
+# Step 2: Now drop NAs
+df_long <- df_long %>%
+  drop_na()
+
+counts <- df_long %>%
+  count(measure, Range_correction_type, drop = F) 
+
+df_wide <- counts %>%
+  pivot_wider(names_from = measure, values_from = n, values_fill = 0) %>%
+  mutate(ID = paste0("T", row_number())) %>%
+  relocate(ID)
+
+
+id_labels <- df_wide %>% select(ID, Range_correction_type)
+id_named_vec <- setNames(id_labels$Range_correction_type, id_labels$ID)
+id_named_vec <- gsub("_", " ", id_named_vec)
+
+d <- df_wide %>%
+  pivot_longer(cols = -c(ID, Range_correction_type), names_to = "Measure", values_to = "Count") %>%
+  filter(Count > 0) %>%
+  mutate(Type = ifelse(Count > 1, "more than one study", "one study only"))
+
+d <- setDT(d)
+
+# Step: Create a unique range-correction-type-to-ID mapping
+id_order <- d[ , .SD[1], by = Range_correction_type][order(Range_correction_type)]$ID
+
+# Apply it as the factor level order
+d[, ID := factor(ID, levels = id_order)]
+#d[, ID := factor(ID, levels = d[, .N, by = ID][order(N)]$ID)]
+#d[, Measure := factor(Measure, levels = d[, .N, by = Measure][order(N)]$Measure)]
+d[, Measure := factor(Measure, levels = sort(unique(Measure)))]
+d[, Measure2 := as.numeric(Measure)]
+
+
+### Calculate counts and percentages
+# Step 1: Calculate total counts per Measure
+d[, total_measure_count := sum(Count), by = Measure]
+
+# Step 2: Calculate percentage for each transformation within the measure
+d[, pct := 100 * Count / total_measure_count]
+
+# Step 3: Create a label with percentage rounded, e.g. "45%"
+d[, pct_label := paste0(round(pct, digits = 1), "%")]
+
+# Step 4: Renaming of cell entries
+d$Measure <- gsub("eye", "EYE tracking", d$Measure)
+d$Measure <- gsub("pupil", "PUPIL SIZE", d$Measure)
+d$Measure <- gsub("startle", "EMG startle", d$Measure)
+
+
+### Color palette
+d$Measure <- as.factor(d$Measure)
+pal1 <- scico(n = length(levels(d$Measure)), palette = "lipari")
+pal1 = rev(pal1)
+
+
+### PLOT
+ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) +
+  geom_line(alpha = 0.5, size = 0.8, color = "grey50") +
+  geom_point(aes(size = pct), stroke = 1.2, fill = "white") +  # SIZE mapped to pct
+  geom_hline(yintercept = 1:length(unique(d$Measure)), colour = "grey92", size = 0.3) +
+  geom_vline(xintercept = 1:length(unique(d$ID)), colour = "grey92", size = 0.3) +
+  geom_rect(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0.6, fill = "white", color = NA) +
+  coord_polar() +
+  scale_shape_manual(values = c(19, 21)) +
+  scale_y_continuous(
+    limits = c(0, length(unique(d$Measure)) + 1),
+    breaks = 1:length(unique(d$Measure)),
+    labels = levels(d$Measure)
+  ) +
+  scale_color_manual(values = pal1) +
+  scale_size(range = c(2, 10), name = "Percentage within measure") +  # Dot size scale
+  scale_x_discrete(labels = id_named_vec) +
+  theme_minimal(base_size = 14, base_family = "Helvetica") +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "right",
+    legend.title = element_text(face = "bold", size = 13),
+    legend.text = element_text(size = 12),
+    plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+    plot.subtitle = element_text(size = 13, hjust = 0.5, color = "grey40"),
+    panel.border = element_blank()
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    shape = "Transformation count",
+    color = paste0("Measure")
+  )
+
+
+
+```
+
+
+
+```{r rc-stackedbar}
+library(scico)
+library(ggplot2)
+library(data.table)
+
+# Clean labels for the legend
+d[, RC_label := gsub("_", " ", Range_correction_type)]
+d[, RC_label := factor(RC_label, levels = unique(RC_label[order(ID)]))]
+
+# Same palette family (lipari, reversed), now one color per correction type
+pal_rc <- rev(scico(n = nlevels(d$RC_label), palette = "lipari"))
+
+# ---- NEW: number of studies before the percentage ---------------------------
+# Name of the column in d that holds the number of studies.
+# Leave as NULL to auto-detect from common names, or set it, e.g. "N_studies"
+count_col <- NULL
+
+if (is.null(count_col)) {
+  candidates <- c("n_studies", "N_studies", "n", "N", "k", "K",
+                  "count", "Count", "studies", "Studies", "n_papers", "N_papers")
+  count_col <- intersect(candidates, names(d))[1]
+}
+if (is.na(count_col) || is.null(count_col)) {
+  stop("No study-count column found. Columns in d are: ",
+       paste(names(d), collapse = ", "),
+       "\nSet count_col to the right one.")
+}
+
+# pct_label is your existing percentage label (e.g. "34%").
+# This puts the count in front: "12 (34%)"
+d[, pct_label := paste0(d[[count_col]], " (", round(pct), "%)")]
+
+# Show a label only if the segment is big enough to be readable
+d[, show_label := ifelse(pct >= 5, pct_label, "")]
+# -----------------------------------------------------------------------------
+
+ggplot(d, aes(x = Measure, y = pct, fill = RC_label)) +
+  geom_col(width = 0.7, color = "white", linewidth = 0.4) +
+  geom_text(aes(label = show_label),
+            position = position_stack(vjust = 0.5),
+            size = 3.8, color = "white", family = "Helvetica") +
+  scale_fill_manual(values = pal_rc, name = "Range correction type") +
+  scale_y_continuous(
+    breaks = seq(0, 100, 25),
+    labels = function(x) paste0(x, "%"),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  theme_minimal(base_size = 14, base_family = "Helvetica") +
+  theme(
+    axis.ticks = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_line(colour = "grey92", linewidth = 0.3),
+    legend.position = "right",
+    legend.title = element_text(face = "bold", size = 13),
+    legend.text = element_text(size = 12),
+    plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+    plot.subtitle = element_text(size = 13, hjust = 0.5, color = "grey40"),
+    panel.border = element_blank()
+  ) +
+  labs(x = NULL, y = "Percentage within measure")
+
+d_rc <- copy(d)
+```
+
+```{r merge-plots}
+
+library(scico)
+# ---- Panel A: circle plot of transformations ---------------------------------
+d_trans[, Measure := factor(Measure, levels = sort(unique(as.character(Measure))))]
+d_trans[, Measure2 := as.numeric(Measure)]
+
+pal_A <- rev(scico(n = nlevels(d_trans$Measure), palette = "lipari"))
+
+# ---- Panel A: circle plot of transformations ---------------------------------
+pal_A <- rev(scico(n = nlevels(d_trans$Measure), palette = "lipari"))
+
+p_A <- ggplot(d_trans, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) +
+  geom_line(alpha = 0.5, linewidth = 0.8, color = "grey50") +
+  geom_point(aes(size = pct), stroke = 1.2, fill = "white") +
+  geom_hline(yintercept = 1:length(unique(d_trans$Measure)), colour = "grey92", linewidth = 0.3) +
+  geom_vline(xintercept = 1:length(unique(d_trans$ID)), colour = "grey92", linewidth = 0.3) +
+  geom_rect(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0.6, fill = "white", color = NA) +
+  coord_polar() +
+  scale_shape_manual(values = c(19, 21)) +
+  scale_y_continuous(
+    limits = c(0, length(unique(d_trans$Measure)) + 1),
+    breaks = 1:length(unique(d_trans$Measure)),
+    labels = levels(d_trans$Measure)
+  ) +
+  scale_color_manual(values = pal_A) +
+  scale_size(range = c(2, 10), name = "Percentage within measure") +
+  scale_x_discrete(labels = id_named_vec_trans) +
+  theme_minimal(base_size = 14, base_family = "Helvetica") +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "right",
+    legend.title = element_text(face = "bold", size = 13),
+    legend.text = element_text(size = 12),
+    panel.border = element_blank()
+  ) +
+  labs(
+    x = NULL, y = NULL,
+    shape = "Transformation count",
+    color = paste0("Measure used in (% of ", n_total, " studies)")
+  )
+
+# ---- Panel B: stacked bar of range correction types --------------------------
+d_rc[, RC_label := gsub("_", " ", Range_correction_type)]
+d_rc[, RC_label := factor(RC_label, levels = unique(RC_label[order(ID)]))]
+pal_rc <- rev(scico(n = nlevels(d_rc$RC_label), palette = "lipari"))
+
+# Label: studies in segment / total studies for the measure (percentage)
+d_rc[, pct_label := paste0(Count, "/", total_measure_count, " (", round(pct), "%)")]
+d_rc[, show_label := ifelse(pct >= 5, pct_label, "")]
+
+p_B <- ggplot(d_rc, aes(x = Measure, y = pct, fill = RC_label)) +
+  geom_col(width = 0.7, color = "white", linewidth = 0.4) +
+  geom_text(aes(label = show_label),
+            position = position_stack(vjust = 0.5),
+            size = 3.8, color = "white", family = "Helvetica") +
+  scale_fill_manual(values = pal_rc, name = "Range correction type") +
+  scale_y_continuous(
+    breaks = seq(0, 100, 25),
+    labels = function(x) paste0(x, "%"),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  theme_minimal(base_size = 14, base_family = "Helvetica") +
+  theme(
+    axis.ticks = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_line(colour = "grey92", linewidth = 0.3),
+    legend.position = "right",
+    legend.title = element_text(face = "bold", size = 13),
+    legend.text = element_text(size = 12),
+    panel.border = element_blank()
+  ) +
+  labs(x = NULL, y = "Percentage within measure")
+
+# ---- Combine -----------------------------------------------------------------
+p_AB <- (p_A / p_B) +
+  plot_layout(heights = c(1.3, 1)) +
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag = element_text(face = "bold", size = 20))
+
+p_AB
+
+# Save (adjust size as needed)
+ggsave("Figure_AB.png", p_AB, width = 12, height = 18, dpi = 300, bg = "white")
 ```
 
 
@@ -306,7 +583,7 @@ ggplot(data_assump, aes(x = factor(Assumption), y = n, fill = Checked)) +
 # Prepare data for pie charts
 # -----------------------------
 #data.frame(colname = df_check %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
-df_cake <- df_check %>% select(normality, homoscedasticity, sphericity_how, linearity, multicollinearity)
+df_cake <- df_check %>% select(normality, homoscedasticity, sphericity, linearity, multicollinearity)
 
 # Customize normality column: if normality is not "not reported" -> yes
 df_cake$normality[df_cake$normality != "not reported"] <- "yes"
@@ -437,14 +714,14 @@ normality_plot
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 df_rmanova_spher <- data_extract %>%
   filter(statistical_test_details == "rmANOVA") %>% #TODO number of within factor levels
-  select(sphericity) %>%
-  drop_na(sphericity)
+  select(sphericity_how, sphericity_category) %>%
+  drop_na(sphericity_how, sphericity_category)
 
 # Total articles with rmANOVA
 n_articles_rmANOVA <- nrow(df_rmanova_spher)
 
 # Split cell with several entries divided by "," and remove NAs
-vec_spher <- unlist(strsplit(df_rmanova_spher$sphericity, split = ",\\s*"))
+vec_spher <- unlist(strsplit(c(df_rmanova_spher$sphericity_how,df_rmanova_spher$category), split = ",\\s*"))
 vec_spher <- vec_spher[!is.na(vec_spher)]
 
 # Delete spaces in front of 2 Greenhouse-Geissers
@@ -455,14 +732,20 @@ vec_spher <- gsub(" Greenhouse–Geisser correction", "Greenhouse–Geisser corr
 # BAR PLOT: sphericity_how
 # -------------------------------
 
+### Prepare data
 df_bar_spher <- tibble(response = vec_spher) %>%
   count(response) %>%
   mutate(
     percent = n / n_articles_rmANOVA,
     response = fct_reorder(response, n)
   )
+# Add categories: is it a test or a correction
+df_bar_spher$category <- "NA"
+df_bar_spher$category[grep("correction", df_bar_spher$response)] <- "Correction"
+df_bar_spher$category[grep("test", df_bar_spher$response)] <- "Test"
 
-plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = response)) +
+### PLOT
+plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = category)) +
   geom_col(width = 0.7) +
   geom_text(
     aes(label = paste0(" (", round(percent * 100, digits = 1), "%)")),
@@ -473,11 +756,11 @@ plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = resp
     limits = c(0, max(df_bar_spher$n) + 50),
     expand = expansion(mult = c(0, 0.1))
   ) +
-  scale_fill_scico_d(palette = "hawaii", direction = -1, guide = "none") +
+  scale_fill_scico_d(palette = "hawaii", direction = -1) +
   coord_flip() +
   theme_minimal(base_family = "Calibri") +
   theme(
-    legend.position = "none",
+    legend.position = "bottom",
     plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
     axis.title.y = element_blank(),
     axis.title.x = element_text(size = 13, face = "bold"),
@@ -488,7 +771,8 @@ plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = resp
   ) +
   labs(
     title = "How Was Sphericity Checked?",
-    y = "Number of studies"
+    y = "Number of studies",
+    fill = "Category"
   )
 
 # -----------------------------
@@ -612,271 +896,110 @@ bar_plot_stats
 specification of data transformation method, rationale, was the transformation applied on trial or average level
 the different data transformations (how many studies use raw data?)
 
-```{r results-transformations}
+```{r new-sankeyloop}
 
-### SCR
-data_trans_scr <- na.omit(data_extract[ , c(40, 48, 45)])
-names(data_trans_scr) <- c("scr_transf", "transf_level", "rationale_di")
+# Function 
+make_sankey2 <- function(label, transf_col, rationale_col = 49, data = data_extract) {
+  d <- na.omit(data[, c(transf_col, rationale_col)])
+  names(d) <- c("transf", "rationale_di")
 
-# Extract SCR-relevant info from multi-measure cells and uniformly code
-data_trans_scr <- data_trans_scr %>%
-  mutate(transf_level = case_when(
-    grepl("SCR: not reported", transf_level) ~ "not reported",
-    grepl("SCR: trial-level", transf_level) ~ "trial-level",
-    grepl("across trials", transf_level) ~ "trial-level",
-    grepl("assume on trial-level", transf_level) ~ "trial-level",
-    TRUE ~ transf_level  # keep original
-  ))
+  if (nrow(d) == 0) {
+    message("Skipping ", label, ": no complete rows after na.omit()")
+    return(NULL)
+  }
 
-# Convert to long format
-data_trans_scr <- data_trans_scr %>%
-  make_long(
-    cols = c(scr_transf, transf_level, rationale_di)
+  d_long <- make_long(d, transf, rationale_di)
+
+  ggplot(d_long, aes(x = x, next_x = next_x,
+                     node = node, next_node = next_node,
+                     label = factor(node))) +
+    geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
+    geom_sankey_label(size = 4, color = 1, fill = "white") +
+    scale_fill_viridis_d(option = "A", alpha = 0.95) +
+    scale_x_discrete(breaks = c("transf", "rationale_di"),
+                     labels = c("Transformation", "Rationale")) +
+    ggtitle(paste0(label, ": Data Transformation Methods and Reporting Rationale")) +
+    lit_theme +
+    theme(axis.text.y  = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.title.x = element_blank(),
+          plot.title   = element_text(size = 18, face = "bold"))
+}
+
+#create df
+measures <- data.frame(
+  label      = c("SCR", "SCL", "EMG Startle", "HR (bpm)", "HRV", "Eye tracking", "Pupil size"),
+  file       = c("scr", "scl", "emgstartle", "hr", "hrv", "eyetrack", "pupil"),
+  transf_col = c(43,     44,    42,            39,         40,    45,             46),
+  stringsAsFactors = FALSE
+)
+
+#run loop with saving on
+save_plots <- TRUE   # set FALSE to only display
+
+sankey_plots <- list()
+for (i in seq_len(nrow(measures))) {
+  m <- measures[i, ]
+
+  p <- tryCatch(
+    make_sankey2(m$label, m$transf_col),
+    error = function(e) { message("Failed for ", m$label, ": ", e$message); NULL }
+  )
+  if (is.null(p)) next
+
+  sankey_plots[[m$file]] <- p
+  print(p)
+
+  if (save_plots) {
+    ggsave(paste0("datatransf_rationale_", m$file, "_sankey.png"),
+           plot = p, width = 14, height = 8, dpi = 300)
+  }
+}
+
+```
+
+```{r sankey-oneplot}
+
+measures <- data.frame(
+  label      = c("SCR", "SCL", "EMG Startle", "HR (bpm)", "HRV", "Eye tracking", "Pupil size"),
+  file       = c("scr", "scl", "emgstartle", "hr", "hrv", "eyetrack", "pupil"),
+  transf_col = c(43,     44,    42,            39,         40,    45,             46),
+  stringsAsFactors = FALSE
+)
+measures_use <- measures[measures$file != "scr", ]   # drop SCR
+
+plots_panel <- list()
+for (i in seq_len(nrow(measures_use))) {
+  m <- measures_use[i, ]
+
+  p <- tryCatch({
+    p <- make_sankey2(m$label, m$transf_col)
+    if (is.null(p)) stop("no data")
+    p <- p + ggtitle(m$label) +
+      theme(legend.position = "none",
+            plot.title = element_text(size = 16, face = "bold"))
+    ggplotGrob(p)   # forces the plot to build, so errors show up here, not later
+    p
+  }, error = function(e) {
+    message("Dropped ", m$label, ": ", conditionMessage(e))
+    NULL
+  })
+
+  if (!is.null(p)) plots_panel[[m$file]] <- p
+}
+
+combined <- wrap_plots(plots_panel, ncol = 2) +
+  plot_annotation(
+    tag_levels = "A",
+    title = "Data Transformation Methods and Reporting Rationale",
+    theme = theme(plot.title = element_text(size = 22, face = "bold", hjust = 0.5),
+                  plot.tag   = element_text(size = 22, face = "bold"))
   )
 
-# data_trans_scr$node <- factor(data_trans_scr$node, levels = sort(unique(data_trans_scr$node)))
+print(combined)
 
-
-# Plot the Sankey diagram
-ggplot(data_trans_scr, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("scr_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("SCR: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(), 
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_scr_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### SCL
-data_trans_scl <- na.omit(data_extract[ ,c(41, 48, 45)])
-names(data_trans_scl) <- c("scl_transf", "transf_level", "rationale_di")
-
-# Convert to long format
-data_trans_scl <- data_trans_scl %>%
-  make_long(
-    cols = c(scl_transf, transf_level, rationale_di)
-  )
-
-# Plot the Sankey diagram
-ggplot(data_trans_scl, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("scl_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("SCL: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_scl_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### EMG Startle
-data_trans_emg_startle <- na.omit(data_extract[ ,c(39, 48, 45)])
-names(data_trans_emg_startle) <- c("emg_startle_transf", "transf_level", "rationale_di")
-
-# Extract SCR-relevant info from multi-measure cells and uniformly code
-data_trans_emg_startle <- data_trans_emg_startle %>%
-  mutate(transf_level = case_when(
-    grepl("Startle: not reported", transf_level) ~ "not reported",
-    grepl("Startle: trial-level", transf_level) ~ "trial-level",
-    grepl("FPS: trial-level", transf_level) ~ "trial-level",
-    grepl("EMG: average-level", transf_level) ~ "average-level",
-    grepl("across trials", transf_level) ~ "trial-level",
-    grepl("SCR: trial-level", transf_level) ~ "not reported",
-    TRUE ~ transf_level  # keep original
-  ))
-
-# Convert to long format
-data_trans_emg_startle <- data_trans_emg_startle %>%
-  make_long(emg_startle_transf, transf_level, rationale_di)
-
-
-# Plot the Sankey diagram
-ggplot(data_trans_emg_startle, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("emg_startle_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("EMG Startle: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_emgstartle_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### EMG orbicularis oculi
-data_trans_emg_orbic <- na.omit(data_extract[ ,c(38, 48, 45)])
-names(data_trans_emg_orbic) <- c("emg_orbic_transf", "transf_level", "rationale_di")
-
-# Convert to long format
-data_trans_emg_orbic <- data_trans_emg_orbic %>%
-  make_long(emg_orbic_transf, transf_level, rationale_di)
-
-# Plot the Sankey diagram
-ggplot(data_trans_emg_orbic, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("emg_orbic_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("EMG Orbicularis Oculi: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_emgorbic_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### HR
-data_trans_hr <- na.omit(data_extract[ ,c(36, 48, 45)])
-names(data_trans_hr) <- c("hr_transf", "transf_level", "rationale_di")
-
-# Convert to long format
-data_trans_hr <- data_trans_hr %>%
-  make_long(hr_transf, transf_level, rationale_di)
-
-# Plot the Sankey diagram
-ggplot(data_trans_hr, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("hr_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("HR (bpm): Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_hr_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### HRV
-data_trans_hrv <- na.omit(data_extract[ ,c(37, 48, 45)])
-names(data_trans_hrv) <- c("hrv_transf", "transf_level", "rationale_di")
-
-# Convert to long format
-data_trans_hrv <- data_trans_hrv %>%
-  make_long(hrv_transf, transf_level, rationale_di)
-
-
-#TODO: plot not working
-# Plot the Sankey diagram
-ggplot(data_trans_hrv, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("hrv_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("HRV: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_hrv_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### Eye tracking
-data_trans_eyetrack <- na.omit(data_extract[ ,c(42, 48, 45)])
-names(data_trans_eyetrack) <- c("eyetrack_transf", "transf_level", "rationale_di")
-
-# Convert to long format
-data_trans_eyetrack <- data_trans_eyetrack %>%
-  make_long(eyetrack_transf, transf_level, rationale_di)
-
-# Plot the Sankey diagram
-ggplot(data_trans_eyetrack, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("eyetrack_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("Eye tracking: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_eyetrack_sankey.png", width = 14, height = 8, dpi = 300)
-
-
-### Pupil size
-data_trans_pupil <- na.omit(data_extract[ ,c(43, 48, 45)])
-names(data_trans_pupil) <- c("pupil_transf", "transf_level", "rationale_di")
-
-# Convert to long format
-data_trans_pupil <- data_trans_pupil %>%
-  make_long(pupil_transf, transf_level, rationale_di)
-
-# Plot the Sankey diagram
-ggplot(data_trans_pupil, aes(x = x, 
-                    next_x = next_x, 
-                    node = node, 
-                    next_node = next_node, 
-                    label = factor(node))) +
-  geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
-  scale_x_discrete(breaks = c("pupil_transf", "transf_level", "rationale_di"),
-                   labels = c("Transformation", "Level", "Rationale")) +
-  ggtitle("Pupil size: Data Transformation Methods, Application Level and Reporting Rationale") +
-  lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(),
-        plot.title = element_text(size=18, face="bold"))
-
-#ggsave("datatransf_rationale_pupil_sankey.png", width = 14, height = 8, dpi = 300)
-
+ggsave("datatransf_rationale_all_sankey.png", plot = combined,
+       width = 20, height = 20, dpi = 300)
 ```
 
 
