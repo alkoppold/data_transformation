@@ -39,15 +39,38 @@ data_extract <- readr::read_rds(
 ```{r results-define-plot-theme}
 # ---- Shared plot style (taken from the circle plot of transformations) --------
 # Font:    Helvetica
-# Palette: scico "lipari", reversed  -> scale_*_scico_d(palette = "lipari", direction = -1)
+# Palette: scico "lipari" (light -> dark). Plots with only 2-3 colours use warm + bluish
+#          tones only (see pal_lipari()); plots with 4+ colours use the full palette.
 # Theme:   theme_minimal(base_size = 14), no ticks, grey92 grid, bold legend title (13),
 #          legend text (12), bold centered title (18), grey40 subtitle (13)
 # Labels:  sentence case ("Number of studies", "Range correction type", ...)
 
 lit_font <- "Helvetica"
 
-# Single accent colour from the same palette (for plots with only one colour)
-col_single <- scico(3, palette = "lipari")[2]
+# Full palette (11 steps, light -> dark)
+lipari_11 <- c("#FDF4D9", "#EACCA4", "#E5AA7F", "#E88768", "#CE685E", "#A36267",
+               "#7F5F70", "#615D78", "#3B5378", "#0F3456", "#021326")
+
+# Reduced palette for plots that need only 1-3 colours:
+# warm and bluish tones only (skips the muted purple/mauve mid-tones
+# "#A36267", "#7F5F70", "#615D78" and the near-white / near-black ends)
+lipari_few <- list(
+  "1" = "#E88768",
+  "2" = c("#E88768", "#3B5378"),
+  "3" = c("#E5AA7F", "#CE685E", "#3B5378")
+)
+
+# Palette picker: n <= 3 -> warm + bluish subset, n >= 4 -> full lipari (reversed scico)
+pal_lipari <- function(n) {
+  if (n < 1) return(character(0))
+  if (n <= 3) lipari_few[[as.character(n)]] else rev(scico(n = n, palette = "lipari"))
+}
+
+# Number of distinct non-NA levels (used to pick the palette size)
+n_lev <- function(x) length(unique(stats::na.omit(x)))
+
+# Single accent colour (plots with only one colour)
+col_single <- lipari_few[["1"]]
 
 # Make all text / label geoms use the same font
 update_geom_defaults("text",  list(family = lit_font))
@@ -182,8 +205,7 @@ d[, pct := 100 * Count / total_measure_count]
 # Step 3a: Create a label with percentage rounded, e.g. "45%"
 d[, pct_label := paste0(round(pct, digits = 1), "%")]
 
-pal1 <- scico(n = length(levels(d$Measure)), palette = "lipari")
-pal1 = rev(pal1)
+pal1 <- pal_lipari(length(levels(d$Measure)))
 
 # Step 3b: Renaming of cell entries
 d$Measure <- gsub("eye", "EYE tracking", d$Measure)
@@ -293,8 +315,7 @@ d$Measure <- gsub("startle", "EMG startle", d$Measure)
 
 ### Color palette
 d$Measure <- as.factor(d$Measure)
-pal1 <- scico(n = length(levels(d$Measure)), palette = "lipari")
-pal1 = rev(pal1)
+pal1 <- pal_lipari(length(levels(d$Measure)))
 
 ### PLOT
 ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) +
@@ -343,7 +364,7 @@ d[, RC_label := gsub("_", " ", Range_correction_type)]
 d[, RC_label := factor(RC_label, levels = unique(RC_label[order(ID)]))]
 
 # Same palette family (lipari, reversed), now one color per correction type
-pal_rc <- rev(scico(n = nlevels(d$RC_label), palette = "lipari"))
+pal_rc <- pal_lipari(nlevels(d$RC_label))
 
 # ---- NEW: number of studies before the percentage ---------------------------
 # Name of the column in d that holds the number of studies.
@@ -404,10 +425,10 @@ library(scico)
 # ---- Panel A: circle plot of transformations ---------------------------------
 d_trans[, Measure := factor(Measure, levels = sort(unique(as.character(Measure))))]
 d_trans[, Measure2 := as.numeric(Measure)]
-pal_A <- rev(scico(n = nlevels(d_trans$Measure), palette = "lipari"))
+pal_A <- pal_lipari(nlevels(d_trans$Measure))
 
 # ---- Panel A: circle plot of transformations ---------------------------------
-pal_A <- rev(scico(n = nlevels(d_trans$Measure), palette = "lipari"))
+pal_A <- pal_lipari(nlevels(d_trans$Measure))
 
 p_A <- ggplot(d_trans, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) +
   geom_line(alpha = 0.5, linewidth = 0.8, color = "grey50") +
@@ -444,7 +465,7 @@ p_A <- ggplot(d_trans, aes(x = ID, y = Measure2, color = Measure, shape = Type, 
 # ---- Panel B: stacked bar of range correction types --------------------------
 d_rc[, RC_label := gsub("_", " ", Range_correction_type)]
 d_rc[, RC_label := factor(RC_label, levels = unique(RC_label[order(ID)]))]
-pal_rc <- rev(scico(n = nlevels(d_rc$RC_label), palette = "lipari"))
+pal_rc <- pal_lipari(nlevels(d_rc$RC_label))
 
 # Label: studies in segment / total studies for the measure (percentage)
 d_rc[, pct_label := paste0(Count, "/", total_measure_count, " (", round(pct), "%)")]
@@ -542,7 +563,7 @@ data_assump$Checked <- factor(data_assump$Checked,
 
 ggplot(data_assump, aes(x = factor(Assumption), y = n, fill = Checked)) +
   geom_bar(stat = "identity") +
-  scale_fill_scico_d(palette = "lipari", direction = 1) +
+  scale_fill_manual(values = pal_lipari(n_lev(data_assump$Checked))) +
   geom_text(aes(label = label), 
             position = position_stack(vjust = 0.5), 
             color = "white", size = 3.8) +
@@ -593,7 +614,7 @@ create_pie <- function(var_name) {
     ) +
     coord_polar(theta = "y") +
     xlim(c(-0.5, 1.5)) +
-    scale_fill_scico_d(palette = "lipari", direction = 1) +
+    scale_fill_manual(values = pal_lipari(n_lev(df_sub$status))) +
     theme_void(base_size = 14, base_family = lit_font) +
     theme(
       legend.position = "right",
@@ -636,7 +657,7 @@ plot_normal_bar <- df_check %>%
   geom_col(width = 0.7) +
   geom_text(aes(label = paste0(" (", round(percent * 100, digits = 1), "%)")), 
             hjust = -0.1, size = 3.8) +
-  scale_fill_scico_d(palette = "lipari", direction = 1) +
+  scale_fill_manual(values = pal_lipari(n_lev(df_check$normality))) +
   coord_flip() +
   lit_theme +
   theme(
@@ -714,7 +735,7 @@ plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = cate
     limits = c(0, max(df_bar_spher$n) + 50),
     expand = expansion(mult = c(0, 0.1))
   ) +
-  scale_fill_scico_d(palette = "lipari", direction = 1) +
+  scale_fill_manual(values = pal_lipari(n_lev(df_bar_spher$category))) +
   coord_flip() +
   lit_theme +
   theme(
@@ -796,7 +817,7 @@ cake_plot_stats <- ggplot(df_long_stats, aes(ymax = ymax, ymin = ymin, xmax = 1,
   ) +
   coord_polar(theta = "y") +
   xlim(c(0, 1.5)) +
-  scale_fill_scico_d(palette = "lipari", direction = -1) +
+  scale_fill_manual(values = pal_lipari(n_lev(df_long_stats$Model))) +
   theme_void(base_size = 14, base_family = lit_font) +
   theme(
     legend.position = "right",
@@ -813,7 +834,7 @@ bar_plot_stats <- ggplot(df_long_stats, aes(x = reorder(Model, n), y = n, fill =
   geom_col() +
   geom_text(aes(label = label), hjust = -0.1, size = 3.8) +
   coord_flip() +
-  scale_fill_scico_d(palette = "lipari", direction = -1) +
+  scale_fill_manual(values = pal_lipari(n_lev(df_long_stats$Model))) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +  
   lit_theme +
   theme(
@@ -850,7 +871,7 @@ make_sankey2 <- function(label, transf_col, rationale_col = 49, data = data_extr
                      label = factor(node))) +
     geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
     geom_sankey_label(size = 3.8, color = 1, fill = "white", family = lit_font) +
-    scale_fill_scico_d(palette = "lipari", direction = -1) +
+    scale_fill_manual(values = pal_lipari(n_lev(d_long$node))) +
     scale_x_discrete(breaks = c("transf", "rationale_di"),
                      labels = c("Transformation", "Rationale")) +
     ggtitle(paste0(label, ": Data transformation methods and reporting rationale")) +
@@ -984,7 +1005,7 @@ ggplot(data_outlier_grouped_long,
            label = node)) +
   geom_sankey(flow.alpha = 0.5, node.color = 1) +
   geom_sankey_label(size = 3.8, color = 1, fill = "white", family = lit_font) +
-  scale_fill_scico_d(palette = "lipari", direction = -1) +
+  scale_fill_manual(values = pal_lipari(n_lev(data_outlier_grouped_long$node))) +
   scale_x_discrete(breaks = c("outlier_reported", "outlier_scope", "outlier_criterion_group"),
                    labels = c("Outlier removal reported?", "Scope", "Criterion")) +
   ggtitle("Outlier removal: reporting practices, scope and outlier criterion") +
@@ -1015,7 +1036,7 @@ ggplot(data_outlier_grouped_plots, aes(x = factor(cutoff_value), fill = outlier_
   labs(
     title = "Most common outlier thresholds by criterion type",
     x = "Threshold value", y = "Number of studies", fill = "Criterion group") +
-  scale_fill_scico_d(palette = "lipari", direction = 1) +
+  scale_fill_manual(values = pal_lipari(n_lev(data_outlier_grouped_plots$outlier_criterion_group))) +
   lit_theme + 
   theme(legend.position = "right")
 
