@@ -3,27 +3,19 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-
 knitr::opts_chunk$set(
   echo = FALSE,
   message = FALSE,
   warning = FALSE
 )
-
 ```
-
 
 ```{r results}
-
 # This file contains the results: 
 # ...
-
-
 ```
 
-
 ```{r results-load-packages-data}
-
 # Load packages
 library(here)
 library(tidyverse)
@@ -38,43 +30,49 @@ library(ggrepel)
 library(ggsankey)
 library(data.table)
 
-
-
 # Load data
 data_extract <- readr::read_rds(
   here("data", "data_extract.rds")
 ) #cf. script "extract_cleanup.R"
-
 ```
-
 
 ```{r results-define-plot-theme}
+# ---- Shared plot style (taken from the circle plot of transformations) --------
+# Font:    Helvetica
+# Palette: scico "lipari", reversed  -> scale_*_scico_d(palette = "lipari", direction = -1)
+# Theme:   theme_minimal(base_size = 14), no ticks, grey92 grid, bold legend title (13),
+#          legend text (12), bold centered title (18), grey40 subtitle (13)
+# Labels:  sentence case ("Number of studies", "Range correction type", ...)
+
+lit_font <- "Helvetica"
+
+# Single accent colour from the same palette (for plots with only one colour)
+col_single <- scico(3, palette = "lipari")[2]
+
+# Make all text / label geoms use the same font
+update_geom_defaults("text",  list(family = lit_font))
+update_geom_defaults("label", list(family = lit_font))
 
 # Define a theme for pretty plots
-lit_theme = theme(
-  text = element_text(size = 10),
-  axis.title.x = element_text(size = 16, face = "bold"),
-  axis.title.y = element_text(size = 16, face = "bold"),
-  axis.text.y = element_text(size = 12, face = "bold"),
-  axis.text.x = element_text(size = 14, face = "bold"),
-  axis.ticks.x = element_blank(),
-  legend.position = "none",
-  panel.border = element_blank(),
-  panel.grid.minor = element_blank(),
-  panel.grid.major = element_blank(),
-  panel.background = element_blank(),
-  axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
-  axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid'))
-
-
+lit_theme <- theme_minimal(base_size = 14, base_family = lit_font) +
+  theme(
+    axis.ticks = element_blank(),
+    panel.border = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(colour = "grey92", linewidth = 0.3),
+    legend.position = "right",
+    legend.title = element_text(face = "bold", size = 13),
+    legend.text = element_text(size = 12),
+    plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+    plot.subtitle = element_text(size = 13, hjust = 0.5, color = "grey40")
+  )
 ```
 
-
 ```{r circle-plot-transformations}
-
 # For modern scientific color palettes
-
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
+
 df <- data_extract %>% select(doi, `HR`:pupil)
 n_total <- df %>% pull(doi) %>% unique() %>% length()
 
@@ -122,6 +120,7 @@ d <- df_wide %>%
   mutate(Type = ifelse(Count > 1, "more than one study", "one study only"))
 
 d <- setDT(d)
+
 # Step: Create a unique transformation-to-ID mapping
 id_order <- d[ , .SD[1], by = transformation][order(transformation)]$ID
 
@@ -137,8 +136,6 @@ d[, Measure2 := as.numeric(Measure)]
 #pal1 <- scico::scico(n = length(levels(d$Measure)), palette = "batlow")
 # pal1 <- scico::scico(n = length(levels(d$Measure)), palette = "berlin")
 pal1 <- scico(n = length(levels(d$Measure)), palette = "roma")
-
-
 
 ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) +
   geom_line(alpha = 0.5, size = 0.8, color = "grey50") +   # softer connecting lines
@@ -193,7 +190,6 @@ d$Measure <- gsub("eye", "EYE tracking", d$Measure)
 d$Measure <- gsub("pupil", "PUPIL SIZE", d$Measure)
 d$Measure <- gsub("startle", "EMG startle", d$Measure)
 
-
 # Step 4: Add geom_text to the plot, adjust position with nudge_x or nudge_y
 ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) +
   geom_line(alpha = 0.5, size = 0.8, color = "grey50") +
@@ -230,16 +226,10 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
     color = paste0("Measure used in (% of ", n_total, " studies)")
   )
 
-
 d_trans <- copy(d); id_named_vec_trans <- id_named_vec
-
-
 ```
 
-
-
 ```{r circle-plot-range-correction}
-
 # Select columns
 df <- data_extract %>% select(doi, `HR`:Range_correction_type, -dt_specs)
 n_total <- df %>% pull(doi) %>% unique() %>% length()
@@ -247,6 +237,7 @@ n_total <- df %>% pull(doi) %>% unique() %>% length()
 # Step 1: Pivot to long format
 df_long <- df %>%
   pivot_longer(cols = -doi, names_to = "measure", values_to = "transformation")
+
 # Add range correction type
 rc_info <- data_extract[ ,c("doi","Range_correction_type")]
 df_long <- merge(df_long, rc_info, by = "doi", all.x = TRUE)
@@ -263,7 +254,6 @@ df_wide <- counts %>%
   pivot_wider(names_from = measure, values_from = n, values_fill = 0) %>%
   mutate(ID = paste0("T", row_number())) %>%
   relocate(ID)
-
 
 id_labels <- df_wide %>% select(ID, Range_correction_type)
 id_named_vec <- setNames(id_labels$Range_correction_type, id_labels$ID)
@@ -286,7 +276,6 @@ d[, ID := factor(ID, levels = id_order)]
 d[, Measure := factor(Measure, levels = sort(unique(Measure)))]
 d[, Measure2 := as.numeric(Measure)]
 
-
 ### Calculate counts and percentages
 # Step 1: Calculate total counts per Measure
 d[, total_measure_count := sum(Count), by = Measure]
@@ -302,12 +291,10 @@ d$Measure <- gsub("eye", "EYE tracking", d$Measure)
 d$Measure <- gsub("pupil", "PUPIL SIZE", d$Measure)
 d$Measure <- gsub("startle", "EMG startle", d$Measure)
 
-
 ### Color palette
 d$Measure <- as.factor(d$Measure)
 pal1 <- scico(n = length(levels(d$Measure)), palette = "lipari")
 pal1 = rev(pal1)
-
 
 ### PLOT
 ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) +
@@ -344,12 +331,7 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
     shape = "Transformation count",
     color = paste0("Measure")
   )
-
-
-
 ```
-
-
 
 ```{r rc-stackedbar}
 library(scico)
@@ -417,12 +399,11 @@ d_rc <- copy(d)
 ```
 
 ```{r merge-plots}
-
 library(scico)
+
 # ---- Panel A: circle plot of transformations ---------------------------------
 d_trans[, Measure := factor(Measure, levels = sort(unique(as.character(Measure))))]
 d_trans[, Measure2 := as.numeric(Measure)]
-
 pal_A <- rev(scico(n = nlevels(d_trans$Measure), palette = "lipari"))
 
 # ---- Panel A: circle plot of transformations ---------------------------------
@@ -505,9 +486,7 @@ p_AB
 ggsave("Figure_AB.png", p_AB, width = 12, height = 18, dpi = 300, bg = "white")
 ```
 
-
 ```{r assumptions-prepare-data}
-
 # Extract and rename relevant columns
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 df_check = data_extract %>% select(normality:multicollinearity_how, statistical_test)
@@ -528,14 +507,13 @@ df_check = data_extract %>% select(normality:multicollinearity_how, statistical_
 #   "multicollinearity_how",
 #   "statistical_test"
 # )
-
 ```
 
-
 ```{r results-assumptions-overview}
-
 # Select the data
-data_assump <- data_extract %>% select(normality, homoscedasticity, sphericity, independence, linearity, multicollinearity)
+data_assump <- data_extract %>%
+  select(normality, homoscedasticity, sphericity, independence, linearity, multicollinearity)
+
 names(data_assump) <- c("Normality","Homoscedasticity","Sphericity","Independence","Linearity","Multicollinearity")
 
 # Reshape it from wide to long
@@ -553,37 +531,35 @@ data_assump <- data_assump %>%
 
 # Factorize the assumptions and checked variable and reorder the levels (for a more intuitive order)
 data_assump$Assumption <- as.factor(data_assump$Assumption)
-data_assump$Assumption <- factor(data_assump$Assumption,
-                                    levels = c("Normality","Homoscedasticity","Sphericity",
-                                               "Independence","Linearity","Multicollinearity"))
+data_assump$Assumption <- factor(data_assump$Assumption, 
+                                  levels = c("Normality","Homoscedasticity","Sphericity",
+                                             "Independence","Linearity","Multicollinearity"))
+
 data_assump$Checked <- as.factor(data_assump$Checked)
-data_assump$Checked <- factor(data_assump$Checked,
-                                    levels = c("not reported","not specified","yes",
-                                               "dependent variable"))
+data_assump$Checked <- factor(data_assump$Checked, 
+                                  levels = c("not reported","not specified","yes",
+                                             "dependent variable"))
 
 ggplot(data_assump, aes(x = factor(Assumption), y = n, fill = Checked)) +
   geom_bar(stat = "identity") +
-  scale_fill_viridis_d(option = "D", alpha = 0.95) +
+  scale_fill_scico_d(palette = "lipari", direction = 1) +
   geom_text(aes(label = label), 
             position = position_stack(vjust = 0.5), 
-            color = "white", size = 4, fontface = "bold") +
-  labs(y = "n studies") +
+            color = "white", size = 3.8) +
+  labs(y = "Number of studies", fill = "Checked") +
   lit_theme +
   theme(axis.title.y = element_blank(),
         legend.position = "top")+
-  coord_flip() 
-  
-
+  coord_flip()   
 ```
 
-
 ```{r assumptions-pie-charts}
-
 # -----------------------------
 # Prepare data for pie charts
 # -----------------------------
 #data.frame(colname = df_check %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
-df_cake <- df_check %>% select(normality, homoscedasticity, sphericity, linearity, multicollinearity)
+df_cake <- df_check %>%
+  select(normality, homoscedasticity, sphericity, linearity, multicollinearity)
 
 # Customize normality column: if normality is not "not reported" -> yes
 df_cake$normality[df_cake$normality != "not reported"] <- "yes"
@@ -613,30 +589,28 @@ create_pie <- function(var_name) {
     geom_rect(color = "white") +
     geom_text(
       aes(x = 1.2, y = label_pos, label = label),
-      size = 4, fontface = "bold", color = "black"
+      size = 3.8, color = "black"
     ) +
     coord_polar(theta = "y") +
     xlim(c(-0.5, 1.5)) +
-    scale_fill_scico_d(palette = "vanimo", direction = -1) +
-    theme_void(base_family = "Calibri") +
+    scale_fill_scico_d(palette = "lipari", direction = 1) +
+    theme_void(base_size = 14, base_family = lit_font) +
     theme(
       legend.position = "right",
-      plot.title = element_text(face = "bold", hjust = 0.5, size = 13),
-      legend.title = element_blank()
+      legend.title = element_blank(),
+      legend.text = element_text(size = 12),
+      plot.title = element_text(face = "bold", size = 18, hjust = 0.5)
     ) +
-    labs(fill = "status",
+    labs(fill = "Status",
       title = var_name
     )
 }
 
 # Collect pies
 pies <- unique(df_long$assumption) %>% map(create_pie)
-
-
 ```
 
 ```{r assumptions-homosc-linearity-multicoll}
-
 # Create a plot for homoscedasticity, linearity and multicollinearity
 
 # Turn of the legends for pie 1 and 2
@@ -645,14 +619,10 @@ pies[[2]] <- pies[[2]] + theme(legend.position = "none")
 
 # Patchwork the pies
 coll_pies <- pies[[1]] + pies[[2]] + pies[[3]] 
-
 coll_pies
-
 ```
 
-
 ```{r assumptions-normal-distributions}
-
 # -----------------------------
 # Create normal_distribution bar plot with percentages
 # -----------------------------
@@ -665,19 +635,13 @@ plot_normal_bar <- df_check %>%
                      expand = expansion(mult = c(0, 0.1))) +
   geom_col(width = 0.7) +
   geom_text(aes(label = paste0(" (", round(percent * 100, digits = 1), "%)")), 
-            hjust = -0.1, size = 3, fontface = "bold") +
-  scale_fill_scico_d(palette = "hawaii", direction = -1) +
+            hjust = -0.1, size = 3.8) +
+  scale_fill_scico_d(palette = "lipari", direction = 1) +
   coord_flip() +
-  theme_minimal(base_family = "Calibri") +
+  lit_theme +
   theme(
     legend.position = "none",
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-    axis.title.y = element_blank(),
-    axis.title.x = element_text(size = 13, face = "bold"),
-    axis.text = element_text(size = 12),
-    panel.grid = element_blank(),  
-    axis.line = element_line(color = "black"),  
-    axis.ticks = element_line(color = "black"),  
+    axis.title.y = element_blank()
   ) +
   labs(
     title = "",
@@ -687,7 +651,6 @@ plot_normal_bar <- df_check %>%
 # -----------------------------
 # Combine pie chart with bar plot
 # -----------------------------
-
 # Delete the title of the pie chart
 pies[[4]] <- pies[[4]] + theme(plot.title = element_blank())
 
@@ -696,19 +659,15 @@ normality_plot <- pies[[4]] + plot_normal_bar +
   plot_annotation(
     title = "Was the normal distribution tested and how?",
     tag_levels = "A",
-    theme = theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5))
+    theme = theme(plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+                  plot.tag = element_text(size = 20, face = "bold"))
   )
 
 # Display
 normality_plot
-
-
 ```
 
-
 ```{r assumptions-sphericity}
-
-
 ### Prepare the data
 # Filter and select relevant variables
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
@@ -727,11 +686,9 @@ vec_spher <- vec_spher[!is.na(vec_spher)]
 # Delete spaces in front of 2 Greenhouse-Geissers
 vec_spher <- gsub(" Greenhouse–Geisser correction", "Greenhouse–Geisser correction", vec_spher)
 
-
 # -------------------------------
 # BAR PLOT: sphericity_how
 # -------------------------------
-
 ### Prepare data
 df_bar_spher <- tibble(response = vec_spher) %>%
   count(response) %>%
@@ -739,6 +696,7 @@ df_bar_spher <- tibble(response = vec_spher) %>%
     percent = n / n_articles_rmANOVA,
     response = fct_reorder(response, n)
   )
+
 # Add categories: is it a test or a correction
 df_bar_spher$category <- "NA"
 df_bar_spher$category[grep("correction", df_bar_spher$response)] <- "Correction"
@@ -749,28 +707,22 @@ plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = cate
   geom_col(width = 0.7) +
   geom_text(
     aes(label = paste0(" (", round(percent * 100, digits = 1), "%)")),
-    hjust = -0.1, size = 3, fontface = "bold"
+    hjust = -0.1, size = 3.8
   ) +
   scale_y_continuous(
     breaks = seq(0, max(df_bar_spher$n) + 50, by = 20),
     limits = c(0, max(df_bar_spher$n) + 50),
     expand = expansion(mult = c(0, 0.1))
   ) +
-  scale_fill_scico_d(palette = "hawaii", direction = -1) +
+  scale_fill_scico_d(palette = "lipari", direction = 1) +
   coord_flip() +
-  theme_minimal(base_family = "Calibri") +
+  lit_theme +
   theme(
     legend.position = "bottom",
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-    axis.title.y = element_blank(),
-    axis.title.x = element_text(size = 13, face = "bold"),
-    axis.text = element_text(size = 12),
-    panel.grid = element_blank(),
-    axis.line = element_line(color = "black"),
-    axis.ticks = element_line(color = "black")
+    axis.title.y = element_blank()
   ) +
   labs(
-    title = "How Was Sphericity Checked?",
+    title = "How was sphericity checked?",
     y = "Number of studies",
     fill = "Category"
   )
@@ -778,7 +730,6 @@ plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = cate
 # -----------------------------
 # Combine pie chart with bar plot
 # -----------------------------
-
 # Delete the title of the pie chart
 pies[[5]] <- pies[[5]] + theme(plot.title = element_blank())
 
@@ -787,23 +738,20 @@ sphericity_plot <- pies[[5]] + plot_sphericity_bar +
   plot_annotation(
     title = "Was the sphericity checked and how?",
     tag_levels = "A",
-    theme = theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5))
+    theme = theme(plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+                  plot.tag = element_text(size = 20, face = "bold"))
   )
 
 # Display
 sphericity_plot
-
-
 ```
 
-
 ```{r stats-models}
-
 ### Create a pie chart for the statistical model
-
 # Select data
 #data.frame(colname = df_check %>% colnames()) %>% mutate(colnum = 1:n()) %>% select(colnum, everything())
-df_cake_stats <- df_check %>% select(statistical_test)
+df_cake_stats <- df_check %>%
+  select(statistical_test)
 
 # Split cell with several entries divided by "," and remove NAs
 vec_stats <- unlist(strsplit(as.vector(df_cake_stats[[1]]), split = ",\\s*"))
@@ -830,8 +778,6 @@ df_long_stats <- tibble(Model = vec_stats) %>%
     label_pos = (ymin + ymax) / 2
   )
 
-
-
 # Prepare radial positioning of the labels
 df_long_stats <- df_long_stats %>%
   mutate(
@@ -846,89 +792,80 @@ cake_plot_stats <- ggplot(df_long_stats, aes(ymax = ymax, ymin = ymin, xmax = 1,
   geom_text(
     aes(x = 1.05, y = label_pos, label = label, angle = angle, hjust = hjust),
     size = 3.8,
-    fontface = "bold",
     color = "black"
   ) +
   coord_polar(theta = "y") +
   xlim(c(0, 1.5)) +
-  scale_fill_scico_d(palette = "hawaii", direction = -1) +
-  theme_void(base_family = "Calibri") +
+  scale_fill_scico_d(palette = "lipari", direction = -1) +
+  theme_void(base_size = 14, base_family = lit_font) +
   theme(
     legend.position = "right",
-    plot.title = element_text(face = "bold", hjust = 0.5, size = 13),
-    legend.title = element_blank()
+    legend.title = element_blank(),
+    legend.text = element_text(size = 12),
+    plot.title = element_text(face = "bold", size = 18, hjust = 0.5)
   ) +
   labs(fill = "Model", title = "")
 
 cake_plot_stats
 
-
-
 # Or a bar plot?
 bar_plot_stats <- ggplot(df_long_stats, aes(x = reorder(Model, n), y = n, fill = Model)) +
   geom_col() +
-  geom_text(aes(label = label), hjust = -0.1) +
+  geom_text(aes(label = label), hjust = -0.1, size = 3.8) +
   coord_flip() +
+  scale_fill_scico_d(palette = "lipari", direction = -1) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +  
-  theme_minimal(base_family = "Calibri") +
+  lit_theme +
   theme(
     legend.position = "none",
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-    axis.title.y = element_blank(),
-    axis.title.x = element_text(size = 13, face = "bold"),
-    axis.text = element_text(size = 12),
-    panel.grid = element_blank(),  
-    axis.line = element_line(color = "black"),  
-    axis.ticks = element_line(color = "black")
-  ) + labs(
+    axis.title.y = element_blank()
+  ) + 
+  labs(
     title = "",
     y = "Number of studies"
   )
 
 bar_plot_stats
-
-
-
 ```
 
-
 ### c. Transformation Practices
+
 specification of data transformation method, rationale, was the transformation applied on trial or average level
+
 the different data transformations (how many studies use raw data?)
 
 ```{r new-sankeyloop}
-
 # Function 
 make_sankey2 <- function(label, transf_col, rationale_col = 49, data = data_extract) {
   d <- na.omit(data[, c(transf_col, rationale_col)])
   names(d) <- c("transf", "rationale_di")
-
   if (nrow(d) == 0) {
     message("Skipping ", label, ": no complete rows after na.omit()")
     return(NULL)
   }
-
   d_long <- make_long(d, transf, rationale_di)
 
   ggplot(d_long, aes(x = x, next_x = next_x,
                      node = node, next_node = next_node,
                      label = factor(node))) +
     geom_sankey(flow.alpha = 0.7, aes(fill = factor(node))) +
-    geom_sankey_label(size = 4, color = 1, fill = "white") +
-    scale_fill_viridis_d(option = "A", alpha = 0.95) +
+    geom_sankey_label(size = 3.8, color = 1, fill = "white", family = lit_font) +
+    scale_fill_scico_d(palette = "lipari", direction = -1) +
     scale_x_discrete(breaks = c("transf", "rationale_di"),
                      labels = c("Transformation", "Rationale")) +
-    ggtitle(paste0(label, ": Data Transformation Methods and Reporting Rationale")) +
+    ggtitle(paste0(label, ": Data transformation methods and reporting rationale")) +
     lit_theme +
-    theme(axis.text.y  = element_blank(),
-          axis.ticks.y = element_blank(),
+    theme(legend.position = "none",
+          axis.text.y  = element_blank(),
           axis.title.x = element_blank(),
-          plot.title   = element_text(size = 18, face = "bold"))
+          axis.title.y = element_blank(),
+          panel.grid.major.y = element_blank())
 }
 
 #create df
+# (labels follow the naming used in the circle plot of transformations)
 measures <- data.frame(
-  label      = c("SCR", "SCL", "EMG Startle", "HR (bpm)", "HRV", "Eye tracking", "Pupil size"),
+  label      = c("SCR", "SCL", "EMG startle", "HR", "HRV", "EYE tracking", "PUPIL SIZE"),
   file       = c("scr", "scl", "emgstartle", "hr", "hrv", "eyetrack", "pupil"),
   transf_col = c(43,     44,    42,            39,         40,    45,             46),
   stringsAsFactors = FALSE
@@ -938,62 +875,57 @@ measures <- data.frame(
 save_plots <- TRUE   # set FALSE to only display
 
 sankey_plots <- list()
+
 for (i in seq_len(nrow(measures))) {
   m <- measures[i, ]
-
   p <- tryCatch(
     make_sankey2(m$label, m$transf_col),
     error = function(e) { message("Failed for ", m$label, ": ", e$message); NULL }
   )
   if (is.null(p)) next
-
   sankey_plots[[m$file]] <- p
   print(p)
-
   if (save_plots) {
     ggsave(paste0("datatransf_rationale_", m$file, "_sankey.png"),
            plot = p, width = 14, height = 8, dpi = 300)
   }
 }
-
 ```
 
 ```{r sankey-oneplot}
-
 measures <- data.frame(
-  label      = c("SCR", "SCL", "EMG Startle", "HR (bpm)", "HRV", "Eye tracking", "Pupil size"),
+  label      = c("SCR", "SCL", "EMG startle", "HR", "HRV", "EYE tracking", "PUPIL SIZE"),
   file       = c("scr", "scl", "emgstartle", "hr", "hrv", "eyetrack", "pupil"),
   transf_col = c(43,     44,    42,            39,         40,    45,             46),
   stringsAsFactors = FALSE
 )
+
 measures_use <- measures[measures$file != "scr", ]   # drop SCR
 
 plots_panel <- list()
 for (i in seq_len(nrow(measures_use))) {
   m <- measures_use[i, ]
-
   p <- tryCatch({
     p <- make_sankey2(m$label, m$transf_col)
     if (is.null(p)) stop("no data")
     p <- p + ggtitle(m$label) +
       theme(legend.position = "none",
-            plot.title = element_text(size = 16, face = "bold"))
+            plot.title = element_text(size = 18, face = "bold", hjust = 0.5))
     ggplotGrob(p)   # forces the plot to build, so errors show up here, not later
     p
   }, error = function(e) {
     message("Dropped ", m$label, ": ", conditionMessage(e))
     NULL
   })
-
   if (!is.null(p)) plots_panel[[m$file]] <- p
 }
 
 combined <- wrap_plots(plots_panel, ncol = 2) +
   plot_annotation(
     tag_levels = "A",
-    title = "Data Transformation Methods and Reporting Rationale",
-    theme = theme(plot.title = element_text(size = 22, face = "bold", hjust = 0.5),
-                  plot.tag   = element_text(size = 22, face = "bold"))
+    title = "Data transformation methods and reporting rationale",
+    theme = theme(plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+                  plot.tag   = element_text(size = 20, face = "bold"))
   )
 
 print(combined)
@@ -1002,25 +934,26 @@ ggsave("datatransf_rationale_all_sankey.png", plot = combined,
        width = 20, height = 20, dpi = 300)
 ```
 
-
 ### d. Outlier Practices
+
 outlier removal reported?, outlier criterion, outlier refer to
+
 z.B. Barplots of how often outlier removal is reported
+
 Compare frequencies of different criteria (e.g., +/-2SD vs. +/-3SD)
 
 ```{r results-outlier}
-
 ### Outlier removal methods
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 data_outlier <- data_extract %>%
-  select(outlier, outlier_when, outlier_how) %>%
-   rename_with(~ c("outlier_reported", "outlier_scope", "outlier_criterion"), everything()) %>%
-    filter(!if_all(everything(), ~ is.na(.) | . == ""))
+  select(outlier, outlier_when, outlier_how) %>% 
+  rename_with(~ c("outlier_reported", "outlier_scope", "outlier_criterion"), everything()) %>%  
+  filter(!if_all(everything(), ~ is.na(.) | . == ""))
 
 # previous code scrap: check why this row was changed
 # mutate(
-#     outlier_scope = ifelse(row_number() == 34, "not reported", outlier_scope))
-  
+#     outlier_scope = ifelse(row_number() == 34, "not reported", outlier_scope))  
+
 # Group outlier categories 
 data_outlier_grouped <- data_outlier %>%
   mutate(
@@ -1042,26 +975,27 @@ data_outlier_grouped_long <- data_outlier_grouped%>%
   filter(!if_all(c(node), is.na))
 
 ### Outlier removal: Sankey Plot 
-ggplot(data_outlier_grouped_long, aes(x = x, 
-               next_x = next_x, 
-               node = node, 
-               next_node = next_node,
-               fill = factor(node),
-               label = node)) +
+ggplot(data_outlier_grouped_long, 
+       aes(x = x,
+           next_x = next_x,
+           node = node,
+           next_node = next_node,
+           fill = factor(node),
+           label = node)) +
   geom_sankey(flow.alpha = 0.5, node.color = 1) +
-  geom_sankey_label(size = 4, color = 1, fill = "white") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+  geom_sankey_label(size = 3.8, color = 1, fill = "white", family = lit_font) +
+  scale_fill_scico_d(palette = "lipari", direction = -1) +
   scale_x_discrete(breaks = c("outlier_reported", "outlier_scope", "outlier_criterion_group"),
                    labels = c("Outlier removal reported?", "Scope", "Criterion")) +
-  ggtitle("Outlier Removal: Reporting Practices, Scope and Outlier Criterion") +
+  ggtitle("Outlier removal: reporting practices, scope and outlier criterion") +
   lit_theme + 
-  theme(axis.text.y = element_blank(),
-                    axis.ticks.y = element_blank(),
-                    axis.title.x = element_blank(), 
-        plot.title = element_text(size=18, face="bold"))
+  theme(legend.position = "none",
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.grid.major.y = element_blank())
 
 #ggsave("outlier_removal_sankey.png", width = 14, height = 8, dpi = 300)
-
 
 # Group the outlier criterion thresholds by type (SD-, IQR- or Z-based)
 data_outlier_grouped_plots <- data_outlier_grouped %>%
@@ -1075,47 +1009,37 @@ data_outlier_grouped_plots <- data_outlier_grouped %>%
   ) %>%
   filter(!is.na(cutoff_value))  # Keep only valid cutoffs
 
-
 ### Barplot of individual outlier criterion thresholds
 ggplot(data_outlier_grouped_plots, aes(x = factor(cutoff_value), fill = outlier_criterion_group)) +
   geom_bar(position = "stack") +
   labs(
-    title = "Most Common Outlier Thresholds by Criterion Type",
-    x = "Threshold Value", y = "Count", fill = "Criterion Group") +
-  scale_fill_viridis_d(option = "A", alpha = 0.95) +
+    title = "Most common outlier thresholds by criterion type",
+    x = "Threshold value", y = "Number of studies", fill = "Criterion group") +
+  scale_fill_scico_d(palette = "lipari", direction = 1) +
   lit_theme + 
-  theme(axis.title.x = element_blank(), 
-        plot.title = element_text(size=18, face="bold"), 
-        legend.position = "right",
-        legend.text = element_text(size = 12),         
-        legend.title = element_text(size = 14, face = "bold"))
-  
+  theme(legend.position = "right")
+
 #ggsave("outlier_removal_thresholds_barplot.png", width = 14, height = 8, dpi = 300)
-
 ```
-
-
 
 ```{r results-descriptives}
 #TODO: check everything! many column were not approved in quality control
 #e.g., n_with_exclusions are now n_before_exclusion vs. n_after_exclusions (+ multiple entries)
 #data_extract %>% select(starts_with("n_")
 
-
 # Number of all participants 
 #TODO: take the long format, delete non-numeric values?
-
 violin_n <- ggplot(aes(x = 1, y = as.numeric(n_after_exclusion)), data = data_extract) +
-  geom_violin(width = 0.5, scale = "width", fill = "#F7AEF8", alpha = 0.5) +  # Color the whole violin
+  geom_violin(width = 0.5, scale = "width", fill = col_single, alpha = 0.5) +  # Color the whole violin
   geom_boxplot(width = 0.1, color = "grey40", alpha = 0.2) +  # Transparent boxplot
-  geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = "#F7AEF8") +  # Individual points
+  geom_jitter(width = 0.1, size = 2, alpha = 0.7, color = col_single) +  # Individual points
   xlab("") +
   ylab("Number of participants after exclusion") +
   scale_y_continuous(breaks = seq(0, 150, by = 25),
                      labels =  seq(0, 150, by = 25), limits = c(0, 150)) +
   lit_theme +
-  theme(axis.text.x = element_blank(),
-        axis.line.x = element_blank())
+  theme(legend.position = "none",
+        axis.text.x = element_blank())
 
 violin_n
 
@@ -1157,9 +1081,4 @@ violin_n
 # 
 # # Display the combined plot
 # combined_violin_descript_plot
-
-
-
 ```
-
-
