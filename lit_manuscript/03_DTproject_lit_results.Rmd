@@ -37,7 +37,7 @@ data_extract <- readr::read_rds(
 ```
 
 ```{r results-define-plot-theme}
-# ---- Shared plot style (taken from the circle plot of transformations) --------
+#Shared plot style (taken from the circle plot of transformations)
 # Font:    Helvetica
 # Palette: scico "lipari" (light -> dark). Plots with only 2-3 colours use warm + bluish
 #          tones only (see pal_lipari()); plots with 4+ colours use the full palette.
@@ -366,7 +366,7 @@ d[, RC_label := factor(RC_label, levels = unique(RC_label[order(ID)]))]
 # Same palette family (lipari, reversed), now one color per correction type
 pal_rc <- pal_lipari(nlevels(d$RC_label))
 
-# ---- NEW: number of studies before the percentage ---------------------------
+# NEW: number of studies before the percentage
 # Name of the column in d that holds the number of studies.
 # Leave as NULL to auto-detect from common names, or set it, e.g. "N_studies"
 count_col <- NULL
@@ -388,7 +388,6 @@ d[, pct_label := paste0(d[[count_col]], " (", round(pct), "%)")]
 
 # Show a label only if the segment is big enough to be readable
 d[, show_label := ifelse(pct >= 5, pct_label, "")]
-# -----------------------------------------------------------------------------
 
 ggplot(d, aes(x = Measure, y = pct, fill = RC_label)) +
   geom_col(width = 0.7, color = "white", linewidth = 0.4) +
@@ -575,9 +574,9 @@ ggplot(data_assump, aes(x = factor(Assumption), y = n, fill = Checked)) +
 ```
 
 ```{r assumptions-pie-charts}
-# -----------------------------
+
 # Prepare data for pie charts
-# -----------------------------
+
 #data.frame(colname = df_check %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 df_cake <- df_check %>%
   select(normality, homoscedasticity, sphericity, linearity, multicollinearity)
@@ -644,9 +643,9 @@ coll_pies
 ```
 
 ```{r assumptions-normal-distributions}
-# -----------------------------
+
 # Create normal_distribution bar plot with percentages
-# -----------------------------
+
 plot_normal_bar <- df_check %>%
   filter(!is.na(normality)) %>%
   count(normality) %>%
@@ -669,9 +668,9 @@ plot_normal_bar <- df_check %>%
     y = "Number of studies"
   )
 
-# -----------------------------
+
 # Combine pie chart with bar plot
-# -----------------------------
+
 # Delete the title of the pie chart
 pies[[4]] <- pies[[4]] + theme(plot.title = element_blank())
 
@@ -707,9 +706,9 @@ vec_spher <- vec_spher[!is.na(vec_spher)]
 # Delete spaces in front of 2 Greenhouse-Geissers
 vec_spher <- gsub(" Greenhouse–Geisser correction", "Greenhouse–Geisser correction", vec_spher)
 
-# -------------------------------
+
 # BAR PLOT: sphericity_how
-# -------------------------------
+
 ### Prepare data
 df_bar_spher <- tibble(response = vec_spher) %>%
   count(response) %>%
@@ -748,9 +747,9 @@ plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = cate
     fill = "Category"
   )
 
-# -----------------------------
+
 # Combine pie chart with bar plot
-# -----------------------------
+
 # Delete the title of the pie chart
 pies[[5]] <- pies[[5]] + theme(plot.title = element_blank())
 
@@ -1103,3 +1102,254 @@ violin_n
 # # Display the combined plot
 # combined_violin_descript_plot
 ```
+
+
+```{r stackedbar-openVariables}
+dat <- as.data.table(data_extract)   # <- your study-level data (one row per study)
+
+vars <- c("open_data", "open_code", "open_material", "prereg")
+
+# ---- Long format -------------------------------------------------------------
+long <- melt(dat, measure.vars = vars,
+             variable.name = "Measure", value.name = "status")
+
+# Harmonise coding: yes/no style values, missing shown as its own category
+long[, status := tolower(trimws(as.character(status)))]
+long[status %in% c("true", "1", "y", "yes"),  status := "yes"]
+long[status %in% c("false", "0", "n", "no"),  status := "no"]
+long[is.na(status) | status == "" | status == "na", status := "not reported"]
+
+# Category order (adds any extra categories found in the data)
+lev <- unique(c("yes", "no", "not reported", sort(unique(long$status))))
+long[, status_label := factor(status, levels = lev[lev %in% status])]
+
+# Clean x-axis labels
+long[, Measure := factor(Measure, levels = vars,
+                         labels = c("Open data", "Open code",
+                                    "Open material", "Preregistration"))]
+
+# ---- Counts and percentages within each measure ------------------------------
+d <- long[, .N, by = .(Measure, status_label)]
+d[, pct := 100 * N / sum(N), by = Measure]
+d[, pct_label := paste0(N, " (", round(pct), "%)")]
+d[, show_label := ifelse(pct >= 5, pct_label, "")]
+
+# ---- Palette (lipari, one colour per category) -------------------------------
+pal_st <- scico(nlevels(d$status_label), palette = "lipari", begin = 0.1, end = 0.85)
+# If you already have pal_lipari() defined, use: pal_st <- pal_lipari(nlevels(d$status_label))
+
+# ---- Plot --------------------------------------------------------------------
+ggplot(d, aes(x = Measure, y = pct, fill = status_label)) +
+  geom_col(width = 0.7, color = "white", linewidth = 0.4) +
+  geom_text(aes(label = show_label),
+            position = position_stack(vjust = 0.5),
+            size = 3.8, color = "white", family = "Helvetica") +
+  scale_fill_manual(values = pal_st, name = "Status") +
+  scale_y_continuous(
+    breaks = seq(0, 100, 25),
+    labels = function(x) paste0(x, "%"),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  theme_minimal(base_size = 14, base_family = "Helvetica") +
+  theme(
+    axis.ticks = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_line(colour = "grey92", linewidth = 0.3),
+    legend.position = "right",
+    legend.title = element_text(face = "bold", size = 13),
+    legend.text = element_text(size = 12),
+    plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+    plot.subtitle = element_text(size = 13, hjust = 0.5, color = "grey40"),
+    panel.border = element_blank()
+  ) +
+  labs(x = NULL, y = "Percentage of studies")
+
+d_open <- copy(d)
+
+
+# Text for manuscript: 
+n_total <- d_open[Measure == "Open data", sum(N)]
+
+# Returns "n (xx%)" for a given measure and status
+fmt <- function(measure, status = "yes") {
+  r <- d_open[Measure == measure & status_label == status]
+  if (nrow(r) == 0) return("0 (0%)")
+  sprintf("%d (%.0f%%)", r$N, r$pct)
+}
+
+# Returns only the percentage, e.g. "34%"
+pc <- function(measure, status = "yes") {
+  r <- d_open[Measure == measure & status_label == status]
+  if (nrow(r) == 0) return("0%")
+  sprintf("%.0f%%", r$pct)
+}
+
+library(data.table)
+
+# ---- Print the numbers in the console ----------------------------------------
+cat("\nOpen-science practices (N =", n_total, "studies)\n")
+cat(strrep("-", 50), "\n")
+
+# Full table: counts and percentages per measure and status
+print(
+  dcast(d_open, Measure ~ status_label, value.var = "N", fill = 0L)
+)
+
+# One line per practice
+for (m in levels(d_open$Measure)) {
+  cat(sprintf("%-16s yes: %s | no: %s | not reported: %s\n",
+              m, fmt(m, "yes"), fmt(m, "no"), fmt(m, "not reported")))
+}
+
+#Print the Results sentence as plain text 
+txt <- sprintf(
+  paste0("Open-science practices were uncommon across the %d included studies ",
+         "(Supplementary Fig. X). Preregistration was reported in %s of studies, ",
+         "and materials were shared in %s. Data were openly available in %s of ",
+         "studies, whereas analysis code was shared in only %s. For %s of studies, ",
+         "code availability was not reported at all."),
+  n_total,
+  fmt("Preregistration"), fmt("Open material"),
+  fmt("Open data"), fmt("Open code"),
+  fmt("Open code", "no")
+)
+
+cat("\n", strwrap(txt, width = 80), sep = "\n")
+```
+
+### Open-science practices
+
+Open-science practices were uncommon across the `r n_total` included studies
+(Supplementary Fig. X). Preregistration was reported in `r fmt("Preregistration")`
+of studies, and materials were shared in `r fmt("Open material")`. Data were
+openly available in `r fmt("Open data")` of studies, whereas analysis code was
+shared in only `r fmt("Open code")`. For `r fmt("Open code", "not reported")`
+of studies, code availability was not reported at all. Sharing was thus most
+frequent for materials and least frequent for analysis code, the resource most
+needed to reproduce the transformation and scoring pipelines described above.
+
+```{r sample-retensions}
+dat <- as.data.table(data_extract)
+study_col <- "doi"   # <- column that identifies the study (e.g. "ID", "study", "citation")
+
+phys <- c("HR", "HRV", "orbicularis_oculi", "startle", "SCR", "SCL", "eye", "pupil")
+phys <- phys[phys %in% names(dat)]
+
+# ---- Parse n_after_exclusion -------------------------------------------------
+# "SCR: 100; startle: 94"  -> one value per named measure
+# "88"                     -> assigned to the physio column(s) that are not NA
+parse_row <- function(i) {
+  x <- as.character(dat$n_after_exclusion[i])
+  if (is.na(x) || trimws(x) == "") return(NULL)
+
+  # physio measures recorded in this study (anything other than NA / empty)
+  used <- phys[vapply(phys, function(p) {
+    v <- dat[[p]][i]
+    !is.na(v) && trimws(as.character(v)) != ""
+  }, logical(1))]
+
+  if (grepl(":", x)) {
+    parts <- trimws(strsplit(x, ";")[[1]])
+    parts <- parts[grepl(":", parts)]
+    nm  <- trimws(sub(":.*$", "", parts))
+    val <- as.numeric(gsub("[^0-9.]", "", sub("^.*:", "", parts)))
+    key <- phys[match(tolower(gsub(" ", "_", nm)), tolower(phys))]
+    if (anyNA(key))
+      warning("Row ", i, ": unmatched measure name(s): ",
+              paste(nm[is.na(key)], collapse = ", "))
+    out <- data.table(row_id = i, physio = key, n_after = val, ambiguous = FALSE)
+    return(out[!is.na(physio)])
+  }
+
+  val <- as.numeric(gsub("[^0-9.]", "", x))
+  if (length(used) == 0) {
+    warning("Row ", i, ": single number but no physio column filled; skipped.")
+    return(NULL)
+  }
+  data.table(row_id = i, physio = used, n_after = val,
+             ambiguous = length(used) > 1)
+}
+
+after <- rbindlist(lapply(seq_len(nrow(dat)), parse_row))
+
+# ---- Combine with n_before_exclusion ----------------------------------------
+base <- dat[, .(row_id = .I,
+                study = as.character(get(study_col)),
+                n_before = as.numeric(n_before_exclusion))]
+d_ret <- merge(after, base, by = "row_id")
+
+# Single number that applies to several physio measures -> check manually
+if (any(d_ret$ambiguous)) {
+  message("Single N applied to several physio measures in these studies (check!):")
+  print(unique(d_ret[ambiguous == TRUE, .(study, physio, n_after)]))
+}
+
+if (any(d_ret$n_after > d_ret$n_before, na.rm = TRUE)) {
+  warning("n_after > n_before in some rows; excluded set to 0 there.")
+}
+
+d_ret[, excluded := pmax(n_before - n_after, 0)]
+
+# Long format for stacking 
+long <- melt(d_ret, id.vars = c("study", "physio", "n_before"),
+             measure.vars = c("n_after", "excluded"),
+             variable.name = "part", value.name = "n")
+long[, part := factor(part, levels = c("excluded", "n_after"),
+                      labels = c("Excluded", "Retained"))]   # Retained = left, Excluded = right
+
+# Sort studies by n_before within each panel (free_y drops unused levels)
+ord <- unique(long[, .(study, n_before)])[order(n_before)]
+long[, study := factor(study, levels = unique(ord$study))]
+long[, physio := factor(physio, levels = phys[phys %in% unique(physio)])]
+
+library(patchwork)
+
+# ---- Naming and colours as in the circle plots --------------------------------
+phys_present <- sort(levels(long$physio))            # same alphabetical order as Measure levels
+pal_meas <- setNames(pal_lipari(length(phys_present)), phys_present)
+
+label_measure <- function(x) {
+  x <- gsub("eye",     "EYE tracking", x)
+  x <- gsub("pupil",   "PUPIL SIZE",   x)
+  x <- gsub("startle", "EMG startle",  x)
+  gsub("_", " ", x)
+}
+
+col_excluded <- "#D1352B"
+
+# ---- Plot ---------------------------------------------------------------------
+big   <- intersect(c("SCR", "startle"), phys_present)
+small <- setdiff(phys_present, big)
+
+make_panel <- function(p) {
+  ggplot(long[physio == p], aes(x = n, y = study, fill = part)) +
+    geom_col(width = 0.8, color = NA) +
+    scale_fill_manual(values = c(Retained = unname(pal_meas[p]),
+                                 Excluded = col_excluded),
+                      drop = FALSE) +
+    scale_x_continuous(expand = expansion(mult = c(0, 0.02))) +
+    theme_minimal(base_size = 14, base_family = "Helvetica") +
+    theme(
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(colour = "grey92", linewidth = 0.3),
+      legend.position = "none",
+      plot.title = element_text(face = "bold", size = 14, hjust = 0),
+      panel.border = element_blank()
+    ) +
+    labs(title = label_measure(p), x = "Number of participants", y = "Studies")
+}
+
+panels <- setNames(lapply(c(big, small), make_panel), c(big, small))
+
+top    <- wrap_plots(panels[big],   ncol = length(big))
+bottom <- wrap_plots(panels[small], ncol = 3)
+
+p_ret <- top / bottom + plot_layout(heights = c(2, 1))
+p_ret
+
+```
+
