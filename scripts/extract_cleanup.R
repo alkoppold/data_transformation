@@ -445,6 +445,7 @@ data_extract.tests %>% checkContent(statistical_test_details, doi)
 
 # * * * Sphericity Handling -----------------------------------------------
 data_extract %>% checkContent(sphericity)
+data_extract.tests %>% checkContent(sphericity) #TODO check sphericity in long format?
 
 ### All sphericity_how = anything should be sphericity = yes
 # Some checks
@@ -471,7 +472,7 @@ data_extract = data_extract %>%
   mutate(sphericity_how = sphericity_how %>% str_replace_all("–", "-"))
 
 data_extract %>% 
-  filter(statistical_test == "ANOVA", #TODO could also be something like an LMM, GLM, multiple, etc.
+  filter(statistical_test == "ANOVA", #TODO could also be something like an LMM, GLM, multiple, etc. => only rely on design_within_levels_max ?
          design_within_levels_max > 2) %>% 
   checkContent(sphericity_how)
 #checked: Epsilon correction is different from GG or HF corrections
