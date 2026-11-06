@@ -472,7 +472,7 @@ data_extract %>% checkContent(sphericity_how)
 #   mutate(sphericity_how = sphericity_how %>% str_replace_all("–", "-")) #this has now been fixed in the original data
 
 data_extract %>% 
-  filter(statistical_test == "ANOVA", #TODO could also be something like an LMM, GLM, multiple, etc. => only rely on design_within_levels_max ?
+  filter(#statistical_test == "ANOVA", #could also be something like an LMM, GLM, multiple, etc. => only rely on design_within_levels_max
          design_within_levels_max > 2) %>% 
   checkContent(sphericity_how)
 #checked: Epsilon correction is different from GG or HF corrections
@@ -496,7 +496,11 @@ data_extract = data_extract %>% mutate(sphericity_category = case_when(
   sphericity_how %>% str_detect("correction") ~ "correction",
   T ~ "neither")) %>% relocate(sphericity_category, .after = sphericity_how)
 
-data_extract %>% filter(statistical_test == "ANOVA", design_within_levels_max > 2, sphericity_how %>% is.na() == F, sphericity_how != "not reported") %>% checkContent(sphericity_category)
+data_extract %>% filter(#statistical_test == "ANOVA", 
+                        design_within_levels_max > 2, 
+                        sphericity_how %>% is.na() == F, 
+                        sphericity_how != "not reported") %>% 
+  checkContent(sphericity_category)
 
 
 # * * Independence of Residuals -------------------------------------------
