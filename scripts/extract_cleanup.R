@@ -465,11 +465,11 @@ data_extract %>% checkContent(sphericity)
 # Check sphericity_how column
 data_extract %>% checkContent(sphericity_how)
 
-data_extract = data_extract %>% 
-  ## does not work because of multiple entries
-  # mutate(sphericity_how = case_when(sphericity_how %>% str_detect("Greenhouse") ~ "Greenhouse-Geisser correction",
-  #                               sphericity_how %>% str_detect("Huynh") ~ "Huynh-Feldt correction",))
-  mutate(sphericity_how = sphericity_how %>% str_replace_all("–", "-"))
+# data_extract = data_extract %>% 
+#   ## does not work because of comma-separated entries (e.g., "Mauchly's test, Greenhouse-Geisser correction")
+#   # mutate(sphericity_how = case_when(sphericity_how %>% str_detect("Greenhouse") ~ "Greenhouse-Geisser correction",
+#   #                               sphericity_how %>% str_detect("Huynh") ~ "Huynh-Feldt correction",))
+#   mutate(sphericity_how = sphericity_how %>% str_replace_all("–", "-")) #this has now been fixed in the original data
 
 data_extract %>% 
   filter(statistical_test == "ANOVA", #TODO could also be something like an LMM, GLM, multiple, etc. => only rely on design_within_levels_max ?
