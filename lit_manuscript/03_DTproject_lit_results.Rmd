@@ -29,6 +29,9 @@ library(scico)
 library(ggrepel)
 library(ggsankey)
 library(data.table)
+library(scico)
+library(ggplot2)
+library(data.table)
 
 # Load data
 data_extract <- readr::read_rds(
@@ -251,7 +254,10 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
 d_trans <- copy(d); id_named_vec_trans <- id_named_vec
 ```
 
-```{r circle-plot-range-correction}
+
+```{r range-correction-stackedbar}
+
+### Prepare data
 # Select columns
 df <- data_extract %>% select(doi, `HR`:Range_correction_type, -dt_specs)
 n_total <- df %>% pull(doi) %>% unique() %>% length()
@@ -313,52 +319,6 @@ d$Measure <- gsub("eye", "EYE tracking", d$Measure)
 d$Measure <- gsub("pupil", "PUPIL SIZE", d$Measure)
 d$Measure <- gsub("startle", "EMG startle", d$Measure)
 
-### Color palette
-d$Measure <- as.factor(d$Measure)
-pal1 <- pal_lipari(length(levels(d$Measure)))
-
-### PLOT
-ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) +
-  geom_line(alpha = 0.5, size = 0.8, color = "grey50") +
-  geom_point(aes(size = pct), stroke = 1.2, fill = "white") +  # SIZE mapped to pct
-  geom_hline(yintercept = 1:length(unique(d$Measure)), colour = "grey92", size = 0.3) +
-  geom_vline(xintercept = 1:length(unique(d$ID)), colour = "grey92", size = 0.3) +
-  geom_rect(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0.6, fill = "white", color = NA) +
-  coord_polar() +
-  scale_shape_manual(values = c(19, 21)) +
-  scale_y_continuous(
-    limits = c(0, length(unique(d$Measure)) + 1),
-    breaks = 1:length(unique(d$Measure)),
-    labels = levels(d$Measure)
-  ) +
-  scale_color_manual(values = pal1) +
-  scale_size(range = c(2, 10), name = "Percentage within measure") +  # Dot size scale
-  scale_x_discrete(labels = id_named_vec) +
-  theme_minimal(base_size = 14, base_family = "Helvetica") +
-  theme(
-    axis.text.y = element_blank(),
-    axis.ticks = element_blank(),
-    panel.grid = element_blank(),
-    legend.position = "right",
-    legend.title = element_text(face = "bold", size = 13),
-    legend.text = element_text(size = 12),
-    plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
-    plot.subtitle = element_text(size = 13, hjust = 0.5, color = "grey40"),
-    panel.border = element_blank()
-  ) +
-  labs(
-    x = NULL,
-    y = NULL,
-    shape = "Transformation count",
-    color = paste0("Measure")
-  )
-```
-
-```{r rc-stackedbar}
-library(scico)
-library(ggplot2)
-library(data.table)
-
 # Clean labels for the legend
 d[, RC_label := gsub("_", " ", Range_correction_type)]
 d[, RC_label := factor(RC_label, levels = unique(RC_label[order(ID)]))]
@@ -419,7 +379,6 @@ d_rc <- copy(d)
 ```
 
 ```{r merge-plots}
-library(scico)
 
 # ---- Panel A: circle plot of transformations ---------------------------------
 d_trans[, Measure := factor(Measure, levels = sort(unique(as.character(Measure))))]
@@ -692,7 +651,7 @@ normality_plot
 # Filter and select relevant variables
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 df_rmanova_spher <- data_extract %>%
-  filter(statistical_test_details == "rmANOVA") %>% #TODO number of within factor levels
+ # filter(statistical_test_details == "rmANOVA") %>% #TODO number of within factor levels
   select(sphericity_how, sphericity_category) %>%
   drop_na(sphericity_how, sphericity_category)
 
