@@ -4,6 +4,85 @@
 
 # This file contains the outtakes from the literature part scripts
 
+```{r assumptions-sphericity}
+### Prepare the data
+# Filter and select relevant variables
+#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
+df_rmanova_spher <- data_extract %>%
+  filter(statistical_test_details == "rmANOVA") %>% #TODO number of within factor levels
+  select(sphericity_how, sphericity_category) %>%
+  drop_na(sphericity_how, sphericity_category)
+
+# Total articles with rmANOVA
+n_articles_rmANOVA <- nrow(df_rmanova_spher)
+
+# Split cell with several entries divided by "," (transform it into long format) and remove NAs
+vec_spher <- unlist(strsplit(c(df_rmanova_spher$sphericity_how,df_rmanova_spher$category), split = ",\\s*"))
+vec_spher <- vec_spher[!is.na(vec_spher)]
+
+# Delete spaces in front of 2 Greenhouse-Geissers
+vec_spher <- gsub(" Greenhouse–Geisser correction", "Greenhouse–Geisser correction", vec_spher)
+
+
+# BAR PLOT: sphericity_how
+
+### Prepare data
+df_bar_spher <- tibble(response = vec_spher) %>%
+  count(response) %>%
+  mutate(
+    percent = n / n_articles_rmANOVA,
+    response = fct_reorder(response, n)
+  )
+
+# Add categories: is it a test or a correction
+df_bar_spher$category <- "NA"
+df_bar_spher$category[grep("correction", df_bar_spher$response)] <- "Correction"
+df_bar_spher$category[grep("test", df_bar_spher$response)] <- "Test"
+
+### PLOT
+plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = category)) +
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = paste0(" (", round(percent * 100, digits = 1), "%)")),
+    hjust = -0.1, size = 3.8
+  ) +
+  scale_y_continuous(
+    breaks = seq(0, max(df_bar_spher$n) + 50, by = 20),
+    limits = c(0, max(df_bar_spher$n) + 50),
+    expand = expansion(mult = c(0, 0.1))
+  ) +
+  scale_fill_manual(values = pal_lipari(n_lev(df_bar_spher$category))) +
+  coord_flip() +
+  lit_theme +
+  theme(
+    legend.position = "bottom",
+    axis.title.y = element_blank()
+  ) +
+  labs(
+    title = "How was sphericity checked?",
+    y = "Number of studies",
+    fill = "Category"
+  )
+
+
+# Combine pie chart with bar plot
+
+# Delete the title of the pie chart
+pies[[5]] <- pies[[5]] + theme(plot.title = element_blank())
+
+# Combine the pie chart with the bar chart
+sphericity_plot <- pies[[5]] + plot_sphericity_bar +
+  plot_annotation(
+    title = "Was the sphericity checked and how?",
+    tag_levels = "A",
+    theme = theme(plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+                  plot.tag = element_text(size = 20, face = "bold"))
+  )
+
+# Display
+sphericity_plot
+```
+
 ```{r circle-plot-range-correction}
 # Select columns
 df <- data_extract %>% select(doi, `HR`:Range_correction_type, -dt_specs)
