@@ -466,26 +466,8 @@ ggsave("Figure_AB.png", p_AB, width = 12, height = 18, dpi = 300, bg = "white")
 ```
 
 ```{r assumptions-prepare-data}
-# Extract and rename relevant columns
-#data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
+# Extract relevant columns
 df_check = data_extract %>% select(normality:multicollinearity_how, statistical_test)
-
-# names(df_check) <- c(
-#   "normal_distribution",
-#   "normal_how",
-#   "normal_before_after",
-#   "homoscedasticity",
-#   "homoscedasticity_how",
-#   #"sphericity", #sphericity old, which got deselected
-#   "sphericity_how", 
-#   "independence of residuals",
-#   "independence_how",
-#   "linearity",
-#   "linearity_how",
-#   "multicollinearity",
-#   "multicollinearity_how",
-#   "statistical_test"
-# )
 ```
 
 ```{r results-assumptions-overview}
@@ -623,7 +605,7 @@ plot_normal_bar <- df_check %>%
     axis.title.y = element_blank()
   ) +
   labs(
-    title = "",
+    title = "How was the normality checked?",
     y = "Number of studies"
   )
 
@@ -631,12 +613,11 @@ plot_normal_bar <- df_check %>%
 # Combine pie chart with bar plot
 
 # Delete the title of the pie chart
-pies[[4]] <- pies[[4]] + theme(plot.title = element_blank())
+pies[[4]] <- pies[[4]] + ggtitle("Was the normality checked?")
 
 # Combine the pie chart with the bar chart
 normality_plot <- pies[[4]] + plot_normal_bar +
   plot_annotation(
-    title = "Was the normal distribution tested and how?",
     tag_levels = "A",
     theme = theme(plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
                   plot.tag = element_text(size = 20, face = "bold"))
@@ -650,16 +631,15 @@ normality_plot
 ### Prepare the data
 # Filter and select relevant variables
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
-df_rmanova_spher <- data_extract %>%
- # filter(statistical_test_details == "rmANOVA") %>% #TODO number of within factor levels
+df_spher <- data_extract %>%
   select(sphericity_how, sphericity_category) %>%
   drop_na(sphericity_how, sphericity_category)
 
-# Total articles with rmANOVA
-n_articles_rmANOVA <- nrow(df_rmanova_spher)
+# Total articles that checked or corrected for sphericity
+n_articles_spher <- nrow(df_spher)
 
-# Split cell with several entries divided by "," and remove NAs
-vec_spher <- unlist(strsplit(c(df_rmanova_spher$sphericity_how,df_rmanova_spher$category), split = ",\\s*"))
+# Split cell with several entries divided by "," (transform it into long format) and remove NAs
+vec_spher <- unlist(strsplit(c(df_spher$sphericity_how,df_spher$category), split = ",\\s*"))
 vec_spher <- vec_spher[!is.na(vec_spher)]
 
 # Delete spaces in front of 2 Greenhouse-Geissers
@@ -672,7 +652,7 @@ vec_spher <- gsub(" Greenhouse–Geisser correction", "Greenhouse–Geisser corr
 df_bar_spher <- tibble(response = vec_spher) %>%
   count(response) %>%
   mutate(
-    percent = n / n_articles_rmANOVA,
+    percent = n / n_articles_spher,
     response = fct_reorder(response, n)
   )
 
@@ -701,7 +681,7 @@ plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = cate
     axis.title.y = element_blank()
   ) +
   labs(
-    title = "How was sphericity checked?",
+    title = "How was the sphericity checked?",
     y = "Number of studies",
     fill = "Category"
   )
@@ -710,12 +690,11 @@ plot_sphericity_bar <- ggplot(df_bar_spher, aes(x = response, y = n, fill = cate
 # Combine pie chart with bar plot
 
 # Delete the title of the pie chart
-pies[[5]] <- pies[[5]] + theme(plot.title = element_blank())
+pies[[5]] <- pies[[5]] + ggtitle("Was the sphericity checked?")
 
 # Combine the pie chart with the bar chart
 sphericity_plot <- pies[[5]] + plot_sphericity_bar +
   plot_annotation(
-    title = "Was the sphericity checked and how?",
     tag_levels = "A",
     theme = theme(plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
                   plot.tag = element_text(size = 20, face = "bold"))
