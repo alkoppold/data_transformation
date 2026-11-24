@@ -1291,5 +1291,78 @@ bottom <- wrap_plots(panels[small], ncol = 3)
 p_ret <- top / bottom + plot_layout(heights = c(2, 1))
 p_ret
 
+d_ret[, retention := pmin(n_after / n_before, 1) * 100]   # in Prozent, bei n_after > n_before auf 100 gedeckelt
+
+ret_summary <- d_ret[is.finite(retention),
+                     .(k            = .N,                       # Anzahl Studien
+                       retention.m  = mean(retention),
+                       retention.sd = sd(retention)),
+                     by = .(DV = physio)
+][order(retention.m)]
+
+# Formatierte Ausgabe (eine Nachkommastelle)
+ret_summary[, `:=`(retention.m  = round(retention.m, 1),
+                   retention.sd = round(retention.sd, 1))]
+
+
+
+```
+
+```{r retention-sd}
+# ---- Retention rate (%) per measure: M, SD, k --------------------------------
+ret_stats <- d_ret[is.finite(n_before) & n_before > 0,
+                   .(retention = pmin(n_after / n_before, 1) * 100),
+                   by = .(study, physio)
+][, .(M = mean(retention), SD = sd(retention), k = .N), by = physio]
+
+ret_lab <- setNames(
+  sprintf("Retention: M = %.1f%%, SD = %.1f  (k = %d)",
+          ret_stats$M, ret_stats$SD, ret_stats$k),
+  ret_stats$physio
+)
+
+# ---- Plot ---------------------------------------------------------------------
+big   <- intersect(c("SCR", "startle"), phys_present)
+small <- setdiff(phys_present, big)
+
+make_panel <- function(p) {
+  ggplot(long[physio == p], aes(x = n, y = study, fill = part)) +
+    geom_col(width = 0.8, color = NA) +
+    scale_fill_manual(values = c(Retained = unname(pal_meas[p]),
+                                 Excluded = col_excluded),
+                      drop = FALSE) +
+    scale_x_continuous(expand = expansion(mult = c(0, 0.02))) +
+    theme_minimal(base_size = 14, base_family = "Helvetica") +
+    theme(
+      axis.text.y        = element_blank(),
+      axis.ticks         = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor   = element_blank(),
+      panel.grid.major.x = element_line(colour = "grey92", linewidth = 0.3),
+      legend.position    = "none",
+      plot.title         = element_text(face = "bold", size = 14, hjust = 0),
+      plot.subtitle      = element_text(size = 10.5, colour = "grey30",
+                                        hjust = 0, margin = margin(b = 6)),
+      panel.border       = element_blank()
+    ) +
+    labs(title    = label_measure(p),
+         subtitle = ret_lab[[p]],
+         x = "Number of participants", y = "Studies")
+}
+
+panels <- setNames(lapply(c(big, small), make_panel), c(big, small))
+
+top    <- wrap_plots(panels[big],   ncol = length(big))
+bottom <- wrap_plots(panels[small], ncol = 3)
+
+p_ret <- (top / bottom + plot_layout(heights = c(2, 1))) +
+  plot_annotation(
+    caption = paste0("Retention = retained / N before exclusion, ",
+                     "M and SD across studies (k = number of studies). ",
+                     "Bars: retained (colour) and excluded (red).")
+  ) &
+  theme(plot.caption = element_text(size = 9, colour = "grey40", hjust = 0))
+
+p_ret
 ```
 
