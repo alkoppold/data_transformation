@@ -245,8 +245,8 @@ ggplot(d, aes(x = ID, y = Measure2, color = Measure, shape = Type, group = ID)) 
     panel.border = element_blank()
   ) +
   labs(
-    x = NULL,
-    y = NULL,
+    title = "Overview of all extracted transformations across studies",
+    x = NULL, y = NULL,
     shape = "Transformation count",
     color = paste0("Measure used in (% of ", n_total, " studies)")
   )
@@ -373,7 +373,10 @@ ggplot(d, aes(x = Measure, y = pct, fill = RC_label)) +
     plot.subtitle = element_text(size = 13, hjust = 0.5, color = "grey40"),
     panel.border = element_blank()
   ) +
-  labs(x = NULL, y = "Percentage within measure")
+  labs(
+    title = "Specification of range correction types in studies applying range correction",
+    x = NULL, y = "Percentage within measure"
+  )
 
 d_rc <- copy(d)
 ```
@@ -454,14 +457,17 @@ p_B <- ggplot(d_rc, aes(x = Measure, y = pct, fill = RC_label)) +
   labs(x = NULL, y = "Percentage within measure")
 
 # ---- Combine -----------------------------------------------------------------
-p_AB <- (p_A / p_B) +
+p_AB <- ((p_A + ggtitle("Overview of all extracted transformations across studies")) /
+         (p_B + ggtitle("Specification of range correction types (studies using range correction)"))) +
   plot_layout(heights = c(1.3, 1)) +
   plot_annotation(tag_levels = "A") &
-  theme(plot.tag = element_text(face = "bold", size = 20))
+  theme(
+    plot.tag            = element_text(face = "bold", size = 20),
+    plot.title          = element_text(face = "bold", size = 15, hjust = 0),
+    plot.title.position = "plot"
+  )
 
-p_AB
-
-# Save (adjust size as needed)
+print(p_AB)   # check in the viewer first
 ggsave("Figure_AB.png", p_AB, width = 12, height = 18, dpi = 300, bg = "white")
 ```
 
@@ -1070,11 +1076,14 @@ long[, Measure := factor(Measure, levels = vars,
 d <- long[, .N, by = .(Measure, status_label)]
 d[, pct := 100 * N / sum(N), by = Measure]
 d[, pct_label := paste0(N, " (", round(pct), "%)")]
-d[, show_label := ifelse(pct >= 5, pct_label, "")]
+d[, show_label := pct_label]
+d[, small := pct < 5]
 
 # ---- Palette (lipari, one colour per category) -------------------------------
-pal_st <- scico(nlevels(d$status_label), palette = "lipari", begin = 0.1, end = 0.85)
-# If you already have pal_lipari() defined, use: pal_st <- pal_lipari(nlevels(d$status_label))
+pal_st <- pal_lipari(nlevels(d$status_label))
+# If you already have pal_lipari() defined, use: pal_st <- 
+
+
 
 # ---- Plot --------------------------------------------------------------------
 ggplot(d, aes(x = Measure, y = pct, fill = status_label)) +
@@ -1314,7 +1323,7 @@ ret_stats <- d_ret[is.finite(n_before) & n_before > 0,
 ][, .(M = mean(retention), SD = sd(retention), k = .N), by = physio]
 
 ret_lab <- setNames(
-  sprintf("Retention: M = %.1f%%, SD = %.1f  (k = %d)",
+  sprintf("Retention: M = %.1f%%, SD = %.1f%%  (k = %d)",
           ret_stats$M, ret_stats$SD, ret_stats$k),
   ret_stats$physio
 )
@@ -1362,5 +1371,59 @@ p_ret <- (top / bottom + plot_layout(heights = c(2, 1))) +
   theme(plot.caption = element_text(size = 9, colour = "grey40", hjust = 0))
 
 p_ret
+```
+
+```{r demographic-info}
+library(gsheet)
+data_extract.original = gsheet2tbl('https://docs.google.com/spreadsheets/d/1In5IKFNKbVj4WJCawDu2xfr_0CJ3off3Nr5chBaoYYU/edit?gid=1869532958')
+
+
+dat <- as.data.table(data_extract.original)
+mh_col <- "mental health disorder exclusion (yes, no, unclear, not reported, partially)"
+
+
+num <- function(x) suppressWarnings(as.numeric(gsub("[^0-9.]", "", as.character(x))))
+
+n_female <- num(dat$n_female_total)
+age_m    <- num(dat$age_mean_total)
+age_sd   <- num(dat$age_sd_total)
+
+n_studies <- nrow(dat)
+
+# ---- Sex ----------------------------------------------------------------------
+f <- n_female[!is.na(n_female)]
+txt_sex <- sprintf(
+  "The number of female participants was reported in %d of %d studies (total = %s; per study M = %.1f, SD = %.1f, range %s to %s).",
+  length(f), n_studies, format(sum(f), big.mark = ","),
+  mean(f), sd(f), format(min(f), big.mark = ","), format(max(f), big.mark = ","))
+
+# ---- Age ----------------------------------------------------------------------
+a  <- age_m[!is.na(age_m)]
+as <- age_sd[!is.na(age_sd)]
+txt_age <- sprintf(
+  "Mean age was reported in %d studies (M of study means = %.1f years, SD = %.1f; range %.1f to %.1f). Standard deviations of age were reported in %d studies (mean within-study SD = %.1f).",
+  length(a), mean(a), sd(a), min(a), max(a), length(as), mean(as))
+
+# ---- Mental health disorder exclusion -----------------------------------------
+mh <- tolower(trimws(as.character(dat[[mh_col]])))
+mh[is.na(mh) | mh == ""] <- "not reported"
+mh  <- factor(mh, levels = c("yes", "partially", "no", "unclear", "not reported"))
+tab <- table(mh)
+
+parts <- sprintf("%s (%d studies, %.1f%%)", names(tab), as.integer(tab),
+                 as.integer(tab) / sum(tab) * 100)
+txt_mh <- paste0(
+  "Regarding the exclusion of participants with mental health disorders, studies reported: ",
+  paste(parts[-length(parts)], collapse = ", "), " and ", parts[length(parts)], ".")
+
+# ---- Caution ------------------------------------------------------------------
+txt_caution <- paste(
+  "Please note that the demographic information should be interpreted with caution:",
+  "in some studies the reported numbers referred to all included individuals,",
+  "whereas in others they referred to the sample after exclusions.",
+  "We extracted the values as reported by the authors and did not recompute them.")
+
+demo_text <- paste(txt_sex, txt_age, txt_mh, txt_caution, sep = " ")
+cat(strwrap(demo_text, width = 90), sep = "\n")
 ```
 
