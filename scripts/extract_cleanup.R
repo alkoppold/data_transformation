@@ -158,7 +158,7 @@ data_extract.transformation %>% checkContent(transformation, doi)
 # * * Transformation: Main vs. RC -----------------------------------------
 #TODO copy to results
 data_extract.transformation = data_extract.transformation %>% 
-  mutate(transformation_main = transformation %>% str_remove_all("(,\\s*)\\brc\\b|\\brc\\b(,\\s*)"), #remove "rc" with leading or trailing ", " (but not both leading AND trialing)
+  mutate(transformation_main = transformation %>% str_remove_all("(,\\s*)\\brc\\b|\\brc\\b(,\\s*)"), #remove "rc" with leading or trailing ", " (but not both leading AND trailing)
          transformation_main = if_else(transformation_main == "rc", "rc only", transformation_main), #explicate that remaining "rc" in this column means that no other transformation has been applied
          transformation_rc = transformation %>% str_detect(fixed("rc"))) %>% 
   relocate(transformation_main, transformation_rc, .after = transformation)
