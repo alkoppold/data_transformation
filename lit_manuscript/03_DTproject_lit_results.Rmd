@@ -691,11 +691,15 @@ ggsave("figures/normality_plot.png", plot = normality_plot, width = 18, height =
 # Filter and select relevant variables
 #data.frame(colname = data_extract %>% colnames()) %>% mutate(colnum = 1:n()) %>% relocate(colnum)
 df_spher <- data_extract %>%
-  select(sphericity_how, sphericity_category) %>%
-  drop_na(sphericity_how, sphericity_category)
+  filter(design_within_levels_max > 2)  %>%
+  select(sphericity_how, sphericity_category)
 
-# Total articles that checked or corrected for sphericity
+# Total articles that should have for sphericity
 n_articles_spher <- nrow(df_spher)
+
+# Drop NAs
+df_spher <- df_spher %>%
+  drop_na(sphericity_how, sphericity_category)
 
 # Split cell with several entries divided by "," (transform it into long format) and remove NAs
 vec_spher <- unlist(strsplit(c(df_spher$sphericity_how,df_spher$category), split = ",\\s*"))
